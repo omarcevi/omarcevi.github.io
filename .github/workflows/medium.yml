@@ -1,0 +1,29 @@
+name: Sync Medium posts
+
+on:
+  schedule:
+    - cron: "17 5 * * *"   # daily, 08:17 Istanbul time
+  workflow_dispatch:        # run it by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/update_medium.py
+      - name: Commit if the Writing section changed
+        run: |
+          if git diff --quiet index.html; then
+            echo "Nothing new."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Sync latest Medium posts"
+          git push

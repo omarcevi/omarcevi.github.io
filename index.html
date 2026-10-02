@@ -4,7 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Omar Elcircevi — ML Inference Systems Engineer</title>
-  <meta name="description" content="ML inference systems engineer at Trendyol. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <meta name="description" content="ML inference systems engineer. Google Developer Expert in Cloud AI. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <link rel="canonical" href="https://omarcevi.dev/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://omarcevi.dev/">
+  <meta property="og:title" content="Omar Elcircevi — ML Inference Systems Engineer">
+  <meta property="og:description" content="ML inference systems engineer. Google Developer Expert in Cloud AI. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Omar Elcircevi — ML Inference Systems Engineer">
+  <meta name="twitter:description" content="ML inference systems engineer. Google Developer Expert in Cloud AI. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <meta name="twitter:image" content="https://omarcevi.dev/og-image.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -84,6 +98,30 @@
       font-size: 0.95rem;
       margin: 0.25rem 0 0;
     }
+    .bullets {
+      list-style: disc;
+      padding-left: 1.2rem;
+      margin-top: 0.5rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .bullets li {
+      padding: 0.15rem 0;
+      border-bottom: none;
+    }
+    .more { font-size: 0.95rem; margin-top: 0.75rem; }
+    .badge {
+      display: inline-block;
+      margin-top: 1.25rem;
+      border-bottom: none;
+    }
+    .badge:hover { border-bottom: none; opacity: 0.9; }
+    .badge img {
+      display: block;
+      width: 300px;
+      max-width: 100%;
+      height: auto;
+    }
     footer {
       margin-top: 4rem;
       padding-top: 2rem;
@@ -99,19 +137,47 @@
 <body>
   <header>
     <h1>Omar Elcircevi</h1>
-    <p class="tagline">Building production ML inference systems · Google Dev Group Organizer · Speaker · OSS contributor</p>
+    <p class="tagline">Building production ML inference systems · Google Developer Expert,&nbsp;Cloud&nbsp;AI · Google Dev Group Organizer · Speaker · OSS contributor</p>
+    <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
+      <img src="gde-cloud-ai-2026.png" width="900" height="319" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
+    </a>
   </header>
 
   <section>
     <h2>About</h2>
-    <p>I work on ML inference systems at <a href="https://trendyol.com">Trendyol</a>, where I help deploy and optimize the platform that serves recommendation engines, search ranking, and increasingly AI agents in production.</p>
-    <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, Kubernetes across cloud and on-prem, and Piper, our in-house orchestration system. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
-    <p>I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad.</p>
+    <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
+    <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
+    <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
+  </section>
+
+  <section>
+    <h2>Experience</h2>
+    <ul>
+      <li>
+        <div class="item-title">Machine Learning Engineer, Inference Platform</div>
+        <div class="item-meta">Large e-commerce marketplace · Mar 2024 – Sep 2026</div>
+        <ul class="bullets">
+          <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
+          <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
+          <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
+          <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
+          <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+        </ul>
+      </li>
+      <li>
+        <div class="item-title">Turkcell</div>
+        <div class="item-meta">AI &amp; Analytical Solutions · 2022 – 2024</div>
+      </li>
+    </ul>
   </section>
 
   <section>
     <h2>Selected Talks</h2>
     <ul>
+      <li>
+        <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
+        <div class="item-meta">Google Developer Day · September 2026</div>
+      </li>
       <li>
         <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a></div>
         <div class="item-meta">DevFest Istanbul · 2023</div>
@@ -136,12 +202,41 @@
   </section>
 
   <section>
+    <h2>Workshops</h2>
+    <ul>
+      <li>
+        <div class="item-title">Architecting Multi-Agent Systems with Google ADK</div>
+        <div class="item-meta">Google Developer Day · September 2026</div>
+      </li>
+      <li>
+        <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
+        <div class="item-meta">Google Developer Experts · August 2026</div>
+      </li>
+      <li>
+        <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
+        <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
+        <div class="item-meta">May 2026</div>
+      </li>
+    </ul>
+  </section>
+
+  <section>
     <h2>Projects</h2>
     <ul>
       <li>
         <div class="item-title"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a> — agents that turn a GitHub issue into a tested pull request</div>
         <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
         <div class="item-meta">Python · Google ADK · Agent Runtime · Vertex AI · Terraform · GitHub Actions</div>
+      </li>
+      <li>
+        <div class="item-title"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a> — load testing vllm-metal on an M1 Pro</div>
+        <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
+        <div class="item-meta">vllm-metal · AIPerf · Gemma · Qwen · Apple Silicon</div>
+      </li>
+      <li>
+        <div class="item-title"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a> — your first model on Triton Inference Server</div>
+        <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
+        <div class="item-meta">NVIDIA Triton · ONNX · Docker · GKE</div>
       </li>
       <li>
         <div class="item-title"><a href="https://github.com/omarcevi/augury">augury</a> — a terminal-native AI research digest</div>
@@ -154,6 +249,31 @@
         <div class="item-meta">Claude Code plugin · hooks · bash</div>
       </li>
     </ul>
+  </section>
+
+  <section>
+    <h2>Writing</h2>
+    <ul>
+<!-- MEDIUM:START -->
+      <li>
+        <div class="item-title"><a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">Your Model Works in a Notebook. Now What? A Friendly Intro to NVIDIA Triton Inference Server</a></div>
+        <div class="item-meta">Medium · October 2026</div>
+      </li>
+      <li>
+        <div class="item-title"><a href="https://omarcevi.medium.com/one-h100-many-models-what-i-learned-sharing-gpus-on-kubernetes-9eb635db2311">One H100, Many Models: What I Learned Sharing GPUs on Kubernetes</a></div>
+        <div class="item-meta">Medium · September 2026</div>
+      </li>
+      <li>
+        <div class="item-title"><a href="https://omarcevi.medium.com/i-stopped-chasing-the-gde-title-thats-when-i-got-it-eb385130109e">I Stopped Chasing the GDE Title. That&#x27;s When I Got It.</a></div>
+        <div class="item-meta">Medium · September 2026</div>
+      </li>
+      <li>
+        <div class="item-title"><a href="https://omarcevi.medium.com/revisiting-basics-software-design-principles-9541d10ac096">Revisiting Basics: Software Design Principles</a></div>
+        <div class="item-meta">Medium · August 2025</div>
+      </li>
+<!-- MEDIUM:END -->
+    </ul>
+    <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
   </section>
 
   <section>
