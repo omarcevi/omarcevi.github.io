@@ -19,6 +19,9 @@ follow.
 """
 import argparse
 import hashlib
+import os
+import platform
+import time
 import html
 import json
 import re
@@ -126,11 +129,45 @@ def show(b):
 
 
 # ------------------------------------------------------------------ hero ----
+def cpu_name():
+    try:
+        for line in open("/proc/cpuinfo"):
+            if line.startswith("model name"):
+                return " ".join(line.split(":", 1)[1].split())
+    except OSError:
+        pass
+    return platform.processor() or platform.machine()
+
+
+def time_steps(sess, ids, repeats=7):
+    """Wall-clock latency of generating each token of `ids` one at a time.
+
+    Step i is one forward pass over <|endoftext|> + ids[:i], which is exactly the
+    computation that predicts token i. This ONNX export has no KV-cache inputs,
+    so every step re-reads the whole prefix (median of `repeats` runs).
+    """
+    feed = lambda seq: {"input1": np.array([[seq]], dtype=np.int64)}
+    for _ in range(3):
+        sess.run(["output1"], feed([EOT] + ids))       # warm-up
+    out = []
+    for i in range(len(ids)):
+        seq, ts = [EOT] + ids[:i], []
+        for _ in range(repeats):
+            t = time.perf_counter()
+            sess.run(["output1"], feed(seq))
+            ts.append((time.perf_counter() - t) * 1000)
+        out.append(float(np.median(ts)))
+    return out
+
+
 def hero(sess, outs, softmax_outs, enc, page):
+    import onnxruntime as ort
+
     text = page["name"] + "\n" + page["tagline"]
     ids = enc.encode(text)
     logits, _ = run(sess, outs, softmax_outs, [EOT] + ids)
     probs = softmax(logits.astype(np.float64))
+    step_ms = time_steps(sess, ids)
 
     steps, buf, buf_p, start, pos = [], b"", 1.0, 0, 0
     nll = []
@@ -138,7 +175,8 @@ def hero(sess, outs, softmax_outs, enc, page):
         p = probs[i]                                   # prediction for token i (after EOT + ids[:i])
         nll.append(-np.log2(p[tid]))
         if not buf:
-            first_p, first_i = p, tid
+            first_p, first_i, buf_ms = p, tid, 0.0
+        buf_ms += step_ms[i]
         buf += enc.token_bytes(tid)
         buf_p *= float(p[tid])
         try:
@@ -148,7 +186,7 @@ def hero(sess, outs, softmax_outs, enc, page):
         order = np.argsort(-first_p)
         cands = [[show(enc.token_bytes(int(c))), round(float(first_p[c]), 4)] for c in order[:TOP_K_HERO]]
         rank = int(np.where(order == first_i)[0][0]) + 1
-        steps.append({"t": piece, "s": pos, "p": round(buf_p, 5), "rank": rank, "cands": cands})
+        steps.append({"t": piece, "s": pos, "p": round(buf_p, 5), "rank": rank, "cands": cands, "ms": round(buf_ms, 2)})
         pos += len(piece)
         buf, buf_p = b"", 1.0
 
@@ -170,6 +208,15 @@ def hero(sess, outs, softmax_outs, enc, page):
         "tokens": len(ids),
         "perplexity": round(float(2 ** np.mean(nll)), 1),
         "tagline_perplexity": round(float(2 ** np.mean(nll[-tag_ids:])), 1),
+        "timing": {
+            "ttft_ms": round(step_ms[0], 2),
+            "total_ms": round(sum(step_ms), 1),
+            "tok_s": round(len(ids) / (sum(step_ms) / 1000), 1),
+            "runtime": f"ONNX Runtime {ort.__version__}",
+            "device": cpu_name(),
+            "threads": os.cpu_count(),
+            "kv_cache": False,
+        },
     }
 
 

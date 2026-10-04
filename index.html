@@ -212,7 +212,10 @@
     .c-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .c-bar i { display: block; height: 100%; background: var(--accent); min-width: 1px; }
     .c-p { text-align: right; }
-    .gen { font-family: var(--mono); font-size: 0.74rem; color: var(--faint); margin-top: 1rem; min-height: 1.3em; }
+    .gen { font-family: var(--mono); font-size: 0.74rem; color: var(--faint); margin-top: 1.1rem; min-height: 3.2em; }
+    .metrics { display: flex; flex-wrap: wrap; gap: 0.3rem 1.4rem; font-size: 0.82rem; color: var(--text); font-variant-numeric: tabular-nums; }
+    .metrics .m i { font-style: normal; color: var(--faint); margin-right: 0.45em; }
+    .gen-note { margin-top: 0.35rem; }
     .gen b { color: var(--muted); font-weight: 500; }
     .gen .ok { color: var(--ok); }
     .linkbtn { font: inherit; background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; }
@@ -412,6 +415,10 @@
       transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .card:hover { transform: translateY(-2px); border-color: rgba(var(--accent-rgb), 0.45); }
+    .card.has-thumb { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 1.2rem; align-items: start; }
+    .thumb { display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); text-decoration: none; }
+    .thumb img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.3s ease; }
+    .card:hover .thumb img { transform: scale(1.03); }
     .card .name { font-family: var(--mono); font-weight: 500; font-size: 0.95rem; }
     .card .name a { text-decoration: none; }
     .card .name a::after { content: " ↗"; color: var(--accent); font-size: 0.85em; }
@@ -453,6 +460,8 @@
       .rows > li { grid-template-columns: 1fr; gap: 0.15rem; }
       .rows .date { padding-top: 0; }
       .card { padding: 1.05rem; }
+      .card.has-thumb { grid-template-columns: 1fr; }
+      .card.has-thumb .thumb { order: -1; }
       .cand { min-width: 13rem; }
       .ag-body { grid-template-columns: 1fr; }
       .ag-graph { border-right: 0; border-bottom: 1px solid var(--p-line2); }
@@ -668,36 +677,51 @@
       <p class="cap js-only projects-cap" id="ag-cap"><span id="ag-cap-text">A recorded run of my issue-to-PR agents, replayed with its real timestamps, tokens and cost.</span> <a href="https://omarcevi.dev/sdlc-agent-pipeline/">All recorded runs →</a></p>
 
       <div class="cards">
-        <article class="card">
+        <article class="card has-thumb">
+          <div class="card-body">
           <div class="label">Featured</div>
           <div class="name"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a></div>
           <div class="what">Agents that turn a GitHub issue into a tested pull request</div>
           <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
           <div class="chips"><span>Python</span><span>Google ADK</span><span>Agent Runtime</span><span>Vertex AI</span><span>Terraform</span><span>GitHub Actions</span></div>
+          </div>
+          <a class="thumb" href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md" tabindex="-1" aria-hidden="true"><img src="assets/projects/sdlc-agent-pipeline.webp" width="880" height="550" loading="lazy" decoding="async" alt="Architecture diagram: GitHub Actions, sandboxes and Agent Runtime on Google Cloud, with observability and a cost hard stop"></a>
         </article>
-        <article class="card">
+        <article class="card has-thumb">
+          <div class="card-body">
           <div class="name"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a></div>
           <div class="what">Load testing vllm-metal on an M1 Pro</div>
           <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
           <div class="chips"><span>vllm-metal</span><span>AIPerf</span><span>Gemma</span><span>Qwen</span><span>Apple Silicon</span></div>
+          </div>
+          <a class="thumb" href="https://github.com/omarcevi/vllm-metal-bench" tabindex="-1" aria-hidden="true"><img src="assets/projects/vllm-metal-bench.webp" width="880" height="550" loading="lazy" decoding="async" alt="Chart: p99 time to first token versus concurrent requests for four 4-bit models on an M1 Pro"></a>
         </article>
-        <article class="card">
+        <article class="card has-thumb">
+          <div class="card-body">
           <div class="name"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a></div>
           <div class="what">Your first model on Triton Inference Server</div>
           <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
           <div class="chips"><span>NVIDIA Triton</span><span>ONNX</span><span>Docker</span><span>GKE</span></div>
+          </div>
+          <a class="thumb" href="https://github.com/omarcevi/triton-beginner-demo" tabindex="-1" aria-hidden="true"><img src="assets/projects/triton-beginner-demo.webp" width="880" height="550" loading="lazy" decoding="async" alt="Triton config.pbtxt for ResNet-18 with dynamic batching and two model instances"></a>
         </article>
-        <article class="card">
+        <article class="card has-thumb">
+          <div class="card-body">
           <div class="name"><a href="https://github.com/omarcevi/augury">augury</a></div>
           <div class="what">A terminal-native AI research digest</div>
           <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
           <div class="chips"><span>Python</span><span>Google ADK</span><span>pre-alpha</span><span>Apache-2.0</span></div>
+          </div>
+          <a class="thumb" href="https://github.com/omarcevi/augury" tabindex="-1" aria-hidden="true"><img src="assets/projects/augury.webp" width="880" height="550" loading="lazy" decoding="async" alt="augury terminal UI: ranked list of AI papers with a reader pane"></a>
         </article>
-        <article class="card">
+        <article class="card has-thumb">
+          <div class="card-body">
           <div class="name"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a></div>
           <div class="what">Turkish meme reactions for Claude Code</div>
           <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
           <div class="chips"><span>Claude Code plugin</span><span>hooks</span><span>bash</span></div>
+          </div>
+          <a class="thumb" href="https://github.com/omarcevi/claude-caps" tabindex="-1" aria-hidden="true"><img src="assets/projects/claude-caps.webp" width="880" height="550" loading="lazy" decoding="async" alt="Claude Code terminal answering a task with "Başımla beraber abi!""></a>
         </article>
       </div>
     </section>
@@ -850,11 +874,35 @@
           cand.style.top = (r.bottom - hr.top + 8) + 'px';
           cand.classList.add('show');
         }
+        // metrics: real wall-clock timings measured by scripts/ml_figures.py (D.timing, step.ms)
+        var T = D.timing || null, N = D.steps.length;
+        var dev = T ? T.device.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\s+/, ' ').replace(/\s+/g, ' ').trim() : '';
+        function metrics(n, cum, finished) {
+          function m(label, val, title) { return '<span class="m"' + (title ? ' title="' + title + '"' : '') + '><i>' + label + '</i>' + val + '</span>'; }
+          var html = '';
+          if (T) {
+            html += m('ttft', n ? T.ttft_ms.toFixed(1) + ' ms' : '…', 'time to first token: one forward pass to predict the first token');
+            html += m('decode', n ? (n / (cum / 1000)).toFixed(1) + ' tok/s' : '…', 'tokens per second, measured on CPU without a KV cache');
+            html += m('elapsed', (cum / 1000).toFixed(2) + ' s');
+          }
+          html += m('tokens', n + '/' + N);
+          if (finished) html += m('perplexity', Math.round(D.perplexity).toLocaleString(), 'how surprised GPT-2 is by this text: lower means more predictable');
+          return html;
+        }
+        function note(finished) {
+          var run = T ? D.model + ' · ' + esc(T.runtime) + ' on ' + esc(dev) + ' · ' + T.threads + ' threads · no KV cache' : D.model;
+          return finished
+            ? run + ' · hover a word to see what it expected · <button type="button" class="linkbtn" id="regen">↻ replay</button>'
+            : run + ' · real timings, replayed slowed down so you can read the predictions';
+        }
+        var cumAll = D.steps.reduce(function (a, x) { return a + (x.ms || 0); }, 0);
+        function render(n, cum, finished) {
+          gen.innerHTML = '<div class="metrics">' + metrics(n, cum, finished) + '</div><div class="gen-note">' + note(finished) + '</div>';
+          if (finished) $('regen').onclick = play;
+        }
         function done() {
           header.classList.add('ready');
-          gen.innerHTML = '<span class="ok">✓</span> GPT-2 small finds this header pretty surprising: perplexity <b>' +
-            Math.round(D.perplexity).toLocaleString() + '</b> · hover a word to see what it expected · <button type="button" class="linkbtn" id="regen">↻ replay</button>';
-          $('regen').onclick = play;
+          render(N, cumAll, true);
         }
         var playing = false;
         function play() {
@@ -862,7 +910,7 @@
           playing = true;
           header.classList.remove('ready');
           spans.forEach(function (a) { a.forEach(function (s) { s.className = 'tok wait'; }); });
-          var k = 0, n = D.steps.length;
+          var k = 0, n = D.steps.length, cum = 0;
           function step() {
             if (k >= n) {
               cand.classList.remove('show');
@@ -870,7 +918,8 @@
               playing = false; done(); return;
             }
             var si = k, inName = D.steps[si].s < R.name[1];
-            gen.innerHTML = 'GPT-2 small · replaying what it predicted at each token · <b>' + (si + 1) + '/' + n + '</b>';
+            cum += D.steps[si].ms || 0;
+            render(si + 1, cum, false);
             spans[si].forEach(function (s) { s.className = 'tok on'; });
             var lastSp = spans[si][spans[si].length - 1];
             if (lastSp) lastSp.parentNode.insertBefore(caret, lastSp.nextSibling);
@@ -882,7 +931,7 @@
             }, inName ? 220 : 60);
           }
           if (!caret.parentNode) h1.insertBefore(caret, h1.firstChild);
-          gen.innerHTML = 'GPT-2 small · prefill…';
+          render(0, 0, false);
           setTimeout(step, 350);
         }
         header.addEventListener('mouseover', function (e) {
