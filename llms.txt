@@ -1,0 +1,61 @@
+# Omar Elcircevi
+
+> Omar Elcircevi (omarcevi) is a machine learning engineer based in Istanbul, Turkey, who builds production ML inference systems: model serving with vLLM and NVIDIA Triton, GPU sharing with MIG, and Kubernetes on cloud and on-prem, increasingly for AI agents in production. He is a Google Developer Expert in Cloud AI, co-organizes GDG Istanbul, and speaks at DevFest, Build with AI and Google developer events in Turkish and English.
+
+Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML) mühendisidir. Üretimde çalışan ML çıkarım (inference) sistemleri kurar: vLLM ve NVIDIA Triton ile model sunumu, MIG ile GPU paylaşımı, bulut ve on-prem Kubernetes ve üretimde yapay zeka ajanları. Google Developer Expert (Cloud AI) ve GDG Istanbul organizatörüdür.
+
+## Experience
+
+- Trendyol (Istanbul), Machine Learning Engineer, Inference Platform, March 2024 – September 2026: ran model serving for 100M+ users at over 1M requests per minute with Triton and vLLM on GKE and on-prem Kubernetes; reconfigured H100 GPUs with MIG for about 1.75x more serving capacity; designed the platform's deployment client, auth, active zone switching and pipeline event notifications; built TensorRT conversion pipelines; benchmarked AMD MI325X against NVIDIA H200 for LLM and ranking workloads.
+- Turkcell (Istanbul), AI & Analytical Solutions, 2022 – 2024.
+
+## Focus areas
+
+- ML inference and model serving: vLLM, NVIDIA Triton Inference Server, TensorRT, dynamic batching, p99 latency, GPU utilization, NVIDIA MIG
+- ML platform engineering on Kubernetes (GKE and on-prem)
+- AI agents in production: Google Agent Development Kit (ADK), MCP, A2A, Vertex AI, Agent Runtime
+
+## Projects
+
+- [sdlc-agent-pipeline](https://github.com/omarcevi/sdlc-agent-pipeline): planner, coder and reviewer agents in a Google ADK graph that turn a GitHub issue into a tested pull request, with sandboxed tools, cost caps and human approval. [Recorded runs](https://omarcevi.dev/sdlc-agent-pipeline/)
+- [vllm-metal-bench](https://github.com/omarcevi/vllm-metal-bench): load testing vllm-metal on an Apple M1 Pro with AIPerf; bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate.
+- [triton-beginner-demo](https://github.com/omarcevi/triton-beginner-demo): first model on NVIDIA Triton Inference Server, with dynamic batching, perf_analyzer and GKE deployment.
+- [augury](https://github.com/omarcevi/augury): a terminal-native AI research digest built with Google ADK.
+- [claude-caps](https://github.com/omarcevi/claude-caps): a Claude Code plugin with Turkish meme reactions.
+
+## Talks and workshops
+
+- Managing Agentic Systems on Google Cloud: From Deployment to Monitoring — Google Developer Day, September 2026
+- Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, September 2026
+- Gemma Train-the-Trainer: Running AI Models (workshop) — Google Developer Experts, August 2026
+- Agentverse: Multi-Agent Systems with ADK, MCP and A2A (workshop) — May 2026
+- Build with AI: Gemini SDK & Cloud Run; Build with AI: Google Antigravity — 42 Türkiye, April 2026
+- Architecture of High Performance ML Solutions — GDG Baku, November 2025
+- [MLOps in the Age of GenAI](https://www.youtube.com/watch?v=PKqyohMo4I8) — DevFest Istanbul, 2023
+- The Dark Side of ML: Exploring Vulnerabilities — DevFest Trabzon, 2023
+
+## Writing
+
+- [Your Model Works in a Notebook. Now What? A Friendly Intro to NVIDIA Triton Inference Server](https://levelup.gitconnected.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b)
+- [One H100, Many Models: What I Learned Sharing GPUs on Kubernetes](https://omarcevi.medium.com/one-h100-many-models-what-i-learned-sharing-gpus-on-kubernetes-9eb635db2311)
+- [All posts on Medium](https://omarcevi.medium.com)
+
+## Open source
+
+- [google/adk-python #3037](https://github.com/google/adk-python/pull/3037): fix for third-party CrewAI tool integration
+- [google/adk-web #272](https://github.com/google/adk-web/pull/272): light theme for the ADK web UI
+
+## Availability
+
+- Open to new roles: senior or staff-level ML inference, model serving or ML platform engineering, including AI agents in production. Remote (global) or Istanbul.
+- Open to collaborations: conference talks and workshops (Turkish or English), open-source work, and advising teams on serving models and AI agents in production.
+- Yeni rollere ve iş birliklerine açık: ML inference / ML platform mühendisliği (uzaktan veya İstanbul), konuşmalar, atölyeler ve açık kaynak.
+- Best way to reach him: hi@omarcevi.dev
+
+## Contact
+
+- Website: https://omarcevi.dev/
+- Email: hi@omarcevi.dev
+- LinkedIn: https://www.linkedin.com/in/omarcevi/
+- GitHub: https://github.com/omarcevi
+- Medium: https://omarcevi.medium.com

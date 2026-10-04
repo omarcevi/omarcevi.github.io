@@ -3,257 +3,709 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Omar Elcircevi — ML Inference Systems Engineer</title>
-  <meta name="description" content="ML inference systems engineer. Google Developer Expert in Cloud AI. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <title>Omar Elcircevi — ML Inference Engineer · Istanbul, Turkey</title>
+  <meta name="description" content="ML engineer in Istanbul, Turkey, building production ML inference systems (vLLM, Triton, Kubernetes, GPUs) and AI agents. Google Developer Expert, Cloud AI.">
+  <meta name="author" content="Omar Elcircevi">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <link rel="canonical" href="https://omarcevi.dev/">
+  <link rel="alternate" type="text/markdown" href="https://omarcevi.dev/llms.txt" title="Summary for language models">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <meta property="og:type" content="website">
+  <link rel="me" href="https://www.linkedin.com/in/omarcevi/">
+  <link rel="me" href="https://github.com/omarcevi">
+  <link rel="me" href="https://omarcevi.medium.com">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="profile">
+  <meta property="og:site_name" content="Omar Elcircevi">
+  <meta property="og:locale" content="en_US">
   <meta property="og:url" content="https://omarcevi.dev/">
-  <meta property="og:title" content="Omar Elcircevi — ML Inference Systems Engineer">
-  <meta property="og:description" content="ML inference systems engineer. Google Developer Expert in Cloud AI. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <meta property="og:title" content="Omar Elcircevi — ML Inference Engineer · Istanbul, Turkey">
+  <meta property="og:description" content="ML engineer in Istanbul, Turkey, building production ML inference systems (vLLM, Triton, Kubernetes, GPUs) and AI agents. Google Developer Expert, Cloud AI.">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Omar Elcircevi, ML Inference Systems Engineer, Istanbul, Turkey">
+  <meta property="profile:first_name" content="Omar">
+  <meta property="profile:last_name" content="Elcircevi">
+  <meta property="profile:username" content="omarcevi">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Omar Elcircevi — ML Inference Systems Engineer">
-  <meta name="twitter:description" content="ML inference systems engineer. Google Developer Expert in Cloud AI. Community Organizer, Speaker, OSS contributor. Writing about production AI agents and inference at scale.">
+  <meta name="twitter:title" content="Omar Elcircevi — ML Inference Engineer · Istanbul, Turkey">
+  <meta name="twitter:description" content="ML engineer in Istanbul, Turkey, building production ML inference systems (vLLM, Triton, Kubernetes, GPUs) and AI agents. Google Developer Expert, Cloud AI.">
   <meta name="twitter:image" content="https://omarcevi.dev/og-image.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "url": "https://omarcevi.dev/",
+    "name": "Omar Elcircevi — ML Inference Engineer · Istanbul, Turkey",
+    "dateModified": "2026-10-04",
+    "inLanguage": "en",
+    "mainEntity": {
+      "@type": "Person",
+      "@id": "https://omarcevi.dev/#person",
+      "name": "Omar Elcircevi",
+      "alternateName": "omarcevi",
+      "url": "https://omarcevi.dev/",
+      "image": "https://omarcevi.dev/og-image.png",
+      "email": "mailto:hi@omarcevi.dev",
+      "jobTitle": "ML Inference Systems Engineer",
+      "description": "Machine learning engineer based in Istanbul, Turkey, specializing in production ML inference systems: model serving with vLLM and NVIDIA Triton, GPU sharing with MIG, Kubernetes on cloud and on-prem, and AI agents in production. Google Developer Expert in Cloud AI and co-organizer of GDG Istanbul.",
+      "homeLocation": {
+        "@type": "Place",
+        "name": "Istanbul, Turkey",
+        "address": { "@type": "PostalAddress", "addressLocality": "Istanbul", "addressCountry": "TR" }
+      },
+      "knowsLanguage": ["en", "tr"],
+      "knowsAbout": [
+        "Machine learning engineering", "ML inference", "Model serving", "MLOps", "LLM inference",
+        "vLLM", "NVIDIA Triton Inference Server", "TensorRT", "GPU utilization", "NVIDIA MIG",
+        "Kubernetes", "Google Kubernetes Engine", "Google Cloud", "Vertex AI", "AI agents",
+        "Google Agent Development Kit (ADK)", "Model Context Protocol (MCP)", "Recommendation systems", "Search ranking"
+      ],
+      "alumniOf": [
+        { "@type": "Organization", "name": "Trendyol", "url": "https://www.trendyol.com" },
+        { "@type": "Organization", "name": "Turkcell", "url": "https://www.turkcell.com.tr" }
+      ],
+      "memberOf": [
+        { "@type": "Organization", "name": "Google Developer Experts", "url": "https://developers.google.com/community/experts" },
+        { "@type": "Organization", "name": "GDG Istanbul" }
+      ],
+      "award": "Google Developer Expert, Google Cloud: Cloud AI (2026)",
+      "sameAs": [
+        "https://www.linkedin.com/in/omarcevi/",
+        "https://github.com/omarcevi",
+        "https://omarcevi.medium.com"
+      ]
+    }
+  }
+  </script>
+  <link rel="preload" href="assets/ml/hero.json" as="fetch" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>document.documentElement.classList.add('js');</script>
   <style>
     :root {
-      --bg: #fafaf9;
-      --text: #1a1a1a;
-      --muted: #666;
-      --accent: #2563eb;
-      --border: #e5e5e5;
-      --mono: 'JetBrains Mono', ui-monospace, monospace;
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --text: #18181b;
+      --muted: #5f6168;
+      --faint: #9a9ca3;
+      --accent: #2a5bd7;
+      --accent-rgb: 42, 91, 215;
+      --accent-soft: #e6ecfb;
+      --ok: #15803d;
+      --border: #e4e4e7;
+      --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      /* dark panels (simulator, agent replay) look the same in both themes */
+      --p-bg: #0f1115;
+      --p-line: #232830;
+      --p-line2: #1c2027;
+      --p-text: #e5e7eb;
+      --p-muted: #8b919c;
+      --p-faint: #5c626d;
+      --p-accent: #7aa2ff;
+      --p-ok: #4ade80;
+      --p-bad: #ef4444;
+      color-scheme: light dark;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0f0f0f;
-        --text: #f0f0f0;
-        --muted: #999;
-        --accent: #60a5fa;
-        --border: #2a2a2a;
+        --bg: #111318;
+        --surface: #171a20;
+        --text: #e8e9ec;
+        --muted: #a0a4ad;
+        --faint: #6b7079;
+        --accent: #7aa2ff;
+        --accent-rgb: 122, 162, 255;
+        --accent-soft: #1d2740;
+        --ok: #4ade80;
+        --border: #262a31;
+        --p-bg: #0c0e12;
+        --p-line: #22262e;
       }
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: var(--sans);
       background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
-      font-size: 17px;
-      padding: 4rem 1.5rem;
-      max-width: 720px;
-      margin: 0 auto;
+      line-height: 1.65;
+      font-size: 16.5px;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
-    header { margin-bottom: 3rem; }
-    h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.5rem;
-    }
-    .tagline {
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 0.95rem;
-    }
-    section { margin-bottom: 3rem; }
-    h2 {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      font-weight: 600;
-    }
-    p { margin-bottom: 1rem; }
+    .page { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
     a {
-      color: var(--accent);
-      text-decoration: none;
-      border-bottom: 1px solid transparent;
-      transition: border-color 0.15s;
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: rgba(var(--accent-rgb), 0.4);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      transition: color 0.15s, text-decoration-color 0.15s;
     }
-    a:hover { border-bottom-color: var(--accent); }
+    a:hover { color: var(--accent); text-decoration-color: var(--accent); }
     ul { list-style: none; }
-    li {
-      padding: 0.75rem 0;
-      border-bottom: 1px solid var(--border);
+    p { margin-bottom: 1rem; }
+
+    /* ---------- top bar ---------- */
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+      font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
+      padding-bottom: 1rem; border-bottom: 1px solid var(--border);
     }
-    li:last-child { border-bottom: none; }
-    .item-title { font-weight: 500; }
-    .item-meta {
-      color: var(--muted);
-      font-size: 0.9rem;
-      font-family: var(--mono);
-      margin-top: 0.2rem;
+    .topbar .domain { color: var(--text); font-weight: 500; }
+    .topbar nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
+    .topbar nav a { color: var(--muted); text-decoration: none; }
+    .topbar nav a:hover { color: var(--accent); }
+
+    /* ---------- header ---------- */
+    header { padding: 4rem 0 2.5rem; position: relative; }
+    .kicker { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 1.1rem; }
+    .kicker .avail { color: var(--ok); text-decoration: none; white-space: nowrap; }
+    .kicker .avail:hover { text-decoration: underline; }
+    .kicker .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 0.5rem; vertical-align: 1px; }
+    h1 {
+      font-weight: 600;
+      font-size: clamp(2.6rem, 7.5vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      margin-bottom: 1.1rem;
     }
-    .item-desc {
-      color: var(--muted);
-      font-size: 0.95rem;
-      margin: 0.25rem 0 0;
+    .tagline { font-size: clamp(1.1rem, 2.4vw, 1.3rem); line-height: 1.5; color: var(--muted); max-width: 36em; letter-spacing: -0.01em; }
+    .tagline strong { color: var(--text); font-weight: 500; }
+    .js .stream { visibility: hidden; }
+    .tok { border-radius: 3px; transition: background-color 0.12s; }
+    .tok.wait { opacity: 0; }
+    .tok.on { animation: tokin 0.16s ease-out both; }
+    .ready .tok:hover, .tok.cur { background: rgba(var(--accent-rgb), 0.14); }
+    @keyframes tokin { from { opacity: 0; } to { opacity: 1; } }
+    .caret {
+      display: inline-block; width: 0.45em; height: 0.9em; margin-left: 0.05em; vertical-align: -0.1em;
+      background: var(--accent); animation: blink 1s steps(1) infinite;
     }
-    .bullets {
-      list-style: disc;
-      padding-left: 1.2rem;
-      margin-top: 0.5rem;
-      color: var(--muted);
-      font-size: 0.95rem;
+    h1 .caret { width: 0.28em; height: 0.75em; vertical-align: -0.02em; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .cand {
+      position: absolute; z-index: 5;
+      font-family: var(--mono); font-size: 0.7rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.4rem; min-width: 15rem;
+      box-shadow: 0 12px 30px -14px rgba(15, 20, 30, 0.35);
+      pointer-events: none; opacity: 0; transition: opacity 0.12s;
     }
-    .bullets li {
-      padding: 0.15rem 0;
-      border-bottom: none;
+    .cand.show { opacity: 1; }
+    .c-head { color: var(--faint); padding: 0 0.3rem 0.25rem; display: flex; justify-content: space-between; gap: 1rem; }
+    .c-row {
+      display: grid; grid-template-columns: 7em 1fr 3.4em; gap: 0.5rem; align-items: center;
+      color: var(--muted); padding: 0.1rem 0.3rem; border-radius: 4px; white-space: pre;
     }
-    .more { font-size: 0.95rem; margin-top: 0.75rem; }
-    .badge {
-      display: inline-block;
-      margin-top: 1.25rem;
-      border-bottom: none;
+    .c-row span:first-child { overflow: hidden; text-overflow: ellipsis; }
+    .c-row.pick { background: var(--accent-soft); color: var(--text); }
+    .c-row.actual { border-top: 1px dashed var(--border); margin-top: 0.2rem; padding-top: 0.25rem; }
+    .c-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .c-bar i { display: block; height: 100%; background: var(--accent); min-width: 1px; }
+    .c-p { text-align: right; }
+    .gen { font-family: var(--mono); font-size: 0.74rem; color: var(--faint); margin-top: 1rem; min-height: 1.3em; }
+    .gen b { color: var(--muted); font-weight: 500; }
+    .gen .ok { color: var(--ok); }
+    .linkbtn { font: inherit; background: none; border: none; color: var(--accent); cursor: pointer; padding: 0; }
+    .linkbtn:hover { text-decoration: underline; }
+
+    /* ---------- dark panels: simulator + agent replay ---------- */
+    .panel {
+      background: var(--p-bg); border: 1px solid var(--p-line); border-radius: 14px;
+      color: var(--p-text); overflow: hidden;
+      box-shadow: 0 24px 50px -34px rgba(10, 15, 25, 0.6);
     }
-    .badge:hover { border-bottom: none; opacity: 0.9; }
-    .badge img {
-      display: block;
-      width: 300px;
-      max-width: 100%;
-      height: auto;
+    .js-only { display: none; }
+    .js .js-only { display: block; }
+    .p-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; flex-wrap: wrap;
+      padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--p-line2);
+      font-family: var(--mono); font-size: 0.72rem;
     }
+    .p-title { color: var(--p-text); white-space: nowrap; display: flex; align-items: center; gap: 0.5rem; min-width: 0; flex: 1 1 auto; }
+    .p-title .note { color: var(--p-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .live { width: 7px; height: 7px; border-radius: 50%; background: var(--p-ok); flex: none; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); animation: pulse 1.8s infinite; }
+    .paused .live { animation: none; background: var(--p-faint); }
+    @keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+    .p-ctrl { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .p-ctrl button, .p-ctrl select {
+      font: inherit; color: var(--p-text); background: #181b21; border: 1px solid #2a2f38; border-radius: 999px;
+      padding: 0.26rem 0.7rem; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .p-ctrl select { border-radius: 6px; padding: 0.2rem 0.3rem; }
+    .p-ctrl button:hover { border-color: var(--p-accent); color: var(--p-accent); }
+    .p-ctrl label { display: flex; align-items: center; gap: 0.4rem; color: var(--p-muted); cursor: pointer; }
+    .p-ctrl input { accent-color: var(--p-accent); }
+    .p-ctrl input[type=range] { width: 84px; }
+    .p-ctrl output { color: var(--p-text); min-width: 1.4em; display: inline-block; }
+    .p-foot {
+      display: flex; gap: 0.4rem 1.3rem; flex-wrap: wrap; padding: 0.6rem 0.9rem 0.7rem;
+      border-top: 1px solid var(--p-line2); font-family: var(--mono); font-size: 0.72rem; color: var(--p-muted);
+    }
+    .p-foot b { color: var(--p-text); font-weight: 500; }
+    .cap { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); margin-top: 0.7rem; max-width: 50em; }
+    .cap a { color: var(--muted); }
+
+    #simbox { margin-top: 2.25rem; }
+    #sim { display: block; width: 100%; height: 260px; cursor: crosshair; }
+
+    /* agent replay */
+    .ag-body { display: grid; grid-template-columns: 236px 1fr; }
+    .ag-graph { border-right: 1px solid var(--p-line2); padding: 0.7rem 0.5rem 0.5rem; }
+    .ag-graph svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .ag-graph .edge { fill: none; stroke: #2a2f38; stroke-width: 1.2; }
+    .ag-graph .edge.done { stroke: #3d4a66; }
+    .ag-graph .edge.hot { stroke: var(--p-accent); stroke-width: 1.8; }
+    .ag-graph .nd rect, .ag-graph .nd path { fill: #151820; stroke: #2a2f38; stroke-width: 1; transition: fill 0.2s, stroke 0.2s; }
+    .ag-graph .nd text { font-family: var(--mono); font-size: 10px; fill: var(--p-muted); dominant-baseline: middle; }
+    .ag-graph .nd.llm text { fill: var(--p-text); }
+    .ag-graph .nd.visited rect, .ag-graph .nd.visited path { stroke: #3d4a66; }
+    .ag-graph .nd.active rect, .ag-graph .nd.active path { fill: rgba(122, 162, 255, 0.18); stroke: var(--p-accent); }
+    .ag-graph .nd.active text { fill: #fff; }
+    .ag-log {
+      font-family: var(--mono); font-size: 0.7rem; line-height: 1.55; color: var(--p-muted);
+      padding: 0.7rem 0.9rem; overflow: hidden; position: relative; height: 340px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+    }
+    .ag-log::before {
+      content: ""; position: absolute; left: 0; right: 0; top: 0; height: 70px; z-index: 1;
+      background: linear-gradient(var(--p-bg), transparent); pointer-events: none;
+    }
+    .ag-log .ln { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: tokin 0.2s ease-out both; flex: none; }
+    .ag-log .ln.wrap { white-space: normal; }
+    .ag-log .t { color: var(--p-faint); display: inline-block; width: 4.4em; }
+    .ag-log .who { color: var(--p-accent); }
+    .ag-log .tool, .ag-log .node { color: var(--p-text); }
+    .ag-log .good { color: var(--p-ok); }
+    .ag-log .bad { color: var(--p-bad); }
+    .ag-prog { height: 2px; background: var(--p-line2); position: relative; }
+    .ag-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--p-accent); width: 0; }
+
+    /* ---------- sections + reading trace ---------- */
+    section { padding: 2.5rem 0; border-top: 1px solid var(--border); scroll-margin-top: 1rem; }
+    .span {
+      display: none; grid-template-columns: 2.6rem minmax(0, 8rem) 1fr 4rem; align-items: center; gap: 0.75rem;
+      font-family: var(--mono); font-size: 0.7rem; color: var(--faint); margin-bottom: 0.9rem;
+    }
+    .js .span { display: grid; }
+    .sp-kind { color: var(--accent); white-space: nowrap; }
+    .sp-name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sp-track { position: relative; height: 6px; overflow: hidden; border-radius: 3px; }
+    .sp-track::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--border); }
+    .sp-bar { position: absolute; top: 0; bottom: 0; z-index: 1; border-radius: 2px; background: var(--accent); transition: left 0.25s linear, width 0.25s linear; }
+
+    /* full trace at the bottom */
+    .trace-panel {
+      display: none; margin-top: 0.5rem; padding: 1rem 1.1rem 0.8rem; border: 1px solid var(--border); border-radius: 12px;
+      background: var(--surface); font-family: var(--mono); font-size: 0.7rem; color: var(--faint);
+    }
+    .js .trace-panel.ready { display: block; }
+    .tp-top { display: flex; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap; margin-bottom: 0.8rem; color: var(--muted); }
+    .tp-top b { color: var(--text); font-weight: 500; }
+    .tp-axisrow, .tp-row { display: grid; grid-template-columns: 7.5rem 1fr 4.2rem; gap: 0.75rem; align-items: center; }
+    .tp-axis { position: relative; height: 1.1em; border-bottom: 1px solid var(--border); }
+    .tp-axis span { position: absolute; top: 0; transform: translateX(-50%); font-size: 0.62rem; }
+    .tp-axis span:first-child { transform: none; }
+    .tp-axis span:last-child { transform: translateX(-100%); }
+    .tp-row { padding: 0.18rem 0; cursor: pointer; border-radius: 4px; }
+    .tp-row:hover .tp-name { color: var(--accent); }
+    .tp-row.root { cursor: default; }
+    .tp-name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tp-row.root .tp-name { color: var(--text); }
+    .tp-track {
+      position: relative; height: 8px;
+      background: repeating-linear-gradient(90deg, var(--border) 0 1px, transparent 1px 25%);
+    }
+    .tp-bar { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: var(--accent); transition: left 0.25s linear, width 0.25s linear; }
+    .tp-row.root .tp-bar { background: var(--faint); opacity: 0.5; }
+    .tp-time { text-align: right; color: var(--muted); }
+    .tp-row.reading .tp-name, .tp-row.reading .tp-time { color: var(--accent); }
+    .sp-time { text-align: right; white-space: nowrap; }
+    .span.reading .sp-time { color: var(--accent); }
+    .span.reading .sp-name { color: var(--text); }
+
+    h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1.3rem; }
+    .prose p { max-width: 38em; }
+
+    /* ---------- attention viewer ---------- */
+    .att-hint { display: none; font-family: var(--mono); font-size: 0.72rem; color: var(--faint); margin: -0.5rem 0 1.1rem; min-height: 1.2em; }
+    .js .att-hint { display: block; }
+    .att-hint b { color: var(--accent); font-weight: 500; }
+    .about-body { position: relative; }
+    .att-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 2; }
+    .att-svg path { fill: none; stroke: var(--accent); stroke-linecap: round; }
+    .att-svg circle { fill: var(--accent); }
+    .w { border-radius: 3px; transition: background-color 0.12s, color 0.12s; }
+    .w.att { background-color: rgba(var(--accent-rgb), calc(var(--w, 0) * 0.32)); }
+    .w.src { background-color: var(--accent); color: var(--bg); }
+    .att-fig {
+      display: none; grid-template-columns: auto 1fr; gap: 1.2rem; align-items: start;
+      margin: 0.4rem 0 1.4rem; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+    }
+    .att-fig.ready { display: grid; }
+    .hg { display: grid; grid-template-columns: repeat(12, 11px) 14px; gap: 2px; }
+    .hg button { width: 11px; height: 11px; border: 0; border-radius: 2px; padding: 0; cursor: pointer; background: rgba(var(--accent-rgb), var(--v, 0.1)); }
+    .hg button.avg { margin-left: 3px; box-shadow: inset 0 0 0 1px var(--border); }
+    .hg button.sel { outline: 2px solid var(--text); outline-offset: 1px; }
+    .hg button:hover { outline: 1px solid var(--accent); outline-offset: 1px; }
+    .hg-axis { font-family: var(--mono); font-size: 0.62rem; color: var(--faint); margin-top: 0.35rem; display: flex; justify-content: space-between; }
+    .att-desc { font-size: 0.86rem; color: var(--muted); }
+    .att-desc p { margin-bottom: 0.5rem; }
+    .att-desc .sel-label { font-family: var(--mono); font-size: 0.74rem; color: var(--text); }
+    .att-desc .sel-label b { color: var(--accent); font-weight: 500; }
+    .att-desc .small { font-family: var(--mono); font-size: 0.68rem; color: var(--faint); margin: 0; }
+    .att-desc .small a { color: var(--faint); }
+
+    .badge { display: inline-block; margin-top: 0.4rem; border-radius: 12px; text-decoration: none; transition: transform 0.2s ease; }
+    .badge:hover { transform: translateY(-2px); }
+    .badge img { display: block; width: 260px; max-width: 100%; height: auto; }
+
+    /* ---------- lists ---------- */
+    .list > li { padding: 0.9rem 0; border-bottom: 1px dashed var(--border); }
+    .list > li:last-child { border-bottom: none; }
+    .item-title { font-weight: 500; line-height: 1.45; }
+    .item-meta { color: var(--muted); font-size: 0.78rem; font-family: var(--mono); margin-top: 0.3rem; }
+    .item-desc { color: var(--muted); font-size: 0.94rem; margin: 0.4rem 0 0; }
+
+    .timeline { position: relative; padding-left: 1.6rem; }
+    .timeline::before { content: ""; position: absolute; left: 5px; top: 0.55rem; bottom: 0.5rem; width: 1px; background: var(--border); }
+    .timeline > li { position: relative; padding-bottom: 1.75rem; }
+    .timeline > li:last-child { padding-bottom: 0; }
+    .timeline > li::before {
+      content: ""; position: absolute; left: calc(-1.6rem + 1px); top: 0.45rem; width: 9px; height: 9px;
+      border-radius: 50%; background: var(--bg); border: 2px solid var(--accent);
+    }
+    .timeline > li:first-child::before { background: var(--accent); }
+    .role-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .company { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em; display: inline-flex; align-items: center; gap: 0.5rem; min-height: 28px; }
+    .company img { display: block; width: auto; }
+    .logo-word { height: 28px; margin-top: 3px; }
+    .logo-mark { height: 26px; }
+    .when { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
+    .role { color: var(--muted); font-size: 0.94rem; }
+    .bullets { margin-top: 0.75rem; }
+    .bullets li { position: relative; padding: 0.22rem 0 0.22rem 1.2rem; font-size: 0.95rem; }
+    .bullets li::before { content: "→"; position: absolute; left: 0; top: 0.3rem; color: var(--accent); font-family: var(--mono); font-size: 0.85em; }
+
+    .rows > li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px dashed var(--border); }
+    .rows > li:last-child { border-bottom: none; }
+    .rows .date { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); padding-top: 0.2rem; }
+    .tag {
+      display: inline-block; font-family: var(--mono); font-size: 0.66rem; font-weight: 500; color: var(--accent);
+      background: var(--accent-soft); border-radius: 999px; padding: 0.05rem 0.5rem; margin-left: 0.4rem; vertical-align: 2px; text-decoration: none;
+    }
+    .sub + .sub { margin-top: 2.25rem; }
+    .sub h3 { font-family: var(--mono); font-size: 0.74rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.5rem; }
+
+    .cards { display: grid; gap: 1rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1.3rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover { transform: translateY(-2px); border-color: rgba(var(--accent-rgb), 0.45); }
+    .card .name { font-family: var(--mono); font-weight: 500; font-size: 0.95rem; }
+    .card .name a { text-decoration: none; }
+    .card .name a::after { content: " ↗"; color: var(--accent); font-size: 0.85em; }
+    .card .what { font-size: 1.05rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1.35; margin-top: 0.2rem; }
+    .card .item-desc { margin-top: 0.55rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.85rem; }
+    .chips span { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 0.1rem 0.55rem; background: var(--bg); }
+    .card .label { font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.4rem; }
+    .projects-cap { margin-bottom: 1.6rem; }
+
+    .more { font-size: 0.9rem; margin-top: 1rem; font-family: var(--mono); }
+    .more a { text-decoration: none; color: var(--accent); }
+    .more a:hover { text-decoration: underline; }
+
+    .contact p { font-size: 1.15rem; line-height: 1.5; max-width: 30em; letter-spacing: -0.01em; }
+    .links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
+    .links a {
+      font-family: var(--mono); font-size: 0.82rem; text-decoration: none; padding: 0.5rem 1rem;
+      border: 1px solid var(--border); border-radius: 999px; background: var(--surface); transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .links a:hover { border-color: var(--accent); color: var(--accent); }
+    .links a.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .links a.primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
     footer {
-      margin-top: 4rem;
-      padding-top: 2rem;
-      border-top: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 0.85rem;
-      font-family: var(--mono);
+      margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--faint);
+      font-size: 0.76rem; font-family: var(--mono); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
     }
-    footer a { color: var(--muted); }
-    footer a:hover { color: var(--text); }
+
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .page { padding: 1.25rem 1rem 3rem; }
+      header { padding: 3rem 0 2rem; }
+      .topbar nav { display: none; }
+      #sim { height: 230px; }
+      .p-title .note { display: none; }
+      .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
+      .sp-track { grid-column: 1 / -1; grid-row: 2; }
+      .rows > li { grid-template-columns: 1fr; gap: 0.15rem; }
+      .rows .date { padding-top: 0; }
+      .card { padding: 1.05rem; }
+      .cand { min-width: 13rem; }
+      .ag-body { grid-template-columns: 1fr; }
+      .ag-graph { border-right: 0; border-bottom: 1px solid var(--p-line2); }
+      .ag-graph svg { max-width: 260px; margin: 0 auto; }
+      .ag-log { height: 260px; }
+      .att-fig.ready { grid-template-columns: 1fr; }
+      .tp-axisrow, .tp-row { grid-template-columns: 5.6rem 1fr 3.6rem; gap: 0.5rem; }
+      .tp-note { display: none; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Omar Elcircevi</h1>
-    <p class="tagline">Building production ML inference systems · Google Developer Expert,&nbsp;Cloud&nbsp;AI · Google Dev Group Organizer · Speaker · OSS contributor</p>
-    <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
-      <img src="gde-cloud-ai-2026.png" width="900" height="319" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
-    </a>
-  </header>
+  <div class="page">
+    <div class="topbar">
+      <span class="domain">omarcevi.dev</span>
+      <nav aria-label="Sections">
+        <a href="#about">About</a>
+        <a href="#experience">Experience</a>
+        <a href="#talks">Talks</a>
+        <a href="#projects">Projects</a>
+        <a href="#writing">Writing</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
 
-  <section>
-    <h2>About</h2>
-    <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
-    <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
-    <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
-  </section>
+    <header>
+      <p class="kicker"><span class="dot" title="Open to collaborations"></span>ML Inference Systems Engineer · Istanbul, Turkey · <a href="#contact" class="avail">open to collaborations</a></p>
+      <h1 id="name" class="stream">Omar Elcircevi</h1>
+      <p id="tagline" class="tagline stream"><strong>Building production ML inference systems.</strong> Google Developer Expert, Cloud AI · Google Dev Group organizer · Speaker · OSS contributor</p>
+      <div class="gen" id="gen" aria-hidden="true"></div>
 
-  <section>
-    <h2>Experience</h2>
-    <ul>
-      <li>
-        <div class="item-title">Trendyol</div>
-        <div class="item-meta">Machine Learning Engineer, Inference Platform · Mar 2024 – Sep 2026</div>
-        <ul class="bullets">
-          <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
-          <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
-          <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
-          <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
-          <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+      <div class="panel js-only" id="simbox">
+        <div class="p-head">
+          <div class="p-title"><span class="live"></span>inference.sim <span class="note">· one H100, 3 MIG slices · clock slowed 10×</span></div>
+          <div class="p-ctrl">
+            <button type="button" id="sim-play" aria-label="Pause simulation">❚❚</button>
+            <button type="button" id="sim-burst">send burst</button>
+            <label>max batch <input type="range" id="sim-batch" min="1" max="16" value="8"><output id="sim-batch-v">8</output></label>
+            <label><input type="checkbox" id="sim-bursty" checked> bursty</label>
+          </div>
+        </div>
+        <canvas id="sim" aria-label="Animated simulation: requests are queued, dynamically batched, and served on GPU slices"></canvas>
+        <div class="p-foot">
+          <span>p50 <b id="m-p50">–</b></span>
+          <span>p99 <b id="m-p99">–</b></span>
+          <span>throughput <b id="m-thr">–</b></span>
+          <span>gpu util <b id="m-util">–</b></span>
+          <span>queue <b id="m-q">0</b></span>
+        </div>
+      </div>
+      <p class="cap js-only">A queueing model of my day job: requests get dynamically batched onto MIG slices of one H100. Send a burst, then drop max batch to 1 and watch p99. Service times are modeled, not measured.</p>
+    </header>
+
+    <section id="about">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">about.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>About</h2>
+      <p class="att-hint" id="att-hint"></p>
+      <div class="about-body prose">
+        <svg class="att-svg" aria-hidden="true"></svg>
+        <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
+        <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
+        <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
+      </div>
+      <div class="att-fig" id="att-fig">
+        <div>
+          <div class="hg" id="hg" role="group" aria-label="Attention heads: rows are layers, columns are heads"></div>
+          <div class="hg-axis"><span>heads 0–11 →</span><span>avg</span></div>
+        </div>
+        <div class="att-desc">
+          <p class="sel-label" id="att-sel"></p>
+          <p>These are the real attention weights of <b>GPT-2 small</b> reading the three paragraphs above, pooled from tokens to words. GPT-2 only looks backwards, so arcs always point to earlier words.</p>
+          <p>Each square is one head; rows are layers 0–11, and brighter squares look further back. Click one to switch.</p>
+          <p class="small">computed by <a href="https://github.com/omarcevi/omarcevi.github.io/blob/main/scripts/ml_figures.py">scripts/ml_figures.py</a> · &lt;|endoftext|&gt; sink removed, rows renormalized</p>
+        </div>
+      </div>
+      <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
+        <img src="gde-cloud-ai-2026.png" width="900" height="319" loading="lazy" decoding="async" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
+      </a>
+    </section>
+
+    <section id="experience">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">experience.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>Experience</h2>
+      <ul class="timeline">
+        <li>
+          <div class="role-head">
+            <span class="company"><picture><source srcset="assets/logos/trendyol-dark.png" media="(prefers-color-scheme: dark)"><img class="logo-word" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"></picture></span>
+            <span class="when">Mar 2024 – Sep 2026</span>
+          </div>
+          <div class="role">Machine Learning Engineer, Inference Platform</div>
+          <ul class="bullets">
+            <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
+            <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
+            <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
+            <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
+            <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+          </ul>
+        </li>
+        <li>
+          <div class="role-head">
+            <span class="company"><img class="logo-mark" loading="lazy" decoding="async" src="assets/logos/turkcell.png" width="191" height="192" alt="">Turkcell</span>
+            <span class="when">2022 – 2024</span>
+          </div>
+          <div class="role">AI &amp; Analytical Solutions</div>
+        </li>
+      </ul>
+    </section>
+
+    <section id="talks">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">talks.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>Talks &amp; Workshops</h2>
+      <div class="sub">
+        <h3>Selected talks</h3>
+        <ul class="rows">
+          <li>
+            <span class="date">Sep 2026</span>
+            <div>
+              <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
+              <div class="item-meta">Google Developer Day</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">Apr 2026</span>
+            <div>
+              <div class="item-title">Build with AI: Gemini SDK &amp; Cloud Run</div>
+              <div class="item-meta">42 Türkiye</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">Apr 2026</span>
+            <div>
+              <div class="item-title">Build with AI: Google Antigravity</div>
+              <div class="item-meta">42 Türkiye</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">Nov 2025</span>
+            <div>
+              <div class="item-title">Architecture of High Performance ML Solutions</div>
+              <div class="item-meta">GDG Baku</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">2023</span>
+            <div>
+              <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8" aria-label="Watch the recording">▶ video</a></div>
+              <div class="item-meta">DevFest Istanbul</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">2023</span>
+            <div>
+              <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
+              <div class="item-meta">DevFest Trabzon</div>
+            </div>
+          </li>
         </ul>
-      </li>
-      <li>
-        <div class="item-title">Turkcell</div>
-        <div class="item-meta">AI &amp; Analytical Solutions · 2022 – 2024</div>
-      </li>
-    </ul>
-  </section>
+      </div>
+      <div class="sub">
+        <h3>Workshops</h3>
+        <ul class="rows">
+          <li>
+            <span class="date">Sep 2026</span>
+            <div>
+              <div class="item-title">Architecting Multi-Agent Systems with Google ADK</div>
+              <div class="item-meta">Google Developer Day</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">Aug 2026</span>
+            <div>
+              <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
+              <div class="item-meta">Google Developer Experts</div>
+            </div>
+          </li>
+          <li>
+            <span class="date">May 2026</span>
+            <div>
+              <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
+              <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
 
-  <section>
-    <h2>Selected Talks</h2>
-    <ul>
-      <li>
-        <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
-        <div class="item-meta">Google Developer Day · September 2026</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a></div>
-        <div class="item-meta">DevFest Istanbul · 2023</div>
-      </li>
-      <li>
-        <div class="item-title">Architecture of High Performance ML Solutions</div>
-        <div class="item-meta">GDG Baku · November 2025</div>
-      </li>
-      <li>
-        <div class="item-title">Build with AI: Gemini SDK & Cloud Run</div>
-        <div class="item-meta">42 Türkiye · April 2026</div>
-      </li>
-      <li>
-        <div class="item-title">Build with AI: Google Antigravity</div>
-        <div class="item-meta">42 Türkiye · April 2026</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
-        <div class="item-meta">DevFest Trabzon · 2023</div>
-      </li>
-    </ul>
-  </section>
+    <section id="projects">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">projects.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>Projects</h2>
 
-  <section>
-    <h2>Workshops</h2>
-    <ul>
-      <li>
-        <div class="item-title">Architecting Multi-Agent Systems with Google ADK</div>
-        <div class="item-meta">Google Developer Day · September 2026</div>
-      </li>
-      <li>
-        <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
-        <div class="item-meta">Google Developer Experts · August 2026</div>
-      </li>
-      <li>
-        <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
-        <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
-        <div class="item-meta">May 2026</div>
-      </li>
-    </ul>
-  </section>
+      <div class="panel js-only" id="agentbox">
+        <div class="p-head">
+          <div class="p-title"><span class="live"></span>replay · sdlc-agent-pipeline <span class="note" id="ag-issue"></span></div>
+          <div class="p-ctrl">
+            <button type="button" id="ag-play" aria-label="Pause replay">❚❚</button>
+            <button type="button" id="ag-restart" aria-label="Restart replay">↻</button>
+            <label>speed <select id="ag-speed"><option value="4">4×</option><option value="8" selected>8×</option><option value="20">20×</option></select></label>
+          </div>
+        </div>
+        <div class="ag-body">
+          <div class="ag-graph"><svg id="ag-svg" viewBox="0 0 244 304" aria-label="Agent graph"></svg></div>
+          <div class="ag-log" id="ag-log"></div>
+        </div>
+        <div class="ag-prog"><i id="ag-prog"></i></div>
+        <div class="p-foot">
+          <span>t <b id="ag-t">0.0s</b></span>
+          <span>cost <b id="ag-cost">$0.0000</b></span>
+          <span>tool calls <b id="ag-tc">0</b></span>
+          <span>tokens <b id="ag-tok">0 → 0</b></span>
+          <span>outcome <b id="ag-out">running</b></span>
+        </div>
+      </div>
+      <p class="cap js-only projects-cap" id="ag-cap"><span id="ag-cap-text">A recorded run of my issue-to-PR agents, replayed with its real timestamps, tokens and cost.</span> <a href="https://omarcevi.dev/sdlc-agent-pipeline/">All recorded runs →</a></p>
 
-  <section>
-    <h2>Projects</h2>
-    <ul>
-      <li>
-        <div class="item-title"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a> — agents that turn a GitHub issue into a tested pull request</div>
-        <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
-        <div class="item-meta">Python · Google ADK · Agent Runtime · Vertex AI · Terraform · GitHub Actions</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a> — load testing vllm-metal on an M1 Pro</div>
-        <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
-        <div class="item-meta">vllm-metal · AIPerf · Gemma · Qwen · Apple Silicon</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a> — your first model on Triton Inference Server</div>
-        <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
-        <div class="item-meta">NVIDIA Triton · ONNX · Docker · GKE</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://github.com/omarcevi/augury">augury</a> — a terminal-native AI research digest</div>
-        <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
-        <div class="item-meta">Python · Google ADK · pre-alpha · Apache-2.0</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a> — Turkish meme reactions for Claude Code</div>
-        <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
-        <div class="item-meta">Claude Code plugin · hooks · bash</div>
-      </li>
-    </ul>
-  </section>
+      <div class="cards">
+        <article class="card">
+          <div class="label">Featured</div>
+          <div class="name"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a></div>
+          <div class="what">Agents that turn a GitHub issue into a tested pull request</div>
+          <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
+          <div class="chips"><span>Python</span><span>Google ADK</span><span>Agent Runtime</span><span>Vertex AI</span><span>Terraform</span><span>GitHub Actions</span></div>
+        </article>
+        <article class="card">
+          <div class="name"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a></div>
+          <div class="what">Load testing vllm-metal on an M1 Pro</div>
+          <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
+          <div class="chips"><span>vllm-metal</span><span>AIPerf</span><span>Gemma</span><span>Qwen</span><span>Apple Silicon</span></div>
+        </article>
+        <article class="card">
+          <div class="name"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a></div>
+          <div class="what">Your first model on Triton Inference Server</div>
+          <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
+          <div class="chips"><span>NVIDIA Triton</span><span>ONNX</span><span>Docker</span><span>GKE</span></div>
+        </article>
+        <article class="card">
+          <div class="name"><a href="https://github.com/omarcevi/augury">augury</a></div>
+          <div class="what">A terminal-native AI research digest</div>
+          <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
+          <div class="chips"><span>Python</span><span>Google ADK</span><span>pre-alpha</span><span>Apache-2.0</span></div>
+        </article>
+        <article class="card">
+          <div class="name"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a></div>
+          <div class="what">Turkish meme reactions for Claude Code</div>
+          <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
+          <div class="chips"><span>Claude Code plugin</span><span>hooks</span><span>bash</span></div>
+        </article>
+      </div>
+    </section>
 
-  <section>
-    <h2>Writing</h2>
-    <ul>
+    <section id="writing">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">writing.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>Writing</h2>
+      <ul class="list">
 <!-- MEDIUM:START -->
       <li>
         <div class="item-title"><a href="https://levelup.gitconnected.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">Your Model Works in a Notebook. Now What? A Friendly Intro to NVIDIA Triton Inference Server</a></div>
@@ -272,36 +724,756 @@
         <div class="item-meta">Medium · August 2025</div>
       </li>
 <!-- MEDIUM:END -->
-    </ul>
-    <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
-  </section>
+      </ul>
+      <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
+    </section>
 
-  <section>
-    <h2>Open Source</h2>
-    <ul>
-      <li>
-        <div class="item-title"><a href="https://github.com/google/adk-python/pull/3037">adk-python #3037</a> — fix for third-party CrewAI tool integration</div>
-        <div class="item-meta">google/adk-python</div>
-      </li>
-      <li>
-        <div class="item-title"><a href="https://github.com/google/adk-web/pull/272">adk-web #272</a> — light theme for the ADK web UI</div>
-        <div class="item-meta">google/adk-web</div>
-      </li>
-    </ul>
-  </section>
+    <section id="oss">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">oss.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>Open Source</h2>
+      <ul class="list">
+        <li>
+          <div class="item-title"><a href="https://github.com/google/adk-python/pull/3037">adk-python #3037</a> — fix for third-party CrewAI tool integration</div>
+          <div class="item-meta">google/adk-python</div>
+        </li>
+        <li>
+          <div class="item-title"><a href="https://github.com/google/adk-web/pull/272">adk-web #272</a> — light theme for the ADK web UI</div>
+          <div class="item-meta">google/adk-web</div>
+        </li>
+      </ul>
+    </section>
 
-  <section>
-    <h2>Elsewhere</h2>
-    <ul>
-      <li><a href="https://www.linkedin.com/in/omarcevi/">LinkedIn</a></li>
-      <li><a href="https://github.com/omarcevi">GitHub</a></li>
-      <li><a href="https://omarcevi.medium.com">Medium</a></li>
-      <li><a href="mailto:hi@omarcevi.dev">Email</a></li>
-    </ul>
-  </section>
+    <section id="contact" class="contact">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">contact.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <h2>Elsewhere</h2>
+      <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Or just write to compare notes on inference at scale.</p>
+      <div class="links">
+        <a class="primary" href="mailto:hi@omarcevi.dev" rel="me">hi@omarcevi.dev</a>
+        <a href="https://www.linkedin.com/in/omarcevi/" rel="me">LinkedIn</a>
+        <a href="https://github.com/omarcevi" rel="me">GitHub</a>
+        <a href="https://omarcevi.medium.com" rel="me">Medium</a>
+      </div>
+    </section>
 
-  <footer>
-    <p>Last updated: October 2026</p>
-  </footer>
+    <div class="trace-panel" id="trace-panel" aria-hidden="true">
+      <div class="tp-top"><span id="tp-head"></span><span class="tp-note">each section you read is a span · click a row to jump</span></div>
+      <div class="tp-axisrow"><span></span><span class="tp-axis" id="tp-axis"></span><span></span></div>
+      <div id="tp-rows"></div>
+    </div>
+
+    <footer>
+      <p>Last updated: October 2026</p>
+      <p>Istanbul</p>
+    </footer>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    var REDUCE = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function $(id) { return document.getElementById(id); }
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function onVisible(el, fn, margin) {
+      if (!('IntersectionObserver' in window)) { fn(); return; }
+      var io = new IntersectionObserver(function (es) {
+        if (es[0].isIntersecting) { io.disconnect(); fn(); }
+      }, { rootMargin: margin || '0px' });
+      io.observe(el);
+    }
+
+    /* =====================================================================
+       1. Header: GPT-2 small's real next-token predictions, replayed
+          data: assets/ml/hero.json  (scripts/ml_figures.py)
+       ===================================================================== */
+    (function hero() {
+      var h1 = $('name'), tag = $('tagline'), gen = $('gen'), header = h1.parentNode;
+      function reveal() { h1.style.visibility = 'visible'; tag.style.visibility = 'visible'; }
+      var fallback = setTimeout(reveal, 900);
+
+      fetch('assets/ml/hero.json').then(function (r) { return r.json(); }).then(function (D) {
+        clearTimeout(fallback);
+        var R = D.ranges, text = D.text;
+        if (text.slice(R.name[0], R.name[1]) !== h1.textContent.trim().replace(/\s+/g, ' ') ||
+            text.slice(R.tagline[0], R.tagline[1]) !== tag.textContent.trim().replace(/\s+/g, ' ')) {
+          reveal(); return;                                   // page text changed since the data was made
+        }
+        function inR(r, i) { return r && i >= r[0] && i < r[1]; }
+        h1.textContent = ''; tag.textContent = '';
+        var strong = document.createElement('strong'); tag.appendChild(strong);
+        var spans = [];
+        D.steps.forEach(function (st, si) {
+          spans[si] = [];
+          var runs = [], cur = null;
+          for (var j = 0; j < st.t.length; j++) {
+            var ci = st.s + j;
+            var where = inR(R.name, ci) ? 'h1' : inR(R.tagline_strong, ci) ? 'strong' : inR(R.tagline, ci) ? 'tag' : null;
+            if (!cur || cur.where !== where) { cur = { where: where, s: '' }; runs.push(cur); }
+            cur.s += st.t[j];
+          }
+          runs.forEach(function (r) {
+            if (!r.where) return;
+            var sp = document.createElement('span');
+            sp.className = 'tok wait'; sp.textContent = r.s; sp.dataset.step = si;
+            (r.where === 'h1' ? h1 : r.where === 'strong' ? strong : tag).appendChild(sp);
+            spans[si].push(sp);
+          });
+        });
+        h1.setAttribute('aria-label', text.slice(R.name[0], R.name[1]));
+        reveal();
+
+        var cand = document.createElement('div');
+        cand.className = 'cand'; cand.setAttribute('aria-hidden', 'true');
+        header.appendChild(cand);
+        var caret = document.createElement('span');
+        caret.className = 'caret'; caret.setAttribute('aria-hidden', 'true');
+
+        function lbl(s) { return esc(s.replace(/\n/g, '↵').replace(/ /g, '␣')); }
+        function pct(p) { return p >= 0.1 ? (p * 100).toFixed(0) + '%' : p >= 0.001 ? (p * 100).toFixed(1) + '%' : '<0.1%'; }
+        function showCand(si, pick) {
+          var st = D.steps[si], anchor = spans[si][0] || caret;
+          var html = '<div class="c-head"><span>GPT-2 small · token ' + (si + 1) + '/' + D.steps.length + '</span><span>p(next)</span></div>';
+          var hit = false;
+          st.cands.forEach(function (c) {
+            var isActual = c[0] === st.t;
+            if (isActual) hit = true;
+            html += '<div class="c-row' + (pick && isActual ? ' pick' : '') + '"><span>' + lbl(c[0]) +
+              '</span><span class="c-bar"><i style="width:' + Math.max(1, c[1] * 100) + '%"></i></span><span class="c-p">' + pct(c[1]) + '</span></div>';
+          });
+          if (!hit) {
+            html += '<div class="c-row actual' + (pick ? ' pick' : '') + '"><span>' + lbl(st.t) + '</span><span style="color:var(--faint)">what I wrote · #' +
+              st.rank.toLocaleString() + '</span><span class="c-p">' + pct(st.p) + '</span></div>';
+          }
+          cand.innerHTML = html;
+          var r = anchor.getBoundingClientRect(), hr = header.getBoundingClientRect();
+          var maxX = header.clientWidth - cand.offsetWidth;
+          cand.style.left = Math.max(0, Math.min(r.left - hr.left, maxX)) + 'px';
+          cand.style.top = (r.bottom - hr.top + 8) + 'px';
+          cand.classList.add('show');
+        }
+        function done() {
+          header.classList.add('ready');
+          gen.innerHTML = '<span class="ok">✓</span> GPT-2 small finds this header pretty surprising: perplexity <b>' +
+            Math.round(D.perplexity).toLocaleString() + '</b> · hover a word to see what it expected · <button type="button" class="linkbtn" id="regen">↻ replay</button>';
+          $('regen').onclick = play;
+        }
+        var playing = false;
+        function play() {
+          if (playing) return;
+          playing = true;
+          header.classList.remove('ready');
+          spans.forEach(function (a) { a.forEach(function (s) { s.className = 'tok wait'; }); });
+          var k = 0, n = D.steps.length;
+          function step() {
+            if (k >= n) {
+              cand.classList.remove('show');
+              setTimeout(function () { if (caret.parentNode) caret.parentNode.removeChild(caret); }, 1200);
+              playing = false; done(); return;
+            }
+            var si = k, inName = D.steps[si].s < R.name[1];
+            gen.innerHTML = 'GPT-2 small · replaying what it predicted at each token · <b>' + (si + 1) + '/' + n + '</b>';
+            spans[si].forEach(function (s) { s.className = 'tok on'; });
+            var lastSp = spans[si][spans[si].length - 1];
+            if (lastSp) lastSp.parentNode.insertBefore(caret, lastSp.nextSibling);
+            if (spans[si].length) showCand(si, false);
+            setTimeout(function () {
+              if (spans[si].length) showCand(si, true);
+              k++;
+              setTimeout(step, inName ? 110 : 45);
+            }, inName ? 220 : 60);
+          }
+          if (!caret.parentNode) h1.insertBefore(caret, h1.firstChild);
+          gen.innerHTML = 'GPT-2 small · prefill…';
+          setTimeout(step, 350);
+        }
+        header.addEventListener('mouseover', function (e) {
+          var t = e.target.closest && e.target.closest('.tok');
+          if (!t || playing) return;
+          [].forEach.call(document.querySelectorAll('.tok.cur'), function (x) { x.classList.remove('cur'); });
+          spans[+t.dataset.step].forEach(function (s) { s.classList.add('cur'); });
+          showCand(+t.dataset.step, true);
+        });
+        header.addEventListener('click', function (e) {
+          var t = e.target.closest && e.target.closest('.tok');
+          if (!t || playing) return;
+          [].forEach.call(document.querySelectorAll('.tok.cur'), function (x) { x.classList.remove('cur'); });
+          spans[+t.dataset.step].forEach(function (s) { s.classList.add('cur'); });
+          showCand(+t.dataset.step, true);
+        });
+        header.addEventListener('mouseleave', function () {
+          if (playing) return;
+          cand.classList.remove('show');
+          [].forEach.call(document.querySelectorAll('.tok.cur'), function (x) { x.classList.remove('cur'); });
+        });
+        if (REDUCE) { spans.forEach(function (a) { a.forEach(function (s) { s.className = 'tok'; }); }); done(); }
+        else play();
+      }).catch(function () { clearTimeout(fallback); reveal(); });
+    })();
+
+    /* =====================================================================
+       2. Inference simulator: arrivals → queue → dynamic batcher → MIG
+          slices on one H100 → streamed responses (a queueing model)
+       ===================================================================== */
+    (function sim() {
+      var box = $('simbox'), cv = $('sim');
+      if (!cv || !cv.getContext) return;
+      var ctx = cv.getContext('2d');
+      var M = { p50: $('m-p50'), p99: $('m-p99'), thr: $('m-thr'), util: $('m-util'), q: $('m-q') };
+      var playBtn = $('sim-play'), batchIn = $('sim-batch'), batchOut = $('sim-batch-v'), burstyIn = $('sim-bursty');
+
+      var SCALE = 0.1, RATE = 5.5, MAX_DELAY = 260;
+      var slices = [
+        { name: '3g.40gb', w: 3, speed: 0.72 },
+        { name: '2g.20gb', w: 2, speed: 1 },
+        { name: '2g.20gb', w: 2, speed: 1 }
+      ].map(function (s) { s.busy = false; s.items = []; s.start = 0; s.dur = 0; s.flash = 0; return s; });
+
+      var W = 0, H = 0, L = {};
+      var t = 0, reqs = [], queue = [], pending = [], lat = [], hist = [], doneT = [];
+      var nextArr = 0, nextBurst = 1800, statT = 0, util = 0;
+      var maxBatch = 8, bursty = true, playing = !REDUCE, visible = false, raf = 0, last = 0;
+      var FONT = '"Geist Mono", ui-monospace, monospace';
+
+      function layout() {
+        L.top = 30; L.bot = H - 50;
+        L.cell = Math.max(7, Math.min(10, W / 75));
+        L.qx0 = Math.round(W * 0.25);
+        L.gx0 = Math.round(W * 0.52); L.gx1 = Math.round(W * 0.84);
+        L.rows = Math.max(4, Math.floor((L.bot - L.top) / L.cell));
+        L.qcols = Math.max(2, Math.floor((L.gx0 - 26 - L.qx0) / L.cell));
+        var gap = 6, avail = L.bot - L.top - gap * 2, y = L.top;
+        slices.forEach(function (s) { s.h = avail * s.w / 7; s.y = y; s.x = L.gx0; s.wd = L.gx1 - L.gx0; y += s.h + gap; });
+      }
+      function qslot(i) {
+        var col = Math.min(Math.floor(i / L.rows), L.qcols - 1), row = i % L.rows;
+        return [L.qx0 + col * L.cell + L.cell / 2, L.top + row * L.cell + L.cell / 2];
+      }
+      function sslot(s, i, n) {
+        var c = L.cell * 0.95, cols = Math.max(1, Math.floor((s.wd - 12) / c));
+        var rowsN = Math.ceil(n / cols), col = i % cols, row = Math.floor(i / cols);
+        var x0 = s.x + 6 + ((s.wd - 12) - Math.min(n, cols) * c) / 2;
+        var y0 = s.y + 15 + (s.h - 19) / 2 - rowsN * c / 2;
+        return [x0 + col * c + c / 2, y0 + row * c + c / 2];
+      }
+      function retarget() {
+        queue.forEach(function (r, i) { var p = qslot(i); r.tx = p[0]; r.ty = p[1]; });
+        slices.forEach(function (s) { s.items.forEach(function (r, i) { var p = sslot(s, i, s.items.length); r.tx = p[0]; r.ty = p[1]; }); });
+      }
+      function resize() {
+        var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+        if (!r.width) return;
+        W = r.width; H = r.height;
+        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        layout(); retarget(); draw();
+      }
+      function spawn() {
+        var r = { t0: t, x: -6, y: L.top + Math.random() * (L.bot - L.top), st: 'q', tx: 0, ty: 0 };
+        reqs.push(r); queue.push(r);
+        var p = qslot(queue.length - 1); r.tx = p[0]; r.ty = p[1];
+      }
+      function burst(n) { for (var i = 0; i < n; i++) pending.push(t + Math.random() * 450); }
+      function schedule() {
+        for (var k = 0; k < slices.length; k++) {
+          var s = slices[k];
+          if (s.busy || !queue.length) continue;
+          if (queue.length >= maxBatch || t - queue[0].t0 >= MAX_DELAY) {
+            var n = Math.min(maxBatch, queue.length), items = queue.splice(0, n);
+            s.busy = true; s.items = items; s.start = t + 180; s.dur = (320 + 60 * n) * s.speed;
+            items.forEach(function (r, i) { r.st = 'b'; r.slice = s; var p = sslot(s, i, n); r.tx = p[0]; r.ty = p[1]; });
+            retarget();
+          }
+        }
+      }
+      function step(dt) {
+        t += dt;
+        if (t >= nextArr) { spawn(); nextArr = t + (-Math.log(1 - Math.random()) / RATE) * 1000; }
+        if (bursty && t >= nextBurst) { burst(26 + Math.floor(Math.random() * 12)); nextBurst = t + 6500 + Math.random() * 4000; }
+        for (var i = pending.length - 1; i >= 0; i--) if (pending[i] <= t) { pending.splice(i, 1); spawn(); }
+        schedule();
+        slices.forEach(function (s) {
+          if (s.busy && t >= s.start + s.dur) {
+            s.items.forEach(function (r) { r.st = 'o'; r.vx = 170 + Math.random() * 90; lat.push(t - r.t0); doneT.push(t); });
+            s.busy = false; s.items = []; s.flash = 1;
+          }
+          s.flash = Math.max(0, s.flash - dt / 400);
+        });
+        var k = Math.min(1, dt / 1000 * 6);
+        for (var j = reqs.length - 1; j >= 0; j--) {
+          var r = reqs[j];
+          if (r.st === 'o') { r.x += r.vx * dt / 1000; if (r.x > W + 30) reqs.splice(j, 1); }
+          else { r.x += (r.tx - r.x) * k; r.y += (r.ty - r.y) * k; }
+        }
+        var busyW = 0; slices.forEach(function (s) { if (s.busy) busyW += s.w; });
+        util += (busyW / 7 - util) * Math.min(1, dt / 1500);
+        statT += dt;
+        if (statT > 300) { statT = 0; metrics(); }
+      }
+      function pctl(arr, p) { var a = arr.slice().sort(function (x, y) { return x - y; }); return a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))]; }
+      function metrics() {
+        if (lat.length > 120) lat = lat.slice(-120);
+        while (doneT.length && doneT[0] < t - 3000) doneT.shift();
+        var recent = lat.slice(-30);
+        if (recent.length) {
+          M.p50.textContent = Math.round(pctl(lat.slice(-60), 0.5) * SCALE) + 'ms';
+          M.p99.textContent = Math.round(pctl(recent, 0.99) * SCALE) + 'ms';
+          hist.push(pctl(recent, 0.99) * SCALE);
+          if (hist.length > 110) hist.shift();
+        }
+        M.thr.textContent = Math.round(doneT.length / 3 / SCALE) + ' req/s';
+        M.util.textContent = Math.round(util * 100) + '%';
+        M.q.textContent = queue.length;
+      }
+      function mix(a, b, f) { return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; }
+      var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
+      function waitColor(w) {
+        var f = Math.min(1, w / 1600), c = f < 0.5 ? mix(BASE, WARN, f * 2) : mix(WARN, BAD, (f - 0.5) * 2);
+        return 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')';
+      }
+      function rr(x, y, w, h, r) {
+        ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+      }
+      function draw() {
+        if (!W) return;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = 'rgba(220,225,235,0.06)';
+        for (var gx = 8; gx < W; gx += 16) for (var gy = 8; gy < L.bot + 4; gy += 16) ctx.fillRect(gx, gy, 1, 1);
+        ctx.font = '10px ' + FONT; ctx.fillStyle = '#5c626d';
+        ctx.fillText('requests →', 10, 18);
+        ctx.fillText(W > 560 ? 'queue · dynamic batcher' : 'queue', L.qx0 - 4, 18);
+        ctx.fillText('H100 · MIG', L.gx0, 18);
+        if (W > 420) ctx.fillText('stream →', L.gx1 + 10, 18);
+        ctx.strokeStyle = 'rgba(220,225,235,0.12)'; ctx.setLineDash([3, 4]);
+        rr(L.qx0 - 5, L.top - 5, L.qcols * L.cell + 10, L.rows * L.cell + 10, 6); ctx.stroke(); ctx.setLineDash([]);
+        slices.forEach(function (s) {
+          rr(s.x, s.y, s.wd, s.h, 6); ctx.fillStyle = '#161920'; ctx.fill();
+          if (s.busy && t > s.start) {
+            var p = Math.min(1, (t - s.start) / s.dur);
+            ctx.save(); rr(s.x, s.y, s.wd, s.h, 6); ctx.clip();
+            ctx.fillStyle = 'rgba(122,162,255,0.16)'; ctx.fillRect(s.x, s.y, s.wd * p, s.h); ctx.restore();
+          }
+          ctx.strokeStyle = s.flash > 0 ? 'rgba(74,222,128,' + (0.3 + s.flash * 0.6) + ')' : '#2a2f38';
+          rr(s.x, s.y, s.wd, s.h, 6); ctx.stroke();
+          ctx.fillStyle = '#8b919c'; ctx.font = '9px ' + FONT;
+          ctx.fillText(s.name, s.x + 6, s.y + 11);
+          if (s.busy) { var l = 'batch ' + s.items.length; ctx.fillText(l, s.x + s.wd - 6 - ctx.measureText(l).width, s.y + 11); }
+        });
+        var rad = L.cell * 0.36;
+        reqs.forEach(function (r) {
+          if (r.st === 'o') {
+            ctx.fillStyle = 'rgba(74,222,128,0.9)';
+            for (var q = 1; q <= 4; q++) { ctx.globalAlpha = 0.55 - q * 0.12; ctx.fillRect(r.x - q * 7 - 2, r.y - 1, 4, 2); }
+            ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, 6.283); ctx.fill(); return;
+          }
+          var col = waitColor(t - r.t0);
+          if (r.st === 'b' && r.slice && t > r.slice.start) { ctx.globalAlpha = 0.65 + 0.35 * Math.sin((t - r.slice.start) / 90); col = '#7aa2ff'; }
+          ctx.fillStyle = col; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1;
+        });
+        var by = H - 40, bh = 28, x0 = 62, x1 = W - 10;
+        ctx.strokeStyle = '#1c2027'; ctx.beginPath(); ctx.moveTo(0, by - 8); ctx.lineTo(W, by - 8); ctx.stroke();
+        ctx.fillStyle = '#5c626d'; ctx.font = '9px ' + FONT;
+        ctx.fillText('p99', 10, by + 10); ctx.fillText('rolling', 10, by + 21);
+        if (hist.length > 1) {
+          var mx = Math.max(120, Math.max.apply(null, hist) * 1.1);
+          ctx.beginPath();
+          hist.forEach(function (v, i) { var x = x0 + (x1 - x0) * i / 109, y = by + bh - (v / mx) * bh; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+          ctx.strokeStyle = '#7aa2ff'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1;
+          var lx = x0 + (x1 - x0) * (hist.length - 1) / 109;
+          ctx.lineTo(lx, by + bh); ctx.lineTo(x0, by + bh); ctx.closePath(); ctx.fillStyle = 'rgba(122,162,255,0.10)'; ctx.fill();
+        }
+      }
+      function frame(now) {
+        raf = 0;
+        if (!visible || document.hidden) { last = 0; return; }
+        var dt = last ? Math.min(50, now - last) : 16; last = now;
+        if (playing) step(dt);
+        draw(); raf = requestAnimationFrame(frame);
+      }
+      function wake() { if (visible && !document.hidden && !raf) { last = 0; raf = requestAnimationFrame(frame); } }
+      function setPlaying(p) {
+        playing = p; playBtn.textContent = p ? '❚❚' : '▶ play';
+        playBtn.setAttribute('aria-label', p ? 'Pause simulation' : 'Play simulation');
+        box.classList.toggle('paused', !p);
+      }
+      playBtn.onclick = function () { setPlaying(!playing); };
+      $('sim-burst').onclick = function () { if (!playing) setPlaying(true); burst(24); };
+      cv.addEventListener('click', function () { if (!playing) setPlaying(true); burst(12); });
+      batchIn.oninput = function () { maxBatch = +batchIn.value; batchOut.textContent = maxBatch; };
+      burstyIn.onchange = function () { bursty = burstyIn.checked; };
+      resize();
+      for (var i = 0; i < 300; i++) step(16);
+      metrics(); draw(); setPlaying(playing);
+      if ('ResizeObserver' in window) new ResizeObserver(resize).observe(cv); else window.addEventListener('resize', resize);
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; wake(); }).observe(cv);
+      else { visible = true; wake(); }
+      document.addEventListener('visibilitychange', wake);
+    })();
+
+    /* =====================================================================
+       3. Real attention: GPT-2 small reading the About text
+          data: assets/ml/attention.{json,bin}  (scripts/ml_figures.py)
+       ===================================================================== */
+    (function attention() {
+      var box = document.querySelector('.about-body'), hint = $('att-hint'), fig = $('att-fig');
+      if (!box) return;
+      var svg = box.querySelector('.att-svg'), NS = 'http://www.w3.org/2000/svg';
+      var words = [];
+      [].slice.call(box.querySelectorAll('p')).forEach(function (p) {
+        var text = p.textContent; p.textContent = '';
+        text.split(/(\s+)/).forEach(function (part) {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { p.appendChild(document.createTextNode(part)); return; }
+          var s = document.createElement('span');
+          s.className = 'w'; s.textContent = part; s.dataset.i = words.length;
+          words.push({ el: s, text: part.replace(/[.,:;]+$/, '') });
+          p.appendChild(s);
+        });
+      });
+
+      new Promise(function (go) { onVisible(box, go, '600px'); }).then(function () { return Promise.all([
+        fetch('assets/ml/attention.json').then(function (r) { return r.json(); }),
+        fetch('assets/ml/attention.bin').then(function (r) { return r.arrayBuffer(); })
+      ]); }).then(function (res) {
+        var meta = res[0], buf = res[1];
+        if (meta.words.length !== words.length || meta.words.some(function (w, i) { return w !== words[i].el.textContent; })) {
+          hint.textContent = 'attention data is out of date: run scripts/ml_figures.py'; return;
+        }
+        var L = meta.layers, HH = meta.heads + 1, W = words.length, K = meta.k, n = L * HH * W * K;
+        var idx = meta.idx_bytes === 1 ? new Uint8Array(buf, 0, n) : new Uint16Array(buf, 0, n);
+        var wt = new Uint8Array(buf, n * meta.idx_bytes, n);
+        var sel = { l: meta['default'][0], h: meta['default'][1] };
+        var current = -1, userActive = false;
+        var DEFAULT_HINT = (window.matchMedia && matchMedia('(hover: none)').matches ? 'tap' : 'hover') + ' any word to see where GPT-2 looks from it';
+        hint.textContent = DEFAULT_HINT;
+
+        function headName(l, h) { return h === meta.heads ? 'layer ' + l + ', mean of all heads' : 'head ' + l + '.' + h; }
+        function targets(i) {
+          var base = ((sel.l * HH + sel.h) * W + i) * K, out = [];
+          for (var k = 0; k < K; k++) { var w = wt[base + k] / 255; if (w > 0.015) out.push([idx[base + k], w]); }
+          return out;
+        }
+        function clear() {
+          words.forEach(function (w) { w.el.classList.remove('src', 'att'); });
+          while (svg.firstChild) svg.removeChild(svg.firstChild);
+          hint.textContent = DEFAULT_HINT; current = -1;
+        }
+        function show(i) {
+          clear(); current = i;
+          var br = box.getBoundingClientRect(), src = words[i];
+          src.el.classList.add('src');
+          var r1 = src.el.getBoundingClientRect();
+          var x1 = r1.left + r1.width / 2 - br.left, y1 = r1.top - br.top + 3;
+          var ts = targets(i), mx = ts.length ? ts[0][1] : 1, names = [];
+          ts.forEach(function (o) {
+            var rel = o[1] / mx, el = words[o[0]].el, r2 = el.getBoundingClientRect();
+            el.classList.add('att'); el.style.setProperty('--w', rel.toFixed(2));
+            var x2 = r2.left + r2.width / 2 - br.left, y2 = r2.top - br.top + 3;
+            var lift = Math.min(64, 12 + Math.abs(x2 - x1) * 0.16 + Math.abs(y2 - y1) * 0.1);
+            var path = document.createElementNS(NS, 'path');
+            path.setAttribute('d', 'M' + x1 + ' ' + y1 + ' Q ' + ((x1 + x2) / 2) + ' ' + (Math.min(y1, y2) - lift) + ' ' + x2 + ' ' + y2);
+            path.setAttribute('stroke-width', (0.8 + rel * 2.2).toFixed(2));
+            path.setAttribute('stroke-opacity', (0.2 + rel * 0.65).toFixed(2));
+            svg.appendChild(path);
+            var c = document.createElementNS(NS, 'circle');
+            c.setAttribute('cx', x2); c.setAttribute('cy', y2); c.setAttribute('r', 1.5 + rel * 1.5);
+            svg.appendChild(c);
+            if (names.length < 3) names.push('“' + esc(words[o[0]].text) + '” ' + Math.round(o[1] * 100) + '%');
+          });
+          hint.innerHTML = 'GPT-2 small · ' + headName(sel.l, sel.h) + ' · <b>' + esc(src.text) + '</b> → ' +
+            (names.length ? names.join(', ') : i === 0 ? 'nothing before it' : 'mostly itself');
+        }
+        box.addEventListener('mouseover', function (e) {
+          var w = e.target.closest && e.target.closest('.w');
+          if (w) { userActive = true; if (+w.dataset.i !== current) show(+w.dataset.i); }
+        });
+        box.addEventListener('mouseleave', function () { userActive = false; clear(); });
+        box.addEventListener('click', function (e) {
+          var w = e.target.closest && e.target.closest('.w');
+          if (!w) return;
+          userActive = true;
+          if (+w.dataset.i === current) clear(); else show(+w.dataset.i);
+        });
+        window.addEventListener('resize', function () { if (current > -1) show(current); });
+
+        // head picker
+        var hg = $('hg'), selLabel = $('att-sel'), md = meta.mean_dist, maxd = 0, buttons = [];
+        md.forEach(function (row) { row.forEach(function (v) { if (v > maxd) maxd = v; }); });
+        function label() {
+          selLabel.innerHTML = 'showing <b>' + headName(sel.l, sel.h) + '</b>' +
+            (sel.h < meta.heads ? ' · looks back ' + md[sel.l][sel.h].toFixed(1) + ' words on average' : '');
+        }
+        for (var l = 0; l < L; l++) for (var h = 0; h <= meta.heads; h++) (function (l, h) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          var v = h < meta.heads ? md[l][h] / maxd : md[l].reduce(function (a, x) { return a + x; }, 0) / md[l].length / maxd;
+          b.style.setProperty('--v', (0.08 + 0.92 * v).toFixed(2));
+          if (h === meta.heads) b.className = 'avg';
+          b.title = headName(l, h);
+          b.setAttribute('aria-label', headName(l, h));
+          b.onclick = function () {
+            sel = { l: l, h: h };
+            buttons.forEach(function (x) { x.classList.remove('sel'); });
+            b.classList.add('sel'); label();
+            if (current > -1) { var c = current; current = -1; show(c); }
+          };
+          if (l === sel.l && h === sel.h) b.classList.add('sel');
+          buttons.push(b); hg.appendChild(b);
+        })(l, h);
+        label();
+        fig.classList.add('ready');
+
+        if (!REDUCE) {
+          var demo = -1;
+          ['utilization,', 'vLLM', 'inference'].some(function (w) {
+            for (var i = 0; i < words.length; i++) if (words[i].el.textContent === w) { demo = i; return true; }
+            return false;
+          });
+          onVisible(box, function () {
+            setTimeout(function () {
+              if (userActive || demo < 0) return;
+              show(demo);
+              setTimeout(function () { if (!userActive) clear(); }, 3200);
+            }, 600);
+          });
+        }
+      }).catch(function () { hint.style.display = 'none'; });
+    })();
+
+    /* =====================================================================
+       4. A real agent run, replayed: sdlc-agent-pipeline on one issue
+          data: assets/agent/replay.json  (scripts/sync_agent_replay.py)
+       ===================================================================== */
+    (function agent() {
+      var box = $('agentbox'); if (!box) return;
+      new Promise(function (go) { onVisible(box, go, '800px'); }).then(function () { return fetch('assets/agent/replay.json'); }).then(function (r) { return r.json(); }).then(function (D) {
+        var svg = $('ag-svg'), log = $('ag-log'), NS = 'http://www.w3.org/2000/svg';
+        $('ag-issue').textContent = '· ' + D.repo + ' · “' + D.issue + '”';
+        if (D.caption) $('ag-cap-text').textContent = D.caption + ' Replayed from the recording, with its real timestamps, tokens and cost.';
+
+        var POS = {
+          fetch_issue: [10, 6], provision_sandbox: [10, 34], planner: [10, 62], route_plan: [10, 90],
+          coder: [10, 124], collect_diff: [10, 152], run_tests: [10, 180], reviewer: [10, 208],
+          route_review: [10, 236], deliver_patch: [10, 272], report_failure: [162, 150]
+        };
+        var nodes = {}, edges = [], extra = 0;
+        D.graph.nodes.forEach(function (n) {
+          if (n.id === 'START') return;
+          var p = POS[n.id] || [162, 20 + 28 * extra++];
+          var g = document.createElementNS(NS, 'g');
+          g.setAttribute('class', 'nd ' + n.kind);
+          var w = n.kind === 'router' ? 96 : 120, h = 20, shape;
+          if (n.kind === 'router') {
+            p = [p[0] + 12, p[1]];
+            shape = document.createElementNS(NS, 'path');
+            shape.setAttribute('d', 'M' + p[0] + ' ' + (p[1] + h / 2) + ' l8 -' + h / 2 + ' h' + (w - 16) + ' l8 ' + h / 2 + ' l-8 ' + h / 2 + ' h-' + (w - 16) + 'z');
+          } else {
+            if (n.id === 'report_failure') w = 80;
+            shape = document.createElementNS(NS, 'rect');
+            shape.setAttribute('x', p[0]); shape.setAttribute('y', p[1]); shape.setAttribute('width', w); shape.setAttribute('height', h);
+            shape.setAttribute('rx', n.kind === 'llm' ? 10 : 4);
+          }
+          var tx = document.createElementNS(NS, 'text');
+          tx.setAttribute('x', p[0] + (n.kind === 'router' ? 12 : 9)); tx.setAttribute('y', p[1] + h / 2 + 0.5);
+          tx.textContent = n.id === 'report_failure' ? 'report_fail' : n.id;
+          g.appendChild(shape); g.appendChild(tx);
+          nodes[n.id] = { g: g, x: p[0], y: p[1], w: w, h: h };
+        });
+        D.graph.edges.forEach(function (e) {
+          var a = nodes[e.from], b = nodes[e.to];
+          if (!a || !b) return;
+          var d, ax = a.x + a.w / 2, bx = b.x + b.w / 2, ay = a.y + a.h / 2, by = b.y + b.h / 2;
+          if (b.x > a.x + 60) {                                   // side branch (report_failure)
+            d = 'M' + (a.x + a.w) + ' ' + ay + ' C' + (a.x + a.w + 18) + ' ' + ay + ' ' + (b.x - 18) + ' ' + by + ' ' + b.x + ' ' + by;
+          } else if (b.y > a.y) {                                 // straight down the main path
+            d = 'M' + ax + ' ' + (a.y + a.h) + ' L' + bx + ' ' + b.y;
+          } else {                                                // retry loops back up to the coder
+            var lx = a.x + a.w + 10 + (e.route === 'changes' ? 9 : 0);
+            d = 'M' + (a.x + a.w) + ' ' + ay + ' C' + lx + ' ' + ay + ' ' + lx + ' ' + by + ' ' + (b.x + b.w) + ' ' + by;
+          }
+          var path = document.createElementNS(NS, 'path');
+          path.setAttribute('d', d); path.setAttribute('class', 'edge');
+          svg.appendChild(path);
+          edges.push({ from: e.from, to: e.to, el: path });
+        });
+        Object.keys(nodes).forEach(function (k) { svg.appendChild(nodes[k].g); });
+
+        var steps = D.steps, total = D.outcome.duration_s;
+        var els = { t: $('ag-t'), cost: $('ag-cost'), tc: $('ag-tc'), tok: $('ag-tok'), out: $('ag-out'), prog: $('ag-prog') };
+        var speed = 8, playing = !REDUCE, clock = 0, k = 0, tin = 0, tout = 0, active = null, prevNode = null, last = 0, raf = 0;
+
+        function fmtT(s) { return s.toFixed(1) + 's'; }
+        function line(t, html, cls) {
+          var d = document.createElement('div');
+          d.className = 'ln' + (cls ? ' ' + cls : '');
+          d.innerHTML = '<span class="t">' + fmtT(t) + '</span>' + html;
+          log.appendChild(d);
+          while (log.children.length > 40) log.removeChild(log.firstChild);
+        }
+        function setActive(id, from) {
+          if (active && nodes[active]) { nodes[active].g.classList.remove('active'); nodes[active].g.classList.add('visited'); }
+          edges.forEach(function (e) { if (e.el.classList.contains('hot')) { e.el.classList.remove('hot'); e.el.classList.add('done'); } });
+          if (from) edges.forEach(function (e) { if (e.from === from && e.to === id) e.el.classList.add('hot'); });
+          active = id;
+          if (nodes[id]) nodes[id].g.classList.add('active');
+        }
+        function apply(s) {
+          switch (s.k) {
+            case 'node':
+              setActive(s.n, s.from || prevNode); prevNode = s.n;
+              line(s.t, '<span class="node">→ ' + esc(s.n) + '</span>' + (s.via ? ' <span class="who">[' + esc(s.via) + ']</span>' : '') + (s.msg ? ' · ' + esc(s.msg) : ''));
+              break;
+            case 'model_call':
+              tin += s.ti || 0; tout += s.to || 0;
+              line(s.t, '<span class="who">' + esc(s.a) + '</span> ' + (s.ti || 0).toLocaleString() + '→' + (s.to || 0).toLocaleString() + ' tok · <span class="tool">' + esc((s.calls || []).join(', ') || 'thinking') + '</span>');
+              break;
+            case 'tool_result':
+              if (s.err) line(s.t, '  ↳ <span class="bad">' + esc(s.tool) + ' error</span> ' + esc(s.err));
+              else if (s.exit !== undefined) line(s.t, '  ↳ ' + esc(s.tool) + ' <span class="' + (s.exit === 0 ? 'good' : 'bad') + '">exit ' + s.exit + '</span>' + (s.out ? ' · ' + esc(s.out) : ''));
+              else line(s.t, '  ↳ ' + esc(s.tool) + ' <span class="good">ok</span>');
+              break;
+            case 'plan': line(s.t, '<span class="who">plan</span> ' + (s.actionable ? '<span class="good">actionable</span> · ' : '<span class="bad">declined</span> · ') + esc(s.summary), 'wrap'); break;
+            case 'claim': line(s.t, '<span class="who">coder claims</span> ' + esc(s.summary), 'wrap'); break;
+            case 'diff': line(s.t, '<span class="who">diff</span> ' + s.files.length + ' files <span class="good">+' + s.ins + '</span> <span class="bad">−' + s.del + '</span> · ' + esc(s.files.join(', '))); break;
+            case 'tests': line(s.t, '<span class="who">tests</span> ' + (s.passed ? '<span class="good">passed</span>' : '<span class="bad">failed</span>') + ' · ' + esc(s.out)); break;
+            case 'review': line(s.t, '<span class="who">review</span> ' + (s.verdict === 'approve' ? '<span class="good">approve</span>' : '<span class="bad">' + esc(s.verdict) + '</span>') + (s.must_fix ? ' · ' + s.must_fix + ' must-fix' : '')); break;
+            case 'outcome':
+              var o = D.outcome;
+              line(s.t, '<span class="' + (o.resolved ? 'good' : 'bad') + '">■ ' + esc(o.outcome.replace(/_/g, ' ')) + (o.resolved ? ', resolved' : '') + '</span> · $' + o.cost_usd.toFixed(4) + ' · ' + o.tool_calls + ' tool calls · ' + fmtT(o.duration_s), 'wrap');
+              els.out.textContent = o.outcome.replace(/_/g, ' ');
+              break;
+          }
+          els.cost.textContent = '$' + s.c.toFixed(4);
+          els.tc.textContent = s.tc;
+          els.tok.textContent = tin.toLocaleString() + ' → ' + tout.toLocaleString();
+        }
+        function reset() {
+          clock = 0; k = 0; tin = 0; tout = 0; prevNode = null; active = null;
+          log.innerHTML = '';
+          Object.keys(nodes).forEach(function (n) { nodes[n].g.classList.remove('active', 'visited'); });
+          edges.forEach(function (e) { e.el.classList.remove('hot', 'done'); });
+          els.out.textContent = 'running';
+        }
+        function render() {
+          els.t.textContent = fmtT(Math.min(clock, total));
+          els.prog.style.width = (Math.min(1, clock / total) * 100) + '%';
+        }
+        function tick(now) {
+          raf = 0;
+          var dt = last ? Math.min(100, now - last) : 16; last = now;
+          if (playing) {
+            clock += dt / 1000 * speed;
+            while (k < steps.length && steps[k].t <= clock) { apply(steps[k]); k++; }
+            if (k >= steps.length) { playing = false; clock = total; setBtn(); }
+          }
+          render();
+          if (playing && !document.hidden) raf = requestAnimationFrame(tick); else last = 0;
+        }
+        function setBtn() {
+          var b = $('ag-play');
+          b.textContent = playing ? '❚❚' : '▶';
+          b.setAttribute('aria-label', playing ? 'Pause replay' : 'Play replay');
+          box.classList.toggle('paused', !playing);
+        }
+        function go() { if (!raf) { last = 0; raf = requestAnimationFrame(tick); } }
+        $('ag-play').onclick = function () { if (k >= steps.length) reset(); playing = !playing; setBtn(); go(); };
+        $('ag-restart').onclick = function () { reset(); playing = true; setBtn(); go(); };
+        $('ag-speed').onchange = function () { speed = +this.value; };
+        document.addEventListener('visibilitychange', function () { if (!document.hidden && playing) go(); });
+
+        if (REDUCE) { while (k < steps.length) { apply(steps[k]); k++; } clock = total; playing = false; setBtn(); render(); }
+        else { playing = false; setBtn(); onVisible(box, function () { playing = true; setBtn(); go(); }, '-80px'); }
+      }).catch(function () { box.style.display = 'none'; $('ag-cap').style.display = 'none'; });
+    })();
+
+    /* =====================================================================
+       5. Your reading trace: every section you read becomes a span on one
+          shared timeline (like a request trace), shown per section and in
+          full at the bottom of the page
+       ===================================================================== */
+    (function trace() {
+      var rows = [].slice.call(document.querySelectorAll('.span'));
+      if (!rows.length) return;
+      var secs = rows.map(function (r) { return r.parentNode; });
+      var names = rows.map(function (r) { return r.querySelector('.sp-name').textContent; });
+      var t0 = performance.now(), last = t0, cur = -1;
+      var segs = rows.map(function () { return []; });          // [[start, end], ...] in ms since page load
+      var STEPS = [20, 40, 60, 120, 240, 480, 1200, 2400, 3600, 7200].map(function (s) { return s * 1000; });
+
+      // full trace panel above the footer
+      var panel = $('trace-panel'), axisEl = $('tp-axis'), body = $('tp-rows'), head = $('tp-head');
+      var root = mkRow('session', true), pRows = names.map(function (n, i) {
+        var r = mkRow(n, false);
+        r.el.addEventListener('click', function () { secs[i].scrollIntoView({ behavior: REDUCE ? 'auto' : 'smooth' }); });
+        return r;
+      });
+      function mkRow(name, isRoot) {
+        var el = document.createElement('div');
+        el.className = 'tp-row' + (isRoot ? ' root' : '');
+        el.innerHTML = '<span class="tp-name">' + (isRoot ? '' : '└ ') + esc(name) + '</span><span class="tp-track"></span><span class="tp-time">–</span>';
+        body.appendChild(el);
+        return { el: el, track: el.querySelector('.tp-track'), time: el.querySelector('.tp-time') };
+      }
+
+      function fmt(ms) { var s = ms / 1000; return s < 60 ? s.toFixed(1) + 's' : Math.floor(s / 60) + 'm ' + String(Math.round(s % 60)).padStart(2, '0') + 's'; }
+      function tickLabel(ms) { var s = Math.round(ms / 1000); return s < 60 ? s + 's' : s % 60 ? Math.floor(s / 60) + 'm' + (s % 60) + 's' : s / 60 + 'm'; }
+      function drawBars(track, list, scale, cls) {
+        while (track.children.length > list.length + (track.dataset.keep ? 1 : 0)) track.removeChild(track.lastChild);
+        list.forEach(function (sg, j) {
+          var bar = track.querySelectorAll('.' + cls)[j];
+          if (!bar) { bar = document.createElement('span'); bar.className = cls; track.appendChild(bar); }
+          bar.style.left = (sg[0] / scale * 100) + '%';
+          bar.style.width = Math.max(0.6, (sg[1] - sg[0]) / scale * 100) + '%';
+        });
+      }
+      var lastScale = 0;
+      function tick() {
+        var now = performance.now() - t0;
+        var prev = last; last = performance.now();
+        var reading = -1;
+        if (!document.hidden) {
+          var vh = window.innerHeight, bestPx = 0;
+          secs.forEach(function (s, i) {
+            var r = s.getBoundingClientRect();
+            var px = Math.min(r.bottom, vh * 0.75) - Math.max(r.top, vh * 0.2);
+            if (px > bestPx) { bestPx = px; reading = i; }
+          });
+        }
+        if (reading !== cur) {
+          if (cur > -1) segs[cur][segs[cur].length - 1][1] = now;
+          if (reading > -1) segs[reading].push([now, now]);
+          cur = reading;
+        } else if (cur > -1) segs[cur][segs[cur].length - 1][1] = now;
+
+        var scale = STEPS.filter(function (x) { return x >= now; })[0] || now;
+        if (scale !== lastScale) {                                   // axis only changes when the window doubles
+          lastScale = scale;
+          axisEl.innerHTML = '';
+          [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
+            var t = document.createElement('span');
+            t.style.left = (f * 100) + '%'; t.textContent = tickLabel(scale * f);
+            axisEl.appendChild(t);
+          });
+        }
+        var seen = 0, readMs = 0;
+        rows.forEach(function (r, i) {
+          var tot = segs[i].reduce(function (a, s) { return a + s[1] - s[0]; }, 0);
+          r.classList.toggle('reading', i === cur);
+          pRows[i].el.classList.toggle('reading', i === cur);
+          if (!segs[i].length) return;
+          seen++; readMs += tot;
+          drawBars(r.querySelector('.sp-track'), segs[i], scale, 'sp-bar');
+          r.querySelector('.sp-time').textContent = fmt(tot);
+          drawBars(pRows[i].track, segs[i], scale, 'tp-bar');
+          pRows[i].time.textContent = fmt(tot);
+        });
+        drawBars(root.track, [[0, now]], scale, 'tp-bar');
+        root.time.textContent = fmt(now);
+        head.innerHTML = 'your reading trace · <b>' + seen + '/' + rows.length + '</b> sections · ' + fmt(readMs) + ' reading';
+      }
+      tick(); setInterval(tick, 250);
+      panel.classList.add('ready');
+    })();
+  })();
+  </script>
 </body>
 </html>

@@ -1,0 +1,51 @@
+name: Rebuild ML figures
+
+# Recomputes the real model data behind the homepage figures:
+#   - GPT-2 small attention + next-token predictions (scripts/ml_figures.py)
+#   - the recorded agent run from sdlc-agent-pipeline (scripts/sync_agent_replay.py)
+# Runs when the page text or the scripts change, or by hand from the Actions tab.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - scripts/ml_figures.py
+      - scripts/gpt2_bpe.py
+      - scripts/sync_agent_replay.py
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "sdlc-agent-pipeline replay to feature (blank = keep the default)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r scripts/requirements.txt
+      - name: Cache GPT-2 (ONNX, ~650 MB)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/omarcevi-ml
+          key: gpt2-lm-head-10-v1
+      - run: python scripts/ml_figures.py
+      - run: python scripts/sync_agent_replay.py ${{ github.event.inputs.run_id && format('--run {0}', github.event.inputs.run_id) || '' }}
+      - name: Commit if the data changed
+        run: |
+          if git diff --quiet -- assets; then
+            echo "Nothing new."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets
+          git commit -m "Rebuild ML figures"
+          git push
