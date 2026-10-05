@@ -129,7 +129,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; scroll-padding-top: 3.25rem; } /* anchor jumps tuck each section's top rule under the sticky bar */
     body {
       font-family: var(--sans);
       background: var(--bg);
@@ -139,7 +139,7 @@
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
-    .page { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    .page { max-width: 760px; margin: 0 auto; padding: 1rem 1.5rem 4rem; }
 
     a {
       color: inherit;
@@ -153,16 +153,25 @@
     ul { list-style: none; }
     p { margin-bottom: 1rem; }
 
-    /* ---------- top bar ---------- */
+    /* ---------- top bar (sticky) ---------- */
     .topbar {
-      display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+      position: sticky; top: 0; z-index: 10;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
       font-family: var(--mono); font-size: 0.78rem; color: var(--muted);
-      padding-bottom: 1rem; border-bottom: 1px solid var(--border);
+      padding: 1rem 0; border-bottom: 1px solid var(--border); background: var(--bg);
     }
-    .topbar .domain { color: var(--text); font-weight: 500; }
-    .topbar nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
-    .topbar nav a { color: var(--muted); text-decoration: none; }
-    .topbar nav a:hover { color: var(--accent); }
+    .topbar .domain { color: var(--text); font-weight: 500; text-decoration: none; white-space: nowrap; }
+    .topbar .domain:hover { color: var(--accent); }
+    .topbar nav {
+      display: flex; gap: 1.1rem; min-width: 0; overflow-x: auto; scrollbar-width: none;
+      padding: 0.25rem; margin: -0.25rem;                     /* room for focus rings inside the scroller */
+      /* edges fade only while there is more nav to scroll that way (--fl / --fr set by JS) */
+      mask-image: linear-gradient(to right, transparent, #000 var(--fl, 0px), #000 calc(100% - var(--fr, 0px)), transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fl, 0px), #000 calc(100% - var(--fr, 0px)), transparent);
+    }
+    .topbar nav::-webkit-scrollbar { display: none; }
+    .topbar nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
+    .topbar nav a:hover, .topbar nav a[aria-current] { color: var(--accent); }
 
     /* ---------- header ---------- */
     header { padding: 4rem 0 2.5rem; position: relative; }
@@ -294,7 +303,7 @@
     .ag-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--p-accent); width: 0; }
 
     /* ---------- sections + reading trace ---------- */
-    section { padding: 2.5rem 0; border-top: 1px solid var(--border); scroll-margin-top: 1rem; }
+    section { padding: 2.5rem 0; border-top: 1px solid var(--border); }
     .span {
       display: none; grid-template-columns: 2.6rem minmax(0, 8rem) 1fr 4rem; align-items: center; gap: 0.75rem;
       font-family: var(--mono); font-size: 0.7rem; color: var(--faint); margin-bottom: 0.9rem;
@@ -450,9 +459,11 @@
 
     @media (max-width: 640px) {
       body { font-size: 16px; }
-      .page { padding: 1.25rem 1rem 3rem; }
+      .page { padding: 0.5rem 1rem 3rem; }
       header { padding: 3rem 0 2rem; }
-      .topbar nav { display: none; }
+      html { scroll-padding-top: 2.75rem; }
+      .topbar { padding: 0.75rem 0; }
+      .topbar nav { gap: 0.9rem; }
       #sim { height: 230px; }
       .p-title .note { display: none; }
       .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
@@ -476,7 +487,7 @@
 <body>
   <div class="page">
     <div class="topbar">
-      <span class="domain">omarcevi.dev</span>
+      <a class="domain" href="#">omarcevi.dev</a>
       <nav aria-label="Sections">
         <a href="#about">About</a>
         <a href="#experience">Experience</a>
@@ -1444,6 +1455,15 @@
       if (!rows.length) return;
       var secs = rows.map(function (r) { return r.parentNode; });
       var names = rows.map(function (r) { return r.querySelector('.sp-name').textContent; });
+      var nav = document.querySelector('.topbar nav');
+      var navLinks = secs.map(function (s) { return nav.querySelector('a[href="#' + s.id + '"]'); });
+      function navFade() {
+        nav.style.setProperty('--fl', nav.scrollLeft > 1 ? '1.5rem' : '0px');
+        nav.style.setProperty('--fr', nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1 ? '1.5rem' : '0px');
+      }
+      nav.addEventListener('scroll', navFade, { passive: true });
+      window.addEventListener('resize', navFade);
+      navFade();
       var t0 = performance.now(), last = t0, cur = -1;
       var segs = rows.map(function () { return []; });          // [[start, end], ...] in ms since page load
       var STEPS = [20, 40, 60, 120, 240, 480, 1200, 2400, 3600, 7200].map(function (s) { return s * 1000; });
@@ -1474,6 +1494,15 @@
           bar.style.width = Math.max(0.6, (sg[1] - sg[0]) / scale * 100) + '%';
         });
       }
+      // the section being read is also the one highlighted in the sticky top bar
+      function markNav(from, to) {
+        if (navLinks[from]) navLinks[from].removeAttribute('aria-current');
+        var a = navLinks[to];
+        if (!a) return;
+        a.setAttribute('aria-current', 'location');
+        var x = a.offsetLeft - nav.offsetLeft;                   // keep it in view when the nav scrolls sideways (mobile)
+        if (x < nav.scrollLeft + 24 || x + a.offsetWidth > nav.scrollLeft + nav.clientWidth - 24) nav.scrollLeft = x - 32;
+      }
       var lastScale = 0;
       function tick() {
         var now = performance.now() - t0;
@@ -1490,6 +1519,7 @@
         if (reading !== cur) {
           if (cur > -1) segs[cur][segs[cur].length - 1][1] = now;
           if (reading > -1) segs[reading].push([now, now]);
+          markNav(cur, reading);
           cur = reading;
         } else if (cur > -1) segs[cur][segs[cur].length - 1][1] = now;
 
