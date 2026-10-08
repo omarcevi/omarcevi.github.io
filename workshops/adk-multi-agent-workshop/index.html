@@ -149,6 +149,57 @@
     .snip-code .nu { color: #b5cea8; } .snip-code .c { color: #6a9955; } .snip-code .v { color: #9cdcfe; }
     .snip-code .cn { color: #4fc1ff; }
     @media (max-width: 560px) { .snip-code { font-size: .74rem; } .snip-code .n { width: 1.8rem; margin-right: .7rem; } }
+    /* ---- module layout: the idea, then numbered steps ---- */
+    .idea { margin-top: 1.4rem; }
+    .idea > p { margin: .5rem 0; }
+    .define { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+              border-radius: 10px; padding: .9rem 1.1rem; margin: .9rem 0; }
+    .define .lbl, .see .lbl { display: block; font-family: var(--mono); font-size: .7rem; letter-spacing: .07em;
+              text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+    .define p { margin: .3rem 0; }
+    .define dl { display: grid; grid-template-columns: max-content 1fr; gap: .45rem 1rem; margin: .4rem 0 .2rem; }
+    .define dt { font-family: var(--mono); font-size: .88rem; font-weight: 600; padding-top: .1rem; }
+    .define dd { margin: 0; }
+    .concepts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; }
+    .concept { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.05rem; }
+    .concept svg { display: block; width: 100%; max-width: 160px; height: auto; color: var(--accent); margin: .1rem 0 .8rem; }
+    .concept h4 { font-family: var(--mono); font-size: .92rem; font-weight: 600; margin: 0; }
+    .concept .say { color: var(--muted); font-size: .9rem; margin: .05rem 0 .55rem; }
+    .concept p { font-size: .95rem; margin: 0 0 .55rem; line-height: 1.55; }
+    .concept .here { font-size: .9rem; color: var(--muted); margin: 0; }
+    .concept .here b { color: var(--text); font-weight: 600; }
+    .steps { margin-top: 1.8rem; }
+    .step { position: relative; padding: 0 0 1.9rem 2.7rem; }
+    .step::before { content: ""; position: absolute; left: .86rem; top: 2.1rem; bottom: .3rem; width: 2px; background: var(--border); }
+    .step:last-child::before { display: none; }
+    .step-n { position: absolute; left: 0; top: 0; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--accent);
+              color: var(--bg); display: grid; place-items: center; font-family: var(--mono); font-size: .82rem; font-weight: 600; }
+    .step-head { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem .65rem; min-height: 1.8rem; margin-bottom: .4rem; }
+    .step-head h4 { font-size: 1.14rem; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+    .where { font-family: var(--mono); font-size: .7rem; padding: .1rem .55rem; border-radius: 999px; border: 1px solid var(--border);
+             color: var(--muted); white-space: nowrap; }
+    .step > p { margin: .45rem 0; }
+    .part { font-weight: 600; font-size: 1rem; margin: 1.5rem 0 .2rem; }
+    .part + p { margin-top: .1rem; }
+    .see { border: 1px solid var(--border); border-left: 3px solid var(--ok); border-radius: 10px; padding: .8rem 1.1rem; margin: .9rem 0 .2rem; }
+    .see .lbl { color: var(--ok); }
+    .see ul { margin: .2rem 0 0 1.1rem; } .see li { margin: .3rem 0; }
+    .tryit .snip { margin: .7rem 0 .6rem; }
+    .tryit p { margin: .45rem 0; }
+    /* numbered marks on highlighted lines, explained under the snippet */
+    .snip-code .cb { display: inline-block; width: 1.5rem; text-align: center; user-select: none; }
+    .snip-code .cb b { display: inline-grid; place-items: center; width: 1.12rem; height: 1.12rem; border-radius: 50%;
+                       background: #569cd6; color: #1e1e1e; font-family: var(--sans); font-size: .64rem; font-weight: 700; }
+    .callouts { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; }
+    .callouts li { display: grid; grid-template-columns: 1.7rem 1fr; gap: .45rem; line-height: 1.55; }
+    .cbadge { width: 1.35rem; height: 1.35rem; border-radius: 50%; background: var(--accent); color: var(--bg); display: grid;
+              place-items: center; font-size: .72rem; font-weight: 700; margin-top: .12rem; }
+    .cline { font-family: var(--mono); font-size: .76rem; color: var(--muted); margin-right: .25rem; white-space: nowrap; }
+    @media (max-width: 760px) {
+      .concepts { grid-template-columns: 1fr; }
+      .define dl { grid-template-columns: 1fr; gap: .1rem; } .define dd { margin-bottom: .5rem; }
+      .step { padding-left: 2.3rem; }
+    }
     .snip-note { font-family: var(--sans); font-size: .88rem; color: var(--muted); margin-top: .55rem; line-height: 1.55; }
     .files li { font-family: var(--mono); font-size: .82rem; display: grid; grid-template-columns: minmax(0, 18rem) 1fr; gap: .9rem; }
     .files li span { color: var(--muted); font-family: var(--sans); font-size: .88rem; }
@@ -390,35 +441,133 @@ make check-mcp   <span class="c"># saves the URLs into .env, knocks without and 
           <h2>2 · Workflow patterns</h2>
           <span class="mod-meta"><span>15:48 · 12 min</span><label class="done-toggle"><input type="checkbox" data-done="m2">done</label></span>
         </div>
-        <p class="goal">Deterministic structure where you know the steps; LLM judgement only where you need it.</p>
+        <p class="goal">Put the steps you already know into workflow agents, and save the model for the parts that need judgement.</p>
 
-        <h3>Tab 2 · start the next deploy now</h3>
-        <div class="code"><pre>python deploy/refunds.py   <span class="c"># refunds specialist -> Agent Runtime as an A2A agent (~4 min)</span></pre></div>
-        <p class="lead" style="margin-top:.5rem">Why not <code>adk deploy</code>? An A2A agent on Agent Runtime is built from the platform's A2A template, so this one deploy is a short script. Keep working in tab 1 while it builds.</p>
+        <div class="idea">
+          <h3>The idea</h3>
+          <p>In Module 1, one agent did everything inside one prompt: it read the question, picked tools and wrote the answer. That's fine for small jobs, but hard to control. A support desk always does the same three things: understand the request, look things up, then write a reply that follows the rules. When you already know the steps, you don't need a model to decide the order. You need a workflow.</p>
 
-        <h3>Open in the editor</h3>
-        <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 159–168</span></div><pre class="snip-code"><code><span class="l"><span class="n">159</span><span class="k">def</span> <span class="f">build_support_pipeline</span>() -&gt; <span class="v">SequentialAgent</span>:</span><span class="l hl"><span class="n">160</span>    <span class="kc">return</span> <span class="t">SequentialAgent</span>(</span><span class="l"><span class="n">161</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">support_pipeline</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">162</span>        <span class="v">description</span>=(</span><span class="l"><span class="n">163</span>            <span class="s">&quot;</span><span class="s">Handles order questions end to end: where is my order, damaged items, </span><span class="s">&quot;</span></span><span class="l"><span class="n">164</span>            <span class="s">&quot;</span><span class="s">exchanges and stock questions. Researches the order and writes a </span><span class="s">&quot;</span></span><span class="l"><span class="n">165</span>            <span class="s">&quot;</span><span class="s">policy-checked reply. Does NOT issue refunds.</span><span class="s">&quot;</span></span><span class="l"><span class="n">166</span>        ),</span><span class="l hl"><span class="n">167</span>        <span class="v">sub_agents</span>=[<span class="f">build_intake</span>(), <span class="f">build_research</span>(), <span class="f">build_review_loop</span>()],</span><span class="l"><span class="n">168</span>    )</span></code></pre><figcaption class="snip-note">The whole pipeline in one line: <code>intake</code>, then <code>research</code>, then the review loop. No model decides the order.</figcaption></figure>
-        <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 49–60</span></div><pre class="snip-code"><code><span class="l"><span class="n">49</span><span class="k">def</span> <span class="f">build_intake</span>() -&gt; <span class="v">LlmAgent</span>:</span><span class="l"><span class="n">50</span>    <span class="kc">return</span> <span class="t">LlmAgent</span>(</span><span class="l"><span class="n">51</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">intake</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">52</span>        <span class="v">model</span>=<span class="f">gemini</span>(<span class="v">config</span>.<span class="cn">FAST_MODEL</span>),</span><span class="l"><span class="n">53</span>        <span class="v">description</span>=<span class="s">&quot;</span><span class="s">Classifies the customer request and extracts IDs.</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">54</span>        <span class="v">instruction</span>=(</span><span class="l"><span class="n">55</span>            <span class="s">&quot;</span><span class="s">Read the customer</span><span class="s">&#x27;</span><span class="s">s message and fill the Case schema. </span><span class="s">&quot;</span></span><span class="l"><span class="n">56</span>            <span class="s">&quot;</span><span class="s">Only use IDs that literally appear in the conversation.</span><span class="s">&quot;</span></span><span class="l"><span class="n">57</span>        ),</span><span class="l hl"><span class="n">58</span>        <span class="v">output_schema</span>=<span class="v">Case</span>,</span><span class="l hl"><span class="n">59</span>        <span class="v">output_key</span>=<span class="s">&quot;</span><span class="s">case</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">60</span>    )</span></code></pre><figcaption class="snip-note">Structured output: the reply must fit the <code>Case</code> schema, and <code>output_key</code> saves it to session state as <code>case</code>.</figcaption></figure>
-        <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 64–105</span></div><pre class="snip-code"><code><span class="l"><span class="n">64</span><span class="k">def</span> <span class="f">build_research</span>() -&gt; <span class="v">ParallelAgent</span>:</span><span class="l"><span class="n">65</span>    <span class="v">order_researcher</span> = <span class="t">LlmAgent</span>(</span><span class="l"><span class="n">66</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">order_researcher</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">67</span>        <span class="v">model</span>=<span class="f">gemini</span>(<span class="v">config</span>.<span class="cn">FAST_MODEL</span>),</span><span class="l"><span class="n">68</span>        <span class="v">description</span>=<span class="s">&quot;</span><span class="s">Facts about the order: status, items, totals, notes.</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">69</span>        <span class="v">instruction</span>=(</span><span class="l hl"><span class="n">70</span>            <span class="s">&quot;</span><span class="s">Case: </span><span class="k">{case}</span><span class="e">\n</span><span class="s">&quot;</span></span><span class="l"><span class="n">71</span>            <span class="s">&quot;</span><span class="s">Use the orders tools to collect facts about this order or customer. </span><span class="s">&quot;</span></span><span class="l"><span class="n">72</span>            <span class="s">&quot;</span><span class="s">Reply with a short bullet list of facts only. If there is no order ID, say so.</span><span class="s">&quot;</span></span><span class="l"><span class="n">73</span>        ),</span><span class="l hl"><span class="n">74</span>        <span class="v">tools</span>=[<span class="f">mcp_toolset</span>(<span class="s">&quot;</span><span class="s">orders</span><span class="s">&quot;</span>)],</span><span class="l hl"><span class="n">75</span>        <span class="v">output_key</span>=<span class="s">&quot;</span><span class="s">order_facts</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">76</span>    )</span><span class="l gap"><span class="n">⋮</span></span><span class="l"><span class="n">101</span>    <span class="kc">return</span> <span class="t">ParallelAgent</span>(</span><span class="l"><span class="n">102</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">research</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">103</span>        <span class="v">description</span>=<span class="s">&quot;</span><span class="s">Runs the three researchers concurrently.</span><span class="s">&quot;</span>,</span><span class="l hl"><span class="n">104</span>        <span class="v">sub_agents</span>=[<span class="v">order_researcher</span>, <span class="v">stock_researcher</span>, <span class="v">shipping_researcher</span>],</span><span class="l"><span class="n">105</span>    )</span></code></pre><figcaption class="snip-note">Each researcher reads <code>{case}</code> from state, calls one tool server, and writes its own key. <code>ParallelAgent</code> runs all three at once.</figcaption></figure>
-        <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 135–156</span></div><pre class="snip-code"><code><span class="l"><span class="n">135</span>    <span class="v">reviewer</span> = <span class="t">LlmAgent</span>(</span><span class="l gap"><span class="n">⋮</span></span><span class="l hl"><span class="n">145</span>            + <span class="s">&quot;</span><span class="s">If the draft fully complies, call the exit_loop tool (this ends the loop). </span><span class="s">&quot;</span></span><span class="l"><span class="n">146</span>            <span class="s">&quot;</span><span class="s">Otherwise reply with a numbered list of concrete fixes.</span><span class="s">&quot;</span></span><span class="l"><span class="n">147</span>        ),</span><span class="l hl"><span class="n">148</span>        <span class="v">tools</span>=[<span class="v">exit_loop</span>, *<span class="v">policy_tools</span>],</span><span class="l"><span class="n">149</span>        <span class="v">output_key</span>=<span class="s">&quot;</span><span class="s">review</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">150</span>    )</span><span class="l"><span class="n">151</span>    <span class="kc">return</span> <span class="t">LoopAgent</span>(</span><span class="l"><span class="n">152</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">draft_review_loop</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">153</span>        <span class="v">description</span>=<span class="k">f</span><span class="s">&quot;</span><span class="s">Drafts and reviews the reply, at most </span><span class="k">{</span><span class="cn">MAX_ROUNDS</span><span class="k">}</span><span class="s"> rounds.</span><span class="s">&quot;</span>,</span><span class="l"><span class="n">154</span>        <span class="v">sub_agents</span>=[<span class="v">drafter</span>, <span class="v">reviewer</span>],</span><span class="l hl"><span class="n">155</span>        <span class="v">max_iterations</span>=<span class="cn">MAX_ROUNDS</span>,</span><span class="l"><span class="n">156</span>    )</span></code></pre><figcaption class="snip-note">The loop ends when the reviewer calls <code>exit_loop</code>, or after <code>max_iterations</code> rounds.</figcaption></figure>
+          <div class="define">
+            <span class="lbl">Two kinds of agents</span>
+            <dl>
+              <dt>LlmAgent</dt>
+              <dd>Has a model (Gemini) and an instruction. On each turn it decides what to do: answer, call a tool, or hand the conversation to another agent.</dd>
+              <dt>Workflow agent</dt>
+              <dd>Has no model. It runs its sub-agents in a fixed pattern, so the order is guaranteed by code instead of asked for in a prompt. ADK has three:</dd>
+            </dl>
+          </div>
 
-        <h3>Try this</h3>
-        <ul class="prompts">
-          <li><q>The kettle lid from ORD-1001 arrived cracked. Can I get a new one?</q></li>
-        </ul>
-        <p class="lead" style="margin-top:.5rem">In the dev UI, pick <code>m2_workflows</code>.</p>
-        <div class="guess" style="margin-top:.8rem"><b>GUESS FIRST</b>How much faster is the parallel step than running the three researchers one by one? Then read it off the trace.</div>
-        <div class="tryit" style="margin-top:.8rem"><b>TRY THIS</b>Set <code>MAX_ROUNDS = 1</code>, or add a rule to <code>POLICY</code> such as "Always address the customer by first name". Save, restart <code>adk web</code>, and compare the replies.</div>
+          <div class="concepts">
+            <div class="concept">
+              <svg viewBox="0 0 160 48" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="2" y="14" width="36" height="20" rx="5"/><rect x="62" y="14" width="36" height="20" rx="5"/><rect x="122" y="14" width="36" height="20" rx="5"/>
+                <path d="M40 24h17M53 20l4 4-4 4M100 24h17M113 20l4 4-4 4"/>
+                <g fill="currentColor" stroke="none" font-size="11" font-family="sans-serif" text-anchor="middle"><text x="20" y="28">1</text><text x="80" y="28">2</text><text x="140" y="28">3</text></g>
+              </svg>
+              <h4>SequentialAgent</h4>
+              <p class="say">One after another</p>
+              <p>Runs its sub-agents in list order. Each one starts when the previous one has finished. Use it for steps that depend on each other.</p>
+              <p class="here"><b>In ShopDesk:</b> intake → research → reply</p>
+            </div>
+            <div class="concept">
+              <svg viewBox="0 0 160 48" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="12" cy="24" r="4"/><circle cx="148" cy="24" r="4"/>
+                <rect x="62" y="2" width="36" height="12" rx="4"/><rect x="62" y="18" width="36" height="12" rx="4"/><rect x="62" y="34" width="36" height="12" rx="4"/>
+                <path d="M16 24L62 8M16 24h46M16 24L62 40M98 8l46 16M98 24h46M98 40l46-16"/>
+              </svg>
+              <h4>ParallelAgent</h4>
+              <p class="say">All at the same time</p>
+              <p>Starts all its sub-agents together and waits until every one has finished. Use it for independent work: the total time is close to the slowest step, not the sum.</p>
+              <p class="here"><b>In ShopDesk:</b> three researchers, one per tool server</p>
+            </div>
+            <div class="concept">
+              <svg viewBox="0 0 160 48" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <rect x="22" y="6" width="40" height="20" rx="5"/><rect x="98" y="6" width="40" height="20" rx="5"/>
+                <path d="M64 16h29M89 12l4 4-4 4"/>
+                <path d="M118 28c0 16-76 16-76 0"/><path d="M38 32l4-4 4 4"/>
+                <g fill="currentColor" stroke="none" font-size="10" font-family="sans-serif" text-anchor="middle"><text x="42" y="20">draft</text><text x="118" y="20">check</text></g>
+              </svg>
+              <h4>LoopAgent</h4>
+              <p class="say">Again, until done</p>
+              <p>Runs its sub-agents in order, then starts over. It stops when one of them calls <code>exit_loop</code>, or after <code>max_iterations</code> rounds.</p>
+              <p class="here"><b>In ShopDesk:</b> drafter ⇄ policy reviewer, at most 3 rounds</p>
+            </div>
+          </div>
 
-        <h3>What you should see</h3>
-        <ul class="plain">
-          <li><strong>Trace tab:</strong> the three researchers start at the same moment.</li>
-          <li><strong>State tab:</strong> <code>case</code>, <code>order_facts</code>, <code>stock_facts</code>, <code>shipping_facts</code>, <code>draft</code>. That's how the agents pass work along.</li>
-          <li>The loop ends when the reviewer calls <code>exit_loop</code>.</li>
-        </ul>
+          <div class="define">
+            <span class="lbl">Session state: how the steps pass work along</span>
+            <p>Every conversation has a session, and every session has <strong>state</strong>: a small shared dictionary. An agent with <code>output_key="case"</code> saves its final answer as <code>state["case"]</code>. Another agent can write <code>{case}</code> in its instruction, and ADK fills in the value before calling the model. The steps never call each other. They only read and write state.</p>
+          </div>
+          <p>Where this sits in the system: the <code>support_pipeline</code> box in the <a href="#agents">agent diagram</a>.</p>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <span class="step-n">1</span>
+            <div class="step-head"><h4>Start the refunds deploy</h4><span class="where">Tab 2</span></div>
+            <p>Module 3 needs a second agent running on Agent Runtime. It takes about 4 minutes to build, so start it now and keep working in tab 1 while it runs.</p>
+            <div class="code"><pre>python deploy/refunds.py</pre></div>
+            <p class="lead">Why a script and not <code>adk deploy</code>? The refunds agent is served over A2A (Module 3), and A2A agents on Agent Runtime are built from the platform's A2A template. You'll use <code>adk deploy</code> for the main app in Module 3.</p>
+          </div>
+
+          <div class="step">
+            <span class="step-n">2</span>
+            <div class="step-head"><h4>Read the pipeline</h4><span class="where">Editor</span></div>
+            <p>Open <code>shopdesk/agents/workflows.py</code>. The snippets below follow the file; the numbered lines are explained under each one.</p>
+
+            <p class="part">The whole pipeline</p>
+            <p>Start at the bottom of the file, where the three steps are put together.</p>
+            <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 159–168</span></div><pre class="snip-code"><code><span class="l"><span class="cb"></span><span class="n">159</span><span class="k">def</span> <span class="f">build_support_pipeline</span>() -&gt; <span class="v">SequentialAgent</span>:</span><span class="l hl"><span class="cb"><b>1</b></span><span class="n">160</span>    <span class="kc">return</span> <span class="t">SequentialAgent</span>(</span><span class="l"><span class="cb"></span><span class="n">161</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">support_pipeline</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">162</span>        <span class="v">description</span>=(</span><span class="l"><span class="cb"></span><span class="n">163</span>            <span class="s">&quot;</span><span class="s">Handles order questions end to end: where is my order, damaged items, </span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">164</span>            <span class="s">&quot;</span><span class="s">exchanges and stock questions. Researches the order and writes a </span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">165</span>            <span class="s">&quot;</span><span class="s">policy-checked reply. Does NOT issue refunds.</span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">166</span>        ),</span><span class="l hl"><span class="cb"><b>2</b></span><span class="n">167</span>        <span class="v">sub_agents</span>=[<span class="f">build_intake</span>(), <span class="f">build_research</span>(), <span class="f">build_review_loop</span>()],</span><span class="l"><span class="cb"></span><span class="n">168</span>    )</span></code></pre><ol class="callouts"><li><span class="cbadge">1</span><div><span class="cline">line 160</span> <code>SequentialAgent</code> is a workflow agent: it has no model and no prompt. It only runs its sub-agents, in order.</div></li><li><span class="cbadge">2</span><div><span class="cline">line 167</span> The three steps, in the order they will always run. Each one is built by a function further up in the file, shown next.</div></li></ol></figure>
+
+            <p class="part">Step 1 · intake understands the request</p>
+            <p>An LlmAgent with no tools. Its only job is to turn the customer's message into structured data.</p>
+            <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 49–60</span></div><pre class="snip-code"><code><span class="l"><span class="cb"></span><span class="n">49</span><span class="k">def</span> <span class="f">build_intake</span>() -&gt; <span class="v">LlmAgent</span>:</span><span class="l"><span class="cb"></span><span class="n">50</span>    <span class="kc">return</span> <span class="t">LlmAgent</span>(</span><span class="l"><span class="cb"></span><span class="n">51</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">intake</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">52</span>        <span class="v">model</span>=<span class="f">gemini</span>(<span class="v">config</span>.<span class="cn">FAST_MODEL</span>),</span><span class="l"><span class="cb"></span><span class="n">53</span>        <span class="v">description</span>=<span class="s">&quot;</span><span class="s">Classifies the customer request and extracts IDs.</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">54</span>        <span class="v">instruction</span>=(</span><span class="l"><span class="cb"></span><span class="n">55</span>            <span class="s">&quot;</span><span class="s">Read the customer</span><span class="s">&#x27;</span><span class="s">s message and fill the Case schema. </span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">56</span>            <span class="s">&quot;</span><span class="s">Only use IDs that literally appear in the conversation.</span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">57</span>        ),</span><span class="l hl"><span class="cb"><b>1</b></span><span class="n">58</span>        <span class="v">output_schema</span>=<span class="v">Case</span>,</span><span class="l hl"><span class="cb"><b>2</b></span><span class="n">59</span>        <span class="v">output_key</span>=<span class="s">&quot;</span><span class="s">case</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">60</span>    )</span></code></pre><ol class="callouts"><li><span class="cbadge">1</span><div><span class="cline">line 58</span> <code>output_schema=Case</code> makes the model answer with JSON that fits the <code>Case</code> class above it: intent, order ID, customer ID and a one-line summary. No free text.</div></li><li><span class="cbadge">2</span><div><span class="cline">line 59</span> <code>output_key="case"</code> saves that JSON in session state as <code>case</code>, where the next steps can read it.</div></li></ol></figure>
+
+            <p class="part">Step 2 · three researchers look things up at the same time</p>
+            <p>Each researcher reads the case, calls its own tool server, and writes what it found. Only the first researcher is shown; the other two follow the same pattern.</p>
+            <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 64–105</span></div><pre class="snip-code"><code><span class="l"><span class="cb"></span><span class="n">64</span><span class="k">def</span> <span class="f">build_research</span>() -&gt; <span class="v">ParallelAgent</span>:</span><span class="l"><span class="cb"></span><span class="n">65</span>    <span class="v">order_researcher</span> = <span class="t">LlmAgent</span>(</span><span class="l"><span class="cb"></span><span class="n">66</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">order_researcher</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">67</span>        <span class="v">model</span>=<span class="f">gemini</span>(<span class="v">config</span>.<span class="cn">FAST_MODEL</span>),</span><span class="l"><span class="cb"></span><span class="n">68</span>        <span class="v">description</span>=<span class="s">&quot;</span><span class="s">Facts about the order: status, items, totals, notes.</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">69</span>        <span class="v">instruction</span>=(</span><span class="l hl"><span class="cb"><b>1</b></span><span class="n">70</span>            <span class="s">&quot;</span><span class="s">Case: </span><span class="k">{case}</span><span class="e">\n</span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">71</span>            <span class="s">&quot;</span><span class="s">Use the orders tools to collect facts about this order or customer. </span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">72</span>            <span class="s">&quot;</span><span class="s">Reply with a short bullet list of facts only. If there is no order ID, say so.</span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">73</span>        ),</span><span class="l hl"><span class="cb"><b>2</b></span><span class="n">74</span>        <span class="v">tools</span>=[<span class="f">mcp_toolset</span>(<span class="s">&quot;</span><span class="s">orders</span><span class="s">&quot;</span>)],</span><span class="l hl"><span class="cb"><b>3</b></span><span class="n">75</span>        <span class="v">output_key</span>=<span class="s">&quot;</span><span class="s">order_facts</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">76</span>    )</span><span class="l gap"><span class="cb"></span><span class="n">⋮</span></span><span class="l"><span class="cb"></span><span class="n">101</span>    <span class="kc">return</span> <span class="t">ParallelAgent</span>(</span><span class="l"><span class="cb"></span><span class="n">102</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">research</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">103</span>        <span class="v">description</span>=<span class="s">&quot;</span><span class="s">Runs the three researchers concurrently.</span><span class="s">&quot;</span>,</span><span class="l hl"><span class="cb"><b>4</b></span><span class="n">104</span>        <span class="v">sub_agents</span>=[<span class="v">order_researcher</span>, <span class="v">stock_researcher</span>, <span class="v">shipping_researcher</span>],</span><span class="l"><span class="cb"></span><span class="n">105</span>    )</span></code></pre><ol class="callouts"><li><span class="cbadge">1</span><div><span class="cline">line 70</span> ADK replaces <code>{case}</code> with the intake result from state before the model sees the instruction.</div></li><li><span class="cbadge">2</span><div><span class="cline">line 74</span> This researcher may only use the orders tool server. Each researcher gets just the tools it needs: least privilege, as in Module 1.</div></li><li><span class="cbadge">3</span><div><span class="cline">line 75</span> Its findings go into state as <code>order_facts</code>. The other two researchers (skipped here) write <code>stock_facts</code> and <code>shipping_facts</code>.</div></li><li><span class="cbadge">4</span><div><span class="cline">line 104</span> <code>ParallelAgent</code> starts all three researchers at the same time, and moves on when the last one finishes.</div></li></ol></figure>
+
+            <p class="part">Step 3 · the drafter and the reviewer take turns</p>
+            <p>The drafter (skipped here) writes a reply from the case and all the facts. The reviewer checks it against the policy.</p>
+            <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 135–156</span></div><pre class="snip-code"><code><span class="l"><span class="cb"></span><span class="n">135</span>    <span class="v">reviewer</span> = <span class="t">LlmAgent</span>(</span><span class="l gap"><span class="cb"></span><span class="n">⋮</span></span><span class="l hl"><span class="cb"><b>1</b></span><span class="n">145</span>            + <span class="s">&quot;</span><span class="s">If the draft fully complies, call the exit_loop tool (this ends the loop). </span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">146</span>            <span class="s">&quot;</span><span class="s">Otherwise reply with a numbered list of concrete fixes.</span><span class="s">&quot;</span></span><span class="l"><span class="cb"></span><span class="n">147</span>        ),</span><span class="l hl"><span class="cb"><b>2</b></span><span class="n">148</span>        <span class="v">tools</span>=[<span class="v">exit_loop</span>, *<span class="v">policy_tools</span>],</span><span class="l"><span class="cb"></span><span class="n">149</span>        <span class="v">output_key</span>=<span class="s">&quot;</span><span class="s">review</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">150</span>    )</span><span class="l"><span class="cb"></span><span class="n">151</span>    <span class="kc">return</span> <span class="t">LoopAgent</span>(</span><span class="l"><span class="cb"></span><span class="n">152</span>        <span class="v">name</span>=<span class="s">&quot;</span><span class="s">draft_review_loop</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">153</span>        <span class="v">description</span>=<span class="k">f</span><span class="s">&quot;</span><span class="s">Drafts and reviews the reply, at most </span><span class="k">{</span><span class="cn">MAX_ROUNDS</span><span class="k">}</span><span class="s"> rounds.</span><span class="s">&quot;</span>,</span><span class="l"><span class="cb"></span><span class="n">154</span>        <span class="v">sub_agents</span>=[<span class="v">drafter</span>, <span class="v">reviewer</span>],</span><span class="l hl"><span class="cb"><b>3</b></span><span class="n">155</span>        <span class="v">max_iterations</span>=<span class="cn">MAX_ROUNDS</span>,</span><span class="l"><span class="cb"></span><span class="n">156</span>    )</span></code></pre><ol class="callouts"><li><span class="cbadge">1</span><div><span class="cline">line 145</span> The reviewer is told to call <code>exit_loop</code> when the draft passes. Otherwise it writes a list of fixes, which the drafter reads as <code>{review}</code> in the next round.</div></li><li><span class="cbadge">2</span><div><span class="cline">line 148</span> <code>exit_loop</code> is a built-in ADK tool. When the reviewer calls it, the loop stops.</div></li><li><span class="cbadge">3</span><div><span class="cline">line 155</span> <code>max_iterations</code> is the safety net: the loop runs at most <code>MAX_ROUNDS</code> times (3), even if the reviewer never approves.</div></li></ol></figure>
+          </div>
+
+          <div class="step">
+            <span class="step-n">3</span>
+            <div class="step-head"><h4>Run it</h4><span class="where">Tab 1 · dev UI</span></div>
+            <p>In the dev UI (Web Preview → port 8080), pick <code>m2_workflows</code> and start a new session.</p>
+            <div class="guess"><b>GUESS FIRST</b>How much faster is the parallel step than running the three researchers one after another? Guess, then read it off the trace.</div>
+            <p>Then ask:</p>
+            <ul class="prompts">
+              <li><q>The kettle lid from ORD-1001 arrived cracked. Can I get a new one?</q></li>
+            </ul>
+            <p>The answer takes 15–40 seconds: several agents and model calls run behind it.</p>
+            <div class="see">
+              <span class="lbl">You should see</span>
+              <ul>
+                <li><strong>Trace tab:</strong> intake first, then the three researchers starting at the same moment, then the drafter and the reviewer taking turns.</li>
+                <li><strong>State tab:</strong> <code>case</code>, <code>order_facts</code>, <code>stock_facts</code>, <code>shipping_facts</code>, <code>draft</code> and <code>review</code>: the work each step handed to the next.</li>
+                <li><strong>The reply:</strong> no refund promised, and one clear next step, because the reviewer enforced the policy.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="step">
+            <span class="step-n">4</span>
+            <div class="step-head"><h4>Change the loop and compare</h4><span class="where">Editor + Tab 1</span></div>
+            <div class="tryit"><b>TRY THIS</b>
+              <p>Near the top of <code>workflows.py</code>, change <code>MAX_ROUNDS</code> from 3 to 1:</p>
+              <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 36–38</span></div><pre class="snip-code"><code><span class="l"><span class="cb"></span><span class="n">36</span><span class="c"># TRY THIS (Module 2): set MAX_ROUNDS = 1, restart adk web, and compare the reply with</span></span><span class="l"><span class="cb"></span><span class="n">37</span><span class="c"># the 3-round version.</span></span><span class="l hl"><span class="cb"></span><span class="n">38</span><span class="cn">MAX_ROUNDS</span> = <span class="nu">3</span></span></code></pre></figure>
+              <p>Save, restart <code>adk web</code> in tab 1 (Ctrl+C, then the same command), start a new session and ask the same question. The trace now shows one drafter–reviewer round. If that first draft broke a rule, it goes to the customer unfixed. Fewer rounds are faster and cheaper, but less checked.</p>
+              <p>Or keep 3 rounds and add a rule to <code>POLICY</code>: a new line under line 114, such as <code>- Always address the customer by first name.</code></p>
+              <figure class="snip"><div class="snip-head"><span class="snip-file">shopdesk/agents/workflows.py</span><span class="snip-loc">lines 111–115</span></div><pre class="snip-code"><code><span class="l"><span class="cb"></span><span class="n">111</span><span class="cn">POLICY</span> = <span class="s">&quot;&quot;&quot;</span><span class="e">\</span></span><span class="l"><span class="cb"></span><span class="n">112</span><span class="s">- Never promise a refund or compensation; refunds are decided by the refunds team.</span></span><span class="l"><span class="cb"></span><span class="n">113</span><span class="s">- Never invent dates, prices or tracking numbers that are not in the facts.</span></span><span class="l hl"><span class="cb"></span><span class="n">114</span><span class="s">- Keep it under 120 words, friendly, and end with one clear next step.</span></span><span class="l"><span class="cb"></span><span class="n">115</span><span class="s">&quot;&quot;&quot;</span></span></code></pre></figure>
+              <p>The reviewer now sends drafts back until they follow the new rule, or until the 3 rounds run out. Count the rounds in the trace. Put <code>MAX_ROUNDS</code> back to 3 before you move on.</p>
+            </div>
+          </div>
+        </div>
 
         <details class="stuck"><summary>Stuck?</summary><div class="body"><div class="fix">
-          <div>Replies didn't change after an edit</div><div>Start a <strong>new session</strong> in the dev UI.</div>
+          <div>Replies didn't change after an edit</div><div>Restart <code>adk web</code>, then start a <strong>new session</strong> in the dev UI.</div>
           <div>The refunds deploy fails</div><div>Read the error in tab 2, then run <code>make doctor</code>; it prints the fix for permission problems.</div>
         </div></div></details>
       </section>
