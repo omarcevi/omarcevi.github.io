@@ -18,6 +18,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
   <style>
     /* Same tokens as omarcevi.dev */
     :root {
@@ -27,15 +38,26 @@
       --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
       --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
       --p-bg: #0f1115; --p-line: #232830; --p-text: #e5e7eb; --p-muted: #8b919c; --p-accent: #7aa2ff;
+      --only-light: block; --only-dark: none;   /* display values for elements shown in one theme only */
       color-scheme: light dark;
     }
+    /* dark follows the OS unless the top-bar toggle set data-theme on <html>; keep both blocks in sync */
     @media (prefers-color-scheme: dark) {
-      :root {
+      :root:not([data-theme="light"]) {
         --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #6b7079;
         --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --ok: #4ade80;
         --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31; --p-bg: #0c0e12; --p-line: #22262e;
+        --only-light: none; --only-dark: block;
       }
     }
+    :root[data-theme="dark"] {
+      --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #6b7079;
+      --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --ok: #4ade80;
+      --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31; --p-bg: #0c0e12; --p-line: #22262e;
+      --only-light: none; --only-dark: block;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
     body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16.5px;
@@ -50,9 +72,16 @@
               font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 1rem 0;
               border-bottom: 1px solid var(--border); background: var(--bg); }
     .crumbs a { text-decoration: none; } .crumbs a:hover { color: var(--accent); }
-    .topbar nav { display: flex; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; }
+    .crumbs .here { white-space: nowrap; }   /* wrap at " / ", never inside the hyphenated slug */
+    .topbar nav { display: flex; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
     .topbar nav::-webkit-scrollbar { display: none; }
     .topbar nav a { text-decoration: none; white-space: nowrap; } .topbar nav a:hover { color: var(--accent); }
+    .theme-toggle { flex-shrink: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -.25rem -.4rem -.25rem 0;
+                    border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+    .theme-toggle:hover { color: var(--accent); }
+    .theme-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+    .theme-toggle .i-moon { display: var(--only-light); } .theme-toggle .i-sun { display: var(--only-dark); } /* icon = theme a click switches to */
+    html:not(.js) .theme-toggle { display: none; }
 
     .layout { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr); gap: 3rem; }
     .toc { position: sticky; top: 4.2rem; align-self: start; padding-top: 2.5rem; font-family: var(--mono); font-size: .76rem; }
@@ -168,7 +197,7 @@
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / adk-multi-agent</span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <span class="here">adk-multi-agent</span></span>
     <nav aria-label="Workshop sections">
       <a href="#setup">Setup</a>
       <a href="#m1">Modules</a>
@@ -176,6 +205,10 @@
       <a href="#reference">Reference</a>
       <a href="https://github.com/omarcevi/adk-multi-agent-workshop">GitHub</a>
     </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
   </div>
 
   <div class="layout">
@@ -635,6 +668,23 @@ make report   <span class="c"># a minute later: numbers from Cloud Logging</span
     }, { rootMargin: '-20% 0px -70% 0px' });
     targets.forEach(t => io.observe(t));
   }
+
+  // Theme toggle: flips light/dark and remembers it (applyTheme and the saved choice are read in <head>)
+  const btn = document.getElementById('theme-toggle'), root = document.documentElement;
+  const os = window.matchMedia && matchMedia('(prefers-color-scheme: dark)');
+  const current = () => root.getAttribute('data-theme') || (os && os.matches ? 'dark' : 'light');
+  const label = () => {
+    const l = `Switch to ${current() === 'dark' ? 'light' : 'dark'} theme`;
+    btn.setAttribute('aria-label', l); btn.title = l;
+  };
+  btn.addEventListener('click', () => {
+    const t = current() === 'dark' ? 'light' : 'dark';
+    applyTheme(t);
+    try { localStorage.setItem('theme', t); } catch (e) {}
+    label();
+  });
+  if (os && os.addEventListener) os.addEventListener('change', label);
+  label();
 })();
 </script>
 </body>

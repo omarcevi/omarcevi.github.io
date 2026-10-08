@@ -84,7 +84,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script>document.documentElement.classList.add('js');</script>
+  <script>
+  (function (d) {
+    d.classList.add('js');
+    // a theme picked with the top-bar toggle overrides the OS setting; applied before first paint
+    window.applyTheme = function (t) {
+      d.setAttribute('data-theme', t);
+      [].forEach.call(document.querySelectorAll('meta[name="theme-color"]'), function (m) { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
   <style>
     :root {
       --bg: #f7f7f5;
@@ -109,10 +119,14 @@
       --p-accent: #7aa2ff;
       --p-ok: #4ade80;
       --p-bad: #ef4444;
+      /* display values for elements shown in one theme only */
+      --only-light: block;
+      --only-dark: none;
       color-scheme: light dark;
     }
+    /* dark follows the OS unless the top-bar toggle set data-theme on <html>; keep both blocks in sync */
     @media (prefers-color-scheme: dark) {
-      :root {
+      :root:not([data-theme="light"]) {
         --bg: #111318;
         --surface: #171a20;
         --text: #e8e9ec;
@@ -125,8 +139,28 @@
         --border: #262a31;
         --p-bg: #0c0e12;
         --p-line: #22262e;
+        --only-light: none;
+        --only-dark: block;
       }
     }
+    :root[data-theme="dark"] {
+      --bg: #111318;
+      --surface: #171a20;
+      --text: #e8e9ec;
+      --muted: #a0a4ad;
+      --faint: #6b7079;
+      --accent: #7aa2ff;
+      --accent-rgb: 122, 162, 255;
+      --accent-soft: #1d2740;
+      --ok: #4ade80;
+      --border: #262a31;
+      --p-bg: #0c0e12;
+      --p-line: #22262e;
+      --only-light: none;
+      --only-dark: block;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; scroll-padding-top: 3.25rem; } /* anchor jumps tuck each section's top rule under the sticky bar */
@@ -164,7 +198,7 @@
     .topbar .domain:hover { color: var(--accent); }
     .topbar nav {
       display: flex; gap: 1.1rem; min-width: 0; overflow-x: auto; scrollbar-width: none;
-      padding: 0.25rem; margin: -0.25rem;                     /* room for focus rings inside the scroller */
+      padding: 0.25rem; margin: -0.25rem -0.25rem -0.25rem auto; /* room for focus rings inside the scroller; auto keeps nav next to the toggle */
       /* edges fade only while there is more nav to scroll that way (--fl / --fr set by JS) */
       mask-image: linear-gradient(to right, transparent, #000 var(--fl, 0px), #000 calc(100% - var(--fr, 0px)), transparent);
       -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fl, 0px), #000 calc(100% - var(--fr, 0px)), transparent);
@@ -172,6 +206,15 @@
     .topbar nav::-webkit-scrollbar { display: none; }
     .topbar nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
     .topbar nav a:hover, .topbar nav a[aria-current] { color: var(--accent); }
+    .theme-toggle {
+      flex-shrink: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.25rem -0.4rem -0.25rem 0;
+      border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
+    }
+    .theme-toggle:hover { color: var(--accent); }
+    .theme-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+    .theme-toggle .i-moon { display: var(--only-light); }       /* icon shows the theme a click switches to */
+    .theme-toggle .i-sun { display: var(--only-dark); }
+    html:not(.js) .theme-toggle { display: none; }
 
     /* ---------- header ---------- */
     header { padding: 4rem 0 2.5rem; position: relative; }
@@ -401,6 +444,8 @@
     .company { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em; display: inline-flex; align-items: center; gap: 0.5rem; min-height: 28px; }
     .company img { display: block; width: auto; }
     .logo-word { height: 28px; margin-top: 3px; }
+    .company .logo-light { display: var(--only-light); }
+    .company .logo-dark { display: var(--only-dark); }
     .logo-mark { height: 26px; }
     .when { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); white-space: nowrap; }
     .role { color: var(--muted); font-size: 0.94rem; }
@@ -496,6 +541,10 @@
         <a href="#writing">Writing</a>
         <a href="#contact">Contact</a>
       </nav>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+        <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+        <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+      </button>
     </div>
 
     <header>
@@ -559,7 +608,7 @@
       <ul class="timeline">
         <li>
           <div class="role-head">
-            <span class="company"><picture><source srcset="assets/logos/trendyol-dark.png" media="(prefers-color-scheme: dark)"><img class="logo-word" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"></picture></span>
+            <span class="company"><img class="logo-word logo-light" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"><img class="logo-word logo-dark" loading="lazy" decoding="async" src="assets/logos/trendyol-dark.png" width="284" height="96" alt="Trendyol"></span>
             <span class="when">Mar 2024 – Sep 2026</span>
           </div>
           <div class="role">Machine Learning Engineer, Inference Platform</div>
@@ -1551,6 +1600,28 @@
       }
       tick(); setInterval(tick, 250);
       panel.classList.add('ready');
+    })();
+
+    /* =====================================================================
+       6. Theme toggle: flips light/dark and remembers it (applyTheme and the
+          saved choice are read in <head>, before first paint)
+       ===================================================================== */
+    (function theme() {
+      var btn = $('theme-toggle'), root = document.documentElement;
+      var os = window.matchMedia && matchMedia('(prefers-color-scheme: dark)');
+      function current() { return root.getAttribute('data-theme') || (os && os.matches ? 'dark' : 'light'); }
+      function label() {
+        var l = 'Switch to ' + (current() === 'dark' ? 'light' : 'dark') + ' theme';
+        btn.setAttribute('aria-label', l); btn.title = l;
+      }
+      btn.addEventListener('click', function () {
+        var t = current() === 'dark' ? 'light' : 'dark';
+        applyTheme(t);
+        try { localStorage.setItem('theme', t); } catch (e) {}
+        label();
+      });
+      if (os && os.addEventListener) os.addEventListener('change', label);
+      label();
     })();
   })();
   </script>
