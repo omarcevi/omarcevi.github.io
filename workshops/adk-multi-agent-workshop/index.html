@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecting Multi-Agent Systems with Google ADK — Workshop · Omar Elcircevi</title>
+  <meta name="description" content="Follow-along guide for the hands-on workshop: build and deploy a multi-agent system with Google ADK, MCP tool servers on Cloud Run, A2A on Agent Runtime, plugins, memory and telemetry.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/adk-multi-agent-workshop/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Architecting Multi-Agent Systems with Google ADK — Workshop">
+  <meta property="og:description" content="Build ShopDesk: MCP tool servers on Cloud Run, an orchestrator and an A2A specialist on Agent Runtime, plugins, memory and telemetry.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/adk-multi-agent-workshop/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Same tokens as omarcevi.dev */
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --text: #18181b; --muted: #5f6168; --faint: #9a9ca3;
+      --accent: #2a5bd7; --accent-rgb: 42, 91, 215; --accent-soft: #e6ecfb; --ok: #15803d;
+      --warn: #b45309; --warn-soft: #fdf3e3; --border: #e4e4e7;
+      --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --p-bg: #0f1115; --p-line: #232830; --p-text: #e5e7eb; --p-muted: #8b919c; --p-accent: #7aa2ff;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #6b7079;
+        --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --ok: #4ade80;
+        --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31; --p-bg: #0c0e12; --p-line: #22262e;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16.5px;
+           -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    a { color: inherit; text-decoration: underline; text-decoration-color: rgba(var(--accent-rgb), .4);
+        text-decoration-thickness: 1px; text-underline-offset: 3px; transition: color .15s, text-decoration-color .15s; }
+    a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+    code { font-family: var(--mono); font-size: .86em; background: var(--accent-soft); padding: .08em .35em; border-radius: 5px; }
+
+    .page { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .topbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+              font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 1rem 0;
+              border-bottom: 1px solid var(--border); background: var(--bg); }
+    .crumbs a { text-decoration: none; } .crumbs a:hover { color: var(--accent); }
+    .topbar nav { display: flex; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; }
+    .topbar nav::-webkit-scrollbar { display: none; }
+    .topbar nav a { text-decoration: none; white-space: nowrap; } .topbar nav a:hover { color: var(--accent); }
+
+    .layout { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr); gap: 3rem; }
+    .toc { position: sticky; top: 4.2rem; align-self: start; padding-top: 2.5rem; font-family: var(--mono); font-size: .76rem; }
+    .toc ol { list-style: none; border-left: 1px solid var(--border); }
+    .toc li a { display: flex; justify-content: space-between; gap: .5rem; padding: .28rem 0 .28rem .9rem; margin-left: -1px;
+                border-left: 1px solid transparent; color: var(--muted); text-decoration: none; }
+    .toc li a:hover { color: var(--text); }
+    .toc li a.active { color: var(--accent); border-left-color: var(--accent); }
+    .toc .t { color: var(--faint); } .toc li a.done .n::after { content: " ✓"; color: var(--ok); }
+    .toc .label { color: var(--faint); margin: 0 0 .6rem; text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; }
+    main { min-width: 0; max-width: 780px; }
+
+    .hero { padding: 3rem 0 2rem; }
+    .kicker { font-family: var(--mono); font-size: .78rem; color: var(--muted); margin-bottom: 1.1rem; }
+    h1 { font-weight: 600; font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.06; letter-spacing: -.04em; margin-bottom: 1.1rem; }
+    .tagline { font-size: clamp(1.05rem, 2.2vw, 1.22rem); line-height: 1.5; color: var(--muted); max-width: 38em; letter-spacing: -.01em; }
+    .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
+    .btn { display: inline-flex; align-items: center; gap: .5rem; font-family: var(--mono); font-size: .82rem; font-weight: 500;
+           padding: .6rem .95rem; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); text-decoration: none; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { color: #fff; filter: brightness(1.08); }
+    .btn:hover { border-color: var(--accent); }
+
+    figure.arch { margin: .5rem 0 0; }
+    .arch-frame { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: .6rem; overflow-x: auto; }
+    .arch-frame img { display: block; width: 100%; min-width: 640px; height: auto; }
+    figcaption { font-size: .8rem; color: var(--muted); font-family: var(--mono); margin-top: .6rem; }
+
+    section { padding: 2.5rem 0; border-top: 1px solid var(--border); }
+    h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -.03em; line-height: 1.2; margin-bottom: 1rem; }
+    h3 { font-size: .74rem; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: .07em;
+         color: var(--faint); margin: 1.6rem 0 .6rem; }
+    p + p { margin-top: .8rem; }
+    .lead { color: var(--muted); }
+    ul.plain, ol.plain { padding-left: 1.2rem; } ul.plain li + li, ol.plain li + li { margin-top: .35rem; }
+
+    .mod-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: .4rem; }
+    .mod-head h2 { margin: 0; }
+    .mod-meta { font-family: var(--mono); font-size: .76rem; color: var(--muted); display: flex; align-items: center; gap: .9rem; }
+    .done-toggle { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; user-select: none; }
+    .done-toggle input { accent-color: var(--ok); width: 1rem; height: 1rem; cursor: pointer; }
+    .goal { font-size: 1.08rem; letter-spacing: -.01em; margin: .3rem 0 0; }
+
+    .files { list-style: none; display: grid; gap: .35rem; }
+    .files li { font-family: var(--mono); font-size: .82rem; display: grid; grid-template-columns: minmax(0, 18rem) 1fr; gap: .9rem; }
+    .files li span { color: var(--muted); font-family: var(--sans); font-size: .88rem; }
+
+    .code { position: relative; background: var(--p-bg); color: var(--p-text); border: 1px solid var(--p-line); border-radius: 10px;
+            font-family: var(--mono); font-size: .82rem; line-height: 1.7; margin: .2rem 0; }
+    .code pre { padding: .85rem 3.6rem .85rem 1rem; overflow-x: auto; white-space: pre; }
+    .code .c { color: var(--p-muted); }
+    .copy { position: absolute; top: .5rem; right: .5rem; font-family: var(--mono); font-size: .7rem; color: var(--p-muted);
+            background: transparent; border: 1px solid var(--p-line); border-radius: 6px; padding: .2rem .5rem; cursor: pointer; }
+    .copy:hover { color: var(--p-text); border-color: var(--p-muted); }
+    .copy.ok { color: #4ade80; border-color: #4ade80; }
+
+    .prompts { list-style: none; display: grid; gap: .5rem; }
+    .prompts li { display: flex; gap: .6rem; align-items: flex-start; background: var(--surface); border: 1px solid var(--border);
+                  border-radius: 9px; padding: .55rem .7rem; }
+    .prompts q { quotes: none; flex: 1; font-size: .95rem; }
+    .prompts .copy { position: static; color: var(--muted); border-color: var(--border); }
+    .prompts .copy:hover { color: var(--accent); border-color: var(--accent); }
+    .prompts .copy.ok { color: var(--ok); border-color: var(--ok); }
+
+    .tryit { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 9px; padding: .8rem 1rem; }
+    .tryit b { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--accent); display: block; margin-bottom: .2rem; }
+    .guess { background: var(--accent-soft); border-radius: 9px; padding: .7rem 1rem; }
+    .guess b { font-family: var(--mono); font-size: .72rem; letter-spacing: .06em; color: var(--accent); margin-right: .4rem; }
+
+    details.stuck { margin-top: 1.4rem; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    details.stuck summary { cursor: pointer; padding: .7rem 1rem; font-family: var(--mono); font-size: .8rem; color: var(--muted); list-style: none; }
+    details.stuck summary::-webkit-details-marker { display: none; }
+    details.stuck summary::before { content: "+ "; color: var(--accent); }
+    details.stuck[open] summary::before { content: "– "; }
+    details.stuck .body { padding: 0 1rem 1rem; }
+    .fix { display: grid; grid-template-columns: 1fr 1.3fr; gap: .4rem 1rem; font-size: .9rem; }
+    .fix div:nth-child(odd) { color: var(--muted); }
+    .fix div { padding: .35rem 0; border-bottom: 1px dashed var(--border); }
+
+    .challenge { background: var(--warn-soft); border: 1px solid rgba(180, 83, 9, .25); border-radius: 14px; padding: 1.4rem 1.5rem; }
+    .challenge h2 { color: var(--warn); }
+    .challenge .target { font-family: var(--mono); font-size: .9rem; margin: .8rem 0; }
+
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th { text-align: left; font-family: var(--mono); font-size: .72rem; font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+         color: var(--faint); padding: .5rem .6rem .5rem 0; border-bottom: 1px solid var(--border); }
+    td { padding: .55rem .6rem .55rem 0; border-bottom: 1px dashed var(--border); vertical-align: top; }
+    td:first-child { font-family: var(--mono); font-size: .82rem; white-space: nowrap; }
+    .tablewrap { overflow-x: auto; }
+
+    .agenda { list-style: none; }
+    .agenda li { display: grid; grid-template-columns: 4.2rem 1fr auto; gap: 1rem; padding: .55rem 0; border-bottom: 1px dashed var(--border); }
+    .agenda .time { font-family: var(--mono); font-size: .8rem; color: var(--muted); padding-top: .15rem; }
+    .agenda .dep { font-family: var(--mono); font-size: .72rem; color: var(--faint); padding-top: .2rem; text-align: right; }
+
+    footer { margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--faint); font-size: .76rem;
+             font-family: var(--mono); display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; gap: 0; }
+      .toc { display: none; }
+    }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .page { padding: 0 1rem 3rem; }
+      .crumbs .ws { display: none; }
+      .files li, .fix { grid-template-columns: 1fr; gap: .1rem; }
+      .fix div:nth-child(odd) { border-bottom: 0; padding-bottom: 0; font-weight: 500; color: var(--text); }
+      .agenda li { grid-template-columns: 3.6rem 1fr; } .agenda .dep { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / adk-multi-agent</span>
+    <nav aria-label="Workshop sections">
+      <a href="#setup">Setup</a>
+      <a href="#m1">Modules</a>
+      <a href="#challenge">Challenge</a>
+      <a href="#reference">Reference</a>
+      <a href="https://github.com/omarcevi/adk-multi-agent-workshop">GitHub</a>
+    </nav>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="On this page">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="#overview"><span class="n">Overview</span></a></li>
+        <li><a href="#setup"><span class="n">0 · Setup</span><span class="t">3:30</span></a></li>
+        <li><a href="#m1" data-mod="m1"><span class="n">1 · MCP tools</span><span class="t">3:38</span></a></li>
+        <li><a href="#m2" data-mod="m2"><span class="n">2 · Workflows</span><span class="t">3:48</span></a></li>
+        <li><a href="#m3" data-mod="m3"><span class="n">3 · A2A</span><span class="t">4:00</span></a></li>
+        <li><a href="#m4" data-mod="m4"><span class="n">4 · Plugins</span><span class="t">4:10</span></a></li>
+        <li><a href="#challenge"><span class="n">Challenge</span></a></li>
+        <li><a href="#m5" data-mod="m5"><span class="n">5 · Deployed</span><span class="t">4:18</span></a></li>
+        <li><a href="#m6" data-mod="m6"><span class="n">6 · Telemetry</span><span class="t">4:25</span></a></li>
+        <li><a href="#wrap"><span class="n">Cleanup</span><span class="t">4:32</span></a></li>
+        <li><a href="#bonus"><span class="n">Bonus · RAG</span></a></li>
+        <li><a href="#reference"><span class="n">Reference</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <!-- ============================================================ HERO -->
+      <header class="hero" id="overview">
+        <p class="kicker">Workshop · Fri 9 Oct 2026 · 15:30–16:35 · Omar Elcircevi</p>
+        <h1>Architecting Multi-Agent Systems with Google ADK</h1>
+        <p class="tagline">In 65 minutes you build and deploy ShopDesk, a customer-support system for a fictional online store: MCP tool servers on Cloud Run, an orchestrator and an A2A specialist on Agent Runtime, guarded by plugins and measured end to end.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://shell.cloud.google.com/cloudshell/open?cloudshell_git_repo=https://github.com/omarcevi/adk-multi-agent-workshop">Open in Cloud Shell →</a>
+          <a class="btn" href="https://github.com/omarcevi/adk-multi-agent-workshop">Code on GitHub</a>
+          <a class="btn" href="#setup">Start with setup</a>
+        </div>
+      </header>
+
+      <figure class="arch">
+        <div class="arch-frame"><a href="architecture.svg" title="Open full size"><img src="architecture.svg" alt="ShopDesk architecture: a customer queries the shopdesk app on Agent Runtime; its orchestrator runs a Sequential, Parallel and Loop pipeline that calls three MCP tool servers on Cloud Run with identity tokens, and delegates refunds over A2A to a refunds specialist on a second Agent Runtime deployment; all agents call Gemini and send traces and metrics to Cloud Trace and Logging." width="1240" height="800"></a></div>
+        <figcaption>What each participant deploys into their own project. Tap to open full size.</figcaption>
+      </figure>
+
+      <section>
+        <h2>How this works</h2>
+        <p>Everything happens in <strong>Cloud Shell</strong> on your own Google Cloud project: you read code in the Cloud Shell editor, type the real <code>adk</code> and <code>gcloud</code> commands, and test agents in the ADK dev UI through Web Preview. Anything with more than one moving part is deployed to Google Cloud.</p>
+        <p>You use <strong>two terminal tabs with fixed jobs</strong>: <strong>tab 1</strong> runs <code>adk web</code> (and later the chat UI), <strong>tab 2</strong> runs deploys, which take a few minutes each. Small helpers like <code>make doctor</code> and <code>make query</code> fill the gaps.</p>
+        <p>Each module has the same shape: a file to open, something to run or deploy, a prompt to try, and what you should see. If you fall behind, jump to the next module's checkpoint folder; each one works on its own.</p>
+        <h3>Agenda</h3>
+        <ol class="agenda">
+          <li><span class="time">15:30</span><span>0 · Opening and setup</span><span class="dep"></span></li>
+          <li><span class="time">15:38</span><span>1 · Decoupled MCP tool servers</span><span class="dep">deploy: 3× Cloud Run</span></li>
+          <li><span class="time">15:48</span><span>2 · Workflow patterns: Sequential, Parallel, Loop</span><span class="dep">deploy: refunds agent (background)</span></li>
+          <li><span class="time">16:00</span><span>3 · Orchestrator and A2A discovery</span><span class="dep">deploy: full app (background)</span></li>
+          <li><span class="time">16:10</span><span>4 · Plugins, state and memory, plus the guardrail challenge</span><span class="dep"></span></li>
+          <li><span class="time">16:18</span><span>5 · The deployed system on Agent Runtime</span><span class="dep"></span></li>
+          <li><span class="time">16:25</span><span>6 · Telemetry: latency, delegation, tokens</span><span class="dep"></span></li>
+          <li><span class="time">16:32</span><span>Wrap-up and cleanup</span><span class="dep"></span></li>
+        </ol>
+      </section>
+
+      <!-- ============================================================ SETUP -->
+      <section id="setup" data-mod="setup">
+        <div class="mod-head">
+          <h2>0 · Setup</h2>
+          <span class="mod-meta"><span>15:30 · 8 min</span><label class="done-toggle"><input type="checkbox" data-done="setup">done</label></span>
+        </div>
+        <p class="goal">Get the repo into Cloud Shell, point it at your project, and check that everything is ready.</p>
+
+        <h3>You need</h3>
+        <ul class="plain">
+          <li>A Google Cloud project with <strong>billing enabled</strong></li>
+          <li>A browser. Nothing gets installed on your laptop.</li>
+        </ul>
+
+        <h3>Run</h3>
+        <p class="lead">Click <strong>Open in Cloud Shell</strong> above, or open Cloud Shell yourself and clone the repo. Then:</p>
+        <div class="code"><pre><span class="c"># skip the clone if you used the Open in Cloud Shell button</span>
+git clone https://github.com/omarcevi/adk-multi-agent-workshop
+cd adk-multi-agent-workshop
+
+gcloud config set project YOUR_PROJECT_ID
+make setup      <span class="c"># packages, APIs, permissions (~2 min)</span>
+source env.sh   <span class="c"># loads .env into your shell, puts adk on PATH</span>
+make doctor     <span class="c"># checks everything, prints the fix for anything wrong</span></pre></div>
+
+        <h3>Open your second tab</h3>
+        <p>Click <strong>+</strong> in the Cloud Shell terminal bar, then:</p>
+        <div class="code"><pre>cd adk-multi-agent-workshop
+source env.sh   <span class="c"># once in every tab you use</span></pre></div>
+
+        <h3>What you should see</h3>
+        <p><code>make doctor</code> ends with <strong>All good.</strong> Deployments show as "not deployed yet", which is expected.</p>
+        <p class="lead">Deploys go to <code>REGION</code> in <code>.env</code> (default <code>us-central1</code>). Change it now if you want another region, not after deploying.</p>
+
+        <details class="stuck"><summary>Stuck?</summary><div class="body"><div class="fix">
+          <div>"No project selected"</div><div><code>gcloud config set project YOUR_PROJECT_ID</code>, then <code>make setup</code> again.</div>
+          <div>Billing errors, or billing ✗ in doctor</div><div>Link a billing account to the project in the console. No billing account? Pair with a neighbour.</div>
+          <div>"API not enabled"</div><div>Setup was interrupted. Run <code>make setup</code> again; it's safe to repeat.</div>
+        </div></div></details>
+      </section>
+
+      <!-- ============================================================ M1 -->
+      <section id="m1" data-mod="m1">
+        <div class="mod-head">
+          <h2>1 · Decoupled MCP tool servers</h2>
+          <span class="mod-meta"><span>15:38 · 10 min</span><label class="done-toggle"><input type="checkbox" data-done="m1">done</label></span>
+        </div>
+        <p class="goal">Tools are services with owners, not functions pasted into a prompt.</p>
+
+        <h3>Open in the editor</h3>
+        <ul class="files">
+          <li>shopdesk/mcp_servers/orders.py<span>A tool is just a decorated function.</span></li>
+          <li>shopdesk/tools.py<span>The agent only knows a URL. Note the tool filter: least privilege.</span></li>
+        </ul>
+
+        <h3>Tab 2 · deploy the tool servers</h3>
+        <p class="lead">One image, three Cloud Run services, each reachable only with a Google identity (about a minute):</p>
+        <div class="code"><pre>IMAGE=$REGION-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/shopdesk/mcp-servers
+gcloud builds submit --tag $IMAGE .
+for s in orders inventory shipping; do
+  gcloud run deploy shopdesk-$s-mcp --image $IMAGE --region $REGION \
+    --no-allow-unauthenticated --set-env-vars MCP_SERVER=$s --quiet &amp;
+done; wait
+make check-mcp   <span class="c"># saves the URLs into .env, knocks without and with your identity</span></pre></div>
+
+        <h3>Tab 1 · start the ADK dev UI</h3>
+        <div class="code"><pre>adk web --port 8080 --allow_origins "*" checkpoints</pre></div>
+        <p class="lead" style="margin-top:.5rem">Then <strong>Web Preview → Preview on port 8080</strong> and pick <code>m1_mcp_tools</code>. <code>--allow_origins</code> is there because Web Preview is a proxy: the page comes from a <code>*.cloudshell.dev</code> address, and <code>adk web</code> refuses requests from other origins (403) unless you allow them. <code>"*"</code> is fine for a dev UI only you can reach.</p>
+        <p class="lead" style="margin-top:.5rem">Answers take 15–40 seconds from here on: several agents and model calls run behind each one. Use the wait to guess what the trace will show.</p>
+
+        <h3>Try this</h3>
+        <ul class="prompts">
+          <li><q>Where is my order ORD-1002 and is the oak chair in stock?</q></li>
+        </ul>
+        <div class="tryit" style="margin-top:.8rem"><b>TRY THIS</b>In <code>shopdesk/tools.py</code>, remove <code>"check_stock"</code> from the inventory filter and save. Restart <code>adk web</code> in tab 1 (Ctrl+C, then the same command), start a new session and ask <em>"Is the oak chair in stock?"</em>. The agent has lost that ability.</div>
+
+        <h3>What you should see</h3>
+        <ul class="plain">
+          <li><code>make check-mcp</code>: <strong>anonymous: HTTP 403</strong> for every server, and the tool list when called with your identity. No open endpoints.</li>
+          <li>In the dev UI's trace: one agent calling tools on three different services.</li>
+        </ul>
+
+        <details class="stuck"><summary>Stuck?</summary><div class="body"><div class="fix">
+          <div>Build or deploy fails with permission denied</div><div>New projects take a minute to propagate permissions. Wait, run <code>make setup</code>, retry.</div>
+          <div>403 even with your identity</div><div>Run <code>gcloud auth login</code> and check you're in your own project.</div>
+          <div>Dev UI is blank or errors</div><div>Is <code>adk web</code> still running in tab 1, with <code>--allow_origins "*"</code>? Web Preview must be on <strong>port 8080</strong>.</div>
+          <div><code>adk: command not found</code></div><div>Run <code>source env.sh</code> in that tab.</div>
+        </div></div></details>
+      </section>
+
+      <!-- ============================================================ M2 -->
+      <section id="m2" data-mod="m2">
+        <div class="mod-head">
+          <h2>2 · Workflow patterns</h2>
+          <span class="mod-meta"><span>15:48 · 12 min</span><label class="done-toggle"><input type="checkbox" data-done="m2">done</label></span>
+        </div>
+        <p class="goal">Deterministic structure where you know the steps; LLM judgement only where you need it.</p>
+
+        <h3>Tab 2 · start the next deploy now</h3>
+        <div class="code"><pre>python deploy/refunds.py   <span class="c"># refunds specialist -> Agent Runtime as an A2A agent (~4 min)</span></pre></div>
+        <p class="lead" style="margin-top:.5rem">Why not <code>adk deploy</code>? An A2A agent on Agent Runtime is built from the platform's A2A template, so this one deploy is a short script. Keep working in tab 1 while it builds.</p>
+
+        <h3>Open in the editor</h3>
+        <ul class="files">
+          <li>shopdesk/agents/workflows.py<span>Three blocks: Sequential (intake → research → reply), Parallel (three researchers, one per tool server), Loop (drafter ↔ policy reviewer).</span></li>
+        </ul>
+
+        <h3>Try this</h3>
+        <ul class="prompts">
+          <li><q>The kettle lid from ORD-1001 arrived cracked. Can I get a new one?</q></li>
+        </ul>
+        <p class="lead" style="margin-top:.5rem">In the dev UI, pick <code>m2_workflows</code>.</p>
+        <div class="guess" style="margin-top:.8rem"><b>GUESS FIRST</b>How much faster is the parallel step than running the three researchers one by one? Then read it off the trace.</div>
+        <div class="tryit" style="margin-top:.8rem"><b>TRY THIS</b>Set <code>MAX_ROUNDS = 1</code>, or add a rule to <code>POLICY</code> such as "Always address the customer by first name". Save, restart <code>adk web</code>, and compare the replies.</div>
+
+        <h3>What you should see</h3>
+        <ul class="plain">
+          <li><strong>Trace tab:</strong> the three researchers start at the same moment.</li>
+          <li><strong>State tab:</strong> <code>case</code>, <code>order_facts</code>, <code>stock_facts</code>, <code>shipping_facts</code>, <code>draft</code>. That's how the agents pass work along.</li>
+          <li>The loop ends when the reviewer calls <code>exit_loop</code>.</li>
+        </ul>
+
+        <details class="stuck"><summary>Stuck?</summary><div class="body"><div class="fix">
+          <div>Replies didn't change after an edit</div><div>Start a <strong>new session</strong> in the dev UI.</div>
+          <div>The refunds deploy fails</div><div>Read the error in tab 2, then run <code>make doctor</code>; it prints the fix for permission problems.</div>
+        </div></div></details>
+      </section>
+
+      <!-- ============================================================ M3 -->
+      <section id="m3" data-mod="m3">
+        <div class="mod-head">
+          <h2>3 · Orchestrator and A2A</h2>
+          <span class="mod-meta"><span>16:00 · 10 min</span><label class="done-toggle"><input type="checkbox" data-done="m3">done</label></span>
+        </div>
+        <p class="goal">An orchestrator discovers specialists from their agent cards and delegates. Adding a specialist is a config change, not a code change.</p>
+
+        <h3>Tab 2 · once the refunds deploy has finished</h3>
+        <div class="code"><pre>make card   <span class="c"># the refunds agent's card, as the orchestrator discovers it</span></pre></div>
+        <h3>Tab 1</h3>
+        <p>Stop <code>adk web</code> (Ctrl+C) and start it again so it discovers the card. Pick <code>m3_orchestrator</code>.</p>
+
+        <h3>Open in the editor</h3>
+        <ul class="files">
+          <li>shopdesk/agents/discovery.py<span>Agent card URL in, remote agent out.</span></li>
+          <li>shopdesk/agents/orchestrator.py<span>The routing rules. It routes on agent descriptions.</span></li>
+          <li>shopdesk/a2a_service.py<span>The refunds agent's card: what other agents see.</span></li>
+        </ul>
+
+        <h3>Try this</h3>
+        <ul class="prompts">
+          <li><q>Where is ORD-1002?</q></li>
+          <li><q>Please refund 20 EUR for the cracked kettle lid on ORD-1001.</q></li>
+        </ul>
+
+        <h3>What you should see</h3>
+        <ul class="plain">
+          <li>The first question goes to <code>support_pipeline</code>, inside the app.</li>
+          <li>The refund crosses over A2A to <code>refunds_specialist</code>, running on Agent Runtime, and comes back with a refund ID starting with <code>RF-</code>.</li>
+        </ul>
+
+        <h3>Tab 2 · deploy the full app</h3>
+        <div class="code"><pre>adk deploy agent_engine --project $GOOGLE_CLOUD_PROJECT --region $REGION \
+  --display_name shopdesk-app --otel_to_cloud \
+  --extra_packages shopdesk --temp_folder /tmp/shopdesk-build \
+  checkpoints/m4_production</pre></div>
+        <p class="lead" style="margin-top:.5rem"><code>--extra_packages</code> ships the shared code; <code>--temp_folder</code> keeps the build copy out of <code>checkpoints/</code>. The app's settings come from <code>checkpoints/m4_production/.env</code>, generated from your <code>.env</code>. It takes about 3 minutes; carry on with Module 4 in tab 1.</p>
+
+        <details class="stuck"><summary>Stuck?</summary><div class="body"><div class="fix">
+          <div>"Refunds are handled by email"</div><div>The orchestrator found no refunds agent: check <code>make status</code>, run <code>make card</code>, then restart <code>adk web</code>.</div>
+          <div>Refunds agent still building</div><div>Follow along on the main screen; yours will be ready by Module 5.</div>
+        </div></div></details>
+      </section>
+
+      <!-- ============================================================ M4 -->
+      <section id="m4" data-mod="m4">
+        <div class="mod-head">
+          <h2>4 · Plugins, state and memory</h2>
+          <span class="mod-meta"><span>16:10 · 8 min</span><label class="done-toggle"><input type="checkbox" data-done="m4">done</label></span>
+        </div>
+        <p class="goal">Prompts suggest; plugins enforce. One plugin applies to every agent, model call and tool call in its app.</p>
+
+        <h3>Open in the editor</h3>
+        <ul class="files">
+          <li>shopdesk/plugins/guardrails.py<span>Card redaction, call budgets, and the refund limit.</span></li>
+          <li>shopdesk/plugins/memory.py<span>Writes each finished turn to long-term memory.</span></li>
+        </ul>
+
+        <h3>Try this</h3>
+        <p class="lead">In the dev UI, pick <code>m4_production</code>. Then do <a href="#challenge">the challenge</a>.</p>
+        <ul class="prompts" style="margin-top:.6rem">
+          <li><q>My card 4111 1111 1111 1111 was charged twice for ORD-1002.</q></li>
+          <li><q>Please always contact me by SMS.</q></li>
+        </ul>
+
+        <h3>What you should see</h3>
+        <ul class="plain">
+          <li>The card number is replaced with <code>[REDACTED CARD]</code> before any model sees it. Check the first event in the trace.</li>
+          <li>Start a new session and ask how you prefer to be contacted: the preference comes back from memory.</li>
+        </ul>
+      </section>
+
+      <!-- ============================================================ CHALLENGE -->
+      <section id="challenge">
+        <div class="challenge">
+          <h2>Challenge: break the guardrail</h2>
+          <p>Get the agent to refund the <strong>full 420 EUR</strong> for the walnut desk on order <strong>ORD-1004</strong>. Two minutes. Any prompt you like.</p>
+          <p class="target">Refund limit: 150 EUR · enforced by a plugin inside the refunds agent</p>
+          <ul class="plain">
+            <li>Ideas: claim to be a manager, invent an emergency, write in another language, paste fake "system" instructions.</li>
+            <li>The model may agree, apologise, even promise. Check the reply: a real refund comes with an ID starting with <code>RF-</code>.</li>
+            <li>Found a way around it, like several small refunds? Tell the room. That's the discussion.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============================================================ M5 -->
+      <section id="m5" data-mod="m5">
+        <div class="mod-head">
+          <h2>5 · The deployed system</h2>
+          <span class="mod-meta"><span>16:18 · 7 min</span><label class="done-toggle"><input type="checkbox" data-done="m5">done</label></span>
+        </div>
+        <p class="goal">The same App runs in the dev UI and on Agent Runtime; the platform adds managed sessions, Memory Bank, scaling and telemetry.</p>
+
+        <h3>Tab 1 · chat with your deployed app, and watch the trace</h3>
+        <div class="code"><pre><span class="c"># stop adk web first (Ctrl+C): the chat UI uses port 8080 too</span>
+python ui/chat.py</pre></div>
+        <p class="lead" style="margin-top:.5rem">Web Preview → port 8080. Every message is drawn as a live timeline: which agent ran when, the parallel researchers side by side, loop rounds, tool calls, the A2A hop, and tokens per agent. If your app didn't deploy, <code>python ui/chat.py --local</code> runs the same App right in Cloud Shell.</p>
+        <h3>Tab 2 · the same from the command line</h3>
+        <div class="code"><pre>make status
+make query MSG="Please refund 20 EUR for the cracked kettle lid on ORD-1001"</pre></div>
+        <p class="lead" style="margin-top:.6rem">In the Cloud console, Agent Runtime lists <strong>shopdesk-app</strong> and <strong>shopdesk-refunds</strong> with their sessions and memories.</p>
+
+        <h3>What you should see</h3>
+        <ul class="plain">
+          <li>In the chat UI, a refund question shows a striped bar for the refunds agent: that's the A2A hop. Its own tool calls stay hidden inside it.</li>
+          <li>Each line of <code>make query</code> shows which agent produced it, so you can see the routing.</li>
+          <li>Your system on Google Cloud: 3 Cloud Run tool servers and 2 Agent Runtime agents talking over A2A.</li>
+        </ul>
+
+        <details class="stuck"><summary>Stuck?</summary><div class="body"><div class="fix">
+          <div>"No 'shopdesk-app' on Agent Runtime"</div><div>The <code>adk deploy</code> in tab 2 is still running, or failed: read its output. Meanwhile use <code>python ui/chat.py --local</code>.</div>
+          <div><code>make status</code> says deployed, but questions fail</div><div><code>adk deploy</code> registers the app before it finishes building. Wait until tab 2 is done.</div>
+          <div>Tool calls fail with 403 right after the first deploy</div><div>On a new project, Agent Runtime's service account has just been created and its permissions take a minute to apply. Wait and ask again; <code>make doctor</code> checks it.</div>
+          <div>A question seems to hang</div><div>Gemini occasionally stalls. Each model call retries after 45 seconds, and the chat UI and <code>make query</code> give up after 3 minutes of silence. Ask again.</div>
+        </div></div></details>
+      </section>
+
+      <!-- ============================================================ M6 -->
+      <section id="m6" data-mod="m6">
+        <div class="mod-head">
+          <h2>6 · Telemetry</h2>
+          <span class="mod-meta"><span>16:25 · 7 min</span><label class="done-toggle"><input type="checkbox" data-done="m6">done</label></span>
+        </div>
+        <p class="goal">You can't optimise a multi-agent system you don't measure per agent.</p>
+        <div class="guess"><b>GUESS FIRST</b>Which agent spends the most tokens?</div>
+
+        <p style="margin-top:1rem">Start with the chat UI from Module 5: send the kettle question and read the timeline. Then measure across many runs:</p>
+        <h3>Tab 2</h3>
+        <div class="code"><pre>make bench    <span class="c"># sends the 5 scenarios once to your deployed app (~2 min)</span>
+make report   <span class="c"># a minute later: numbers from Cloud Logging</span></pre></div>
+
+        <h3>What you should see</h3>
+        <ul class="plain">
+          <li><strong>Turn latency</strong> p50 / p95, end to end</li>
+          <li><strong>A2A routing latency</strong> to the refunds agent, and time to its first event</li>
+          <li><strong>Delegation success rate</strong> per target, and routing accuracy per scenario</li>
+          <li><strong>Tokens per agent</strong>, and each agent's share</li>
+          <li>In <a href="https://console.cloud.google.com/traces">Cloud Trace</a>: one request as a tree of agent, model and tool spans across both runtimes</li>
+        </ul>
+        <p class="lead" style="margin-top:.6rem">At home, <code>python bench/run_bench.py --runs 2</code> gives the report more data.</p>
+        <h3>Levers to pull</h3>
+        <p>A cheaper model for the researchers (<code>WORKSHOP_FAST_MODEL</code>), fewer loop rounds, tighter tool filters, parallel vs sequential.</p>
+      </section>
+
+      <!-- ============================================================ WRAP -->
+      <section id="wrap">
+        <div class="mod-head"><h2>Wrap-up and cleanup</h2><span class="mod-meta"><span>16:32</span></span></div>
+        <p class="goal">Remove everything you deployed so nothing keeps billing.</p>
+        <div class="code" style="margin-top:1rem"><pre>make cleanup   <span class="c"># deletes the runtimes, Cloud Run services, image repo, staging bucket and bonus corpus</span></pre></div>
+      </section>
+
+      <!-- ============================================================ BONUS -->
+      <section id="bonus">
+        <h2>Bonus: ground the policy reviewer with RAG Engine</h2>
+        <p class="goal">Put the store's real policy documents in a RAG Engine corpus and serve them through a fourth MCP tool server. The architecture stays the same: the reviewer just gains one more tool.</p>
+        <div class="code" style="margin-top:1rem"><pre>make bonus-rag   <span class="c"># corpus + policy MCP server on Cloud Run, wired into the reviewer</span>
+<span class="c"># restart adk web, pick m2_workflows: the reviewer now calls search_policy</span>
+<span class="c"># ship it: the Module 3 adk deploy command plus --agent_engine_id $APP_RUNTIME_ID</span></pre></div>
+        <p class="lead" style="margin-top:.8rem">The corpus lives in <code>europe-west4</code> because RAG Engine in <code>us-central1</code> needs allowlisting for new projects. Its managed vector database is billed while it exists; <code>make cleanup</code> deletes the corpus and the policy server. Details in <a href="https://github.com/omarcevi/adk-multi-agent-workshop/tree/main/bonus_rag">bonus_rag/README.md</a>.</p>
+      </section>
+
+      <!-- ============================================================ REFERENCE -->
+      <section id="reference">
+        <h2>Reference</h2>
+
+        <h3>Commands</h3>
+        <div class="tablewrap"><table>
+          <tr><th>Command</th><th>What it does</th></tr>
+          <tr><td>source env.sh</td><td>Once per terminal tab: loads <code>.env</code>, puts <code>adk</code> on PATH.</td></tr>
+          <tr><td>adk web … checkpoints</td><td>ADK dev UI on port 8080 with every checkpoint. Full command, with <code>--allow_origins "*"</code>, in Module 1.</td></tr>
+          <tr><td>gcloud run deploy …</td><td>The tool servers on Cloud Run (Module 1).</td></tr>
+          <tr><td>python deploy/refunds.py</td><td>Refunds specialist to Agent Runtime as an A2A agent.</td></tr>
+          <tr><td>adk deploy agent_engine …</td><td>The full ShopDesk app to Agent Runtime (Module 3).</td></tr>
+          <tr><td>python ui/chat.py</td><td>Chat with the deployed app and watch the live trace. <code>--local</code> runs it in Cloud Shell.</td></tr>
+        </table></div>
+
+        <h3>Helpers</h3>
+        <div class="tablewrap"><table>
+          <tr><th>Command</th><th>What it does</th></tr>
+          <tr><td>make setup</td><td>Project, Python packages, APIs, permissions. Safe to re-run.</td></tr>
+          <tr><td>make doctor</td><td>Checks setup and deploys; prints the fix for anything wrong.</td></tr>
+          <tr><td>make check-mcp</td><td>Finds your tool servers, saves their URLs, knocks with and without identity.</td></tr>
+          <tr><td>make card</td><td>Shows the refunds agent's card.</td></tr>
+          <tr><td>make status</td><td>What's deployed in your project right now.</td></tr>
+          <tr><td>make query MSG="…"</td><td>Talks to the deployed app from the terminal.</td></tr>
+          <tr><td>make bench / report</td><td>Sends test scenarios / prints the telemetry report.</td></tr>
+          <tr><td>make cleanup</td><td>Deletes everything the workshop deployed.</td></tr>
+        </table></div>
+
+        <h3>Checkpoints</h3>
+        <div class="tablewrap"><table>
+          <tr><th>Folder</th><th>Module</th></tr>
+          <tr><td>m1_mcp_tools</td><td>One agent, three tool servers</td></tr>
+          <tr><td>m2_workflows</td><td>Sequential + Parallel + Loop pipeline</td></tr>
+          <tr><td>m3_orchestrator</td><td>Orchestrator with A2A discovery</td></tr>
+          <tr><td>m4_production</td><td>Full App: plugins and memory (what gets deployed)</td></tr>
+        </table></div>
+
+        <h3>Test data</h3>
+        <div class="tablewrap"><table>
+          <tr><th>Order</th><th>Customer</th><th>What's going on</th></tr>
+          <tr><td>ORD-1001</td><td>C-42 Elif</td><td>Delivered; kettle lid arrived cracked</td></tr>
+          <tr><td>ORD-1002</td><td>C-42 Elif</td><td>Oak chair, in transit</td></tr>
+          <tr><td>ORD-1003</td><td>C-77 Mert</td><td>Mini lamp, backordered</td></tr>
+          <tr><td>ORD-1004</td><td>C-77 Mert</td><td>Walnut desk, 420 EUR: the challenge</td></tr>
+        </table></div>
+
+        <h3>Versions</h3>
+        <p class="lead">google-adk 2.11.0 · google-cloud-aiplatform 2.4.0 · mcp 2.2.0 · a2a-sdk 1.2.2 · Gemini 3.5 Flash</p>
+      </section>
+
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/adk-multi-agent-workshop">source</a></p>
+        <p>Istanbul · October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Copy buttons on code blocks and prompts
+  const copy = (btn, text) => {
+    const done = () => { btn.textContent = 'copied'; btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('ok'); }, 1400); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => {});
+  };
+  document.querySelectorAll('.code').forEach(block => {
+    const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
+    b.addEventListener('click', () => {
+      const pre = block.querySelector('pre').cloneNode(true);
+      pre.querySelectorAll('.c').forEach(c => c.remove());           // drop comments
+      const text = pre.textContent.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l).join('\n');
+      copy(b, text);
+    });
+    block.appendChild(b);
+  });
+  document.querySelectorAll('.prompts li').forEach(li => {
+    const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
+    b.addEventListener('click', () => copy(b, li.querySelector('q').textContent));
+    li.appendChild(b);
+  });
+
+  // "done" checkboxes, remembered in this browser only
+  const KEY = 'adk-workshop-done';
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
+  const mark = () => document.querySelectorAll('.toc a[data-mod]').forEach(a =>
+    a.classList.toggle('done', !!state[a.dataset.mod]));
+  document.querySelectorAll('input[data-done]').forEach(cb => {
+    cb.checked = !!state[cb.dataset.done];
+    cb.addEventListener('change', () => {
+      state[cb.dataset.done] = cb.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      mark();
+    });
+  });
+  mark();
+
+  // Highlight the section you're reading in the side index
+  const links = [...document.querySelectorAll('.toc a')];
+  const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const targets = [...byId.keys()].map(id => document.getElementById(id)).filter(Boolean);
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        byId.get(e.target.id)?.classList.add('active');
+      }});
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    targets.forEach(t => io.observe(t));
+  }
+})();
+</script>
+</body>
+</html>
