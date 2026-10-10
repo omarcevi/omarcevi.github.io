@@ -640,7 +640,7 @@
             <span class="date">Sep 2026</span>
             <div>
               <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
-              <div class="item-meta">Google Developer Day</div>
+              <div class="item-meta">Google Developer Day Istanbul</div>
             </div>
           </li>
           <li>
@@ -687,7 +687,7 @@
             <span class="date">Oct 2026</span>
             <div>
               <div class="item-title"><a href="/workshops/adk-multi-agent-workshop/">Architecting Multi-Agent Systems with Google ADK</a><a class="tag" href="/workshops/adk-multi-agent-workshop/" aria-label="Open the workshop guide">guide</a></div>
-              <div class="item-meta">Google Developer Day</div>
+              <div class="item-meta">Google Developer Day Istanbul</div>
             </div>
           </li>
           <li>
@@ -1513,8 +1513,13 @@
       nav.addEventListener('scroll', navFade, { passive: true });
       window.addEventListener('resize', navFade);
       navFade();
-      var t0 = performance.now(), last = t0, cur = -1;
-      var segs = rows.map(function () { return []; });          // [[start, end], ...] in ms since page load
+      var last = performance.now(), clock = 0, cur = -1;        // clock: ms the visitor was actually here (idle + hidden time left out)
+      var IDLE = 30000, lastInput = last;                       // no scroll, pointer, key or touch for 30s = stepped away
+      var HOLD = 5000, bottomAt = -1, done = false;             // the trace is one pass: it ends 5s after first reaching the bottom, or as soon as they scroll away from it
+      ['scroll', 'wheel', 'mousemove', 'keydown', 'touchstart'].forEach(function (e) {
+        window.addEventListener(e, function () { lastInput = performance.now(); }, { passive: true });
+      });
+      var segs = rows.map(function () { return []; });          // [[start, end], ...] in ms of clock
       var STEPS = [20, 40, 60, 120, 240, 480, 1200, 2400, 3600, 7200].map(function (s) { return s * 1000; });
 
       // full trace panel above the footer
@@ -1552,23 +1557,32 @@
         var x = a.offsetLeft - nav.offsetLeft;                   // keep it in view when the nav scrolls sideways (mobile)
         if (x < nav.scrollLeft + 24 || x + a.offsetWidth > nav.scrollLeft + nav.clientWidth - 24) nav.scrollLeft = x - 32;
       }
-      var lastScale = 0;
+      var lastScale = 0, navAt = -1;
       function tick() {
-        var now = performance.now() - t0;
-        var prev = last; last = performance.now();
+        var t = performance.now(), dt = t - last; last = t;
+        if (!done && !document.hidden && t - lastInput < IDLE) clock += Math.min(dt, 1000);   // cap: throttled timers or sleep can hand back one huge dt
+        var now = clock;
+        var vh = window.innerHeight, atBottom = window.scrollY + vh >= document.documentElement.scrollHeight - 2;
         var reading = -1;
         if (!document.hidden) {
-          var vh = window.innerHeight, bestPx = 0;
+          var bestPx = 0;
           secs.forEach(function (s, i) {
             var r = s.getBoundingClientRect();
             var px = Math.min(r.bottom, vh * 0.75) - Math.max(r.top, vh * 0.2);
             if (px > bestPx) { bestPx = px; reading = i; }
           });
+          // at the very bottom the last section can't scroll up into the band, so a taller one above it would always win
+          var end = secs.length - 1;
+          if (atBottom && secs[end].getBoundingClientRect().top < vh) reading = end;
         }
+        // the nav highlight keeps following the page after the trace has ended
+        if (reading !== navAt) { markNav(navAt, reading); navAt = reading; }
+        if (done) return;
+        if (atBottom && bottomAt < 0) bottomAt = now;
+        if (bottomAt > -1 && (now - bottomAt >= HOLD || !atBottom)) { done = true; reading = -1; }
         if (reading !== cur) {
           if (cur > -1) segs[cur][segs[cur].length - 1][1] = now;
           if (reading > -1) segs[reading].push([now, now]);
-          markNav(cur, reading);
           cur = reading;
         } else if (cur > -1) segs[cur][segs[cur].length - 1][1] = now;
 
@@ -1596,7 +1610,7 @@
         });
         drawBars(root.track, [[0, now]], scale, 'tp-bar');
         root.time.textContent = fmt(now);
-        head.innerHTML = 'your reading trace · <b>' + seen + '/' + rows.length + '</b> sections · ' + fmt(readMs) + ' reading';
+        head.innerHTML = 'your reading trace · <b>' + seen + '/' + rows.length + '</b> sections · ' + fmt(readMs) + ' reading' + (done ? ' · ended' : '');
       }
       tick(); setInterval(tick, 250);
       panel.classList.add('ready');
