@@ -93,6 +93,15 @@
 agents-cli deploy                 <span class="c"># runs gcloud run deploy with the generated settings</span></pre></div>
         <p>For GKE, <code>--deployment-target gke</code> adds Kubernetes manifests and Terraform for a cluster, and <code>agents-cli deploy</code> builds the image, applies Terraform and runs <code>kubectl apply</code>. Keep sessions and memory in Agent Platform so pods stay stateless, and use Workload Identity for the pods.</p>
         <p>The MCP servers in this lab already run on Cloud Run: tools that other teams own usually belong there, next to the agent runtime rather than inside it.</p>
+
+        <h2 style="margin-top:2rem">Departments as separate agents (A2A)</h2>
+        <p>The lab deploys one app with four agents. When departments own their agents, deploy each as its own Agent Runtime and let the front door find them. The repo's <code>alt/multi-agent-a2a</code> branch is a tested proof of concept (see <code>docs/A2A.md</code> there):</p>
+        <ul class="plain">
+          <li><strong>Discovery.</strong> Every Agent Runtime deployment registers itself in Agent Registry. The concierge lists the registry at startup, fetches each agent's A2A card and adds it as a <code>RemoteA2aAgent</code>; no URL is configured anywhere.</li>
+          <li><strong>Identity.</strong> The concierge calls with its own Agent Identity and passes the employee in A2A request metadata; the department agent acts for that employee, and its MCP server logs the right person.</li>
+          <li><strong>Observability.</strong> Each agent gets its own traces, which also removes the managed Online Monitor's multi-agent skip.</li>
+          <li><strong>Not there yet.</strong> Agent Gateway passes and logs the calls, but classifies them as the Google APIs endpoint, so a policy rule per agent doesn't apply yet. A turn costs a second hop: 7–12 s warm, about 50 s when both agents are cold.</li>
+        </ul>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-6/">← 6 · Evaluate</a><a class="next" href="/workshops/deploy-agents-workshop/production/">Production checklist →</a></nav>
