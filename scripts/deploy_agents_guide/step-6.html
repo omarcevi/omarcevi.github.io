@@ -3,46 +3,56 @@
           <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 6 · Evaluate</h1>
           <span class="mod-meta"><span>7 min</span><label class="done-toggle"><input type="checkbox" data-done="step-6">done</label></span>
         </div>
-        <p class="goal">Gate changes on an eval set, score live traffic with an Online Monitor, and turn a production conversation into a new test case.</p>
+        <p class="goal">Use an eval set as the gate for each deployment. Score the live traffic. Make a new test case from a production conversation.</p>
         <p><span class="branch">checkpoint branch <code>step-6-evaluate</code></span></p>
 
         <div class="how">
           <h2>How it works</h2>
           <figure class="arch">
-            <div class="arch-frame"><a href="{{BASE}}diagrams/step-6-evaluate.svg" title="Open full size"><img src="{{BASE}}diagrams/step-6-evaluate.svg" alt="The evaluation loop: 1 the eval set in evals/cases.yaml is turned into datasets; 2 agents-cli eval run plus the gate script decides whether a change may deploy; 3 deploy; 4 production traffic is scored by score_live.sh with your own LLM judges on every turn; 5 low scores or bad sessions are found in Trace and the console; 6 session_to_eval_case.py turns one into a new eval case; 7 the case joins the eval set. Google's managed Online Monitor also feeds low scores when it can score a turn; it skips multi-agent turns." width="1180" height="470"></a></div>
-            <figcaption>Offline evals stop regressions before deploy; online monitors catch what the eval set doesn't cover; every failure becomes a case.</figcaption>
+            <div class="arch-frame"><a href="{{BASE}}diagrams/step-6-evaluate.svg" title="Open full size"><img src="{{BASE}}diagrams/step-6-evaluate.svg" alt="The evaluation loop. 1 A script makes datasets from the eval set in evals/cases.yaml. 2 agents-cli eval run and the gate script decide if a change can go to deployment. 3 Deploy. 4 score_live.sh scores each turn of the production traffic with your own LLM judges. 5 You find low scores or bad sessions in Trace and in the console. 6 session_to_eval_case.py makes a new eval case from one of them. 7 The case goes into the eval set. The managed Online Monitor of Google also gives low scores when it can score a turn. It does not score multi-agent turns." width="1180" height="470"></a></div>
+            <figcaption>Offline evals stop regressions before deployment. Scores of live traffic show the problems that the eval set does not cover. Each failure becomes a case.</figcaption>
           </figure>
-          <p><strong>The eval set</strong> lives in <code>evals/cases.yaml</code>: twenty prompts with what should happen. <code>agents-cli eval run</code> runs the agent on each one (locally, against fresh copies of the MCP servers) and grades the traces:</p>
+          <p><strong>The eval set</strong> is in <code>evals/cases.yaml</code>. It has twenty prompts, each with the expected result. <code>agents-cli eval run</code> runs the agent locally on each prompt, with new copies of the MCP servers. Then it grades the traces:</p>
           <ul class="plain">
-            <li><strong>Right tool, right arguments</strong> (<code>tool_trajectory</code>): did it call <code>submit_leave_request</code> with next Friday's date, open a P1 ticket for a stolen laptop, and never call forbidden tools?</li>
-            <li><strong>Routed to the right specialist</strong> (<code>routed_to_expected_agent</code>).</li>
-            <li><strong>Refuses salary questions</strong> (<code>no_compensation_leak</code>): no individual salary figure in any answer, and a referral to the People Partner when asked.</li>
-            <li><strong>Grounded in the handbook</strong> (<code>grounding_v1</code>): an LLM judge from the Gen AI evaluation service checks every sentence of policy answers against the handbook.</li>
+            <li><strong>Correct tool, correct arguments</strong> (<code>tool_trajectory</code>): Did the agent call <code>submit_leave_request</code> with the date of next Friday? Did it open a P1 ticket for a stolen laptop? Did it not call a forbidden tool?</li>
+            <li><strong>Correct specialist agent</strong> (<code>routed_to_expected_agent</code>): Did the concierge send the request to the correct specialist agent?</li>
+            <li><strong>No salary in answers</strong> (<code>no_compensation_leak</code>): No answer contains the salary of a person. When an employee asks for a salary, the agent refers the employee to the People Partner.</li>
+            <li><strong>Answers from the handbook</strong> (<code>grounding_v1</code>): An LLM judge from the Gen AI evaluation service compares each sentence of a policy answer with the handbook.</li>
           </ul>
-          <p>The first three are small Python functions that run locally; grounding calls the evaluation service. <strong>agents-cli exits 0 whatever the scores</strong>, so <code>evals/gate.py</code> compares them with <code>evals/thresholds.yaml</code> and fails the build: that is what makes it a gate.</p>
-          <p><strong>Live traffic</strong> is scored by <code>scripts/score_live.sh</code>. It reads the deployed agent's recent conversations from Agent Runtime Sessions, turns every turn into an eval case (all four agents, every hand-over and tool result) and grades them with <code>agents-cli eval grade</code>: the salary-leak check plus three LLM judges we define in <code>evals/eval_config.live.yaml</code> (<code>grounded</code>, <code>resolved</code>, <code>tool_use</code>) on Gemini 3.5 Flash. Run it on a schedule in production; the low scorers become eval cases.</p>
-          <p><strong>Google's managed Online Monitor</strong> does the same every ten minutes, with no code, but two limits showed up in testing. It expects one system instruction per trace, so it skips every turn where the concierge hands over to a sub-agent (<code>INSUFFICIENT_DATA</code>): here, every turn that calls a tool. And its judge (Gemini 2.5 Flash/Pro on the regional endpoint) runs on shared pay-as-you-go capacity prioritized by the organization's spend, so in a new or low-spend project most grading calls come back <code>429 Judge model resource exhausted</code>. You create one anyway, to see the product and read its log.</p>
+          <p>The first three metrics are small Python functions that run locally. The grounding metric calls the evaluation service. <strong>agents-cli exits with 0 for all scores.</strong> Thus, <code>evals/gate.py</code> compares the scores with <code>evals/thresholds.yaml</code>, and stops the build if a score is too low. This makes it a gate.</p>
+          <p><code>scripts/score_live.sh</code> scores the <strong>live traffic</strong>. The script reads the recent conversations of the deployed agent from Agent Runtime Sessions. It makes an eval case from each turn (all four agents, each hand-over and each tool result), and <code>agents-cli eval grade</code> grades the cases. It uses the salary-leak check and three LLM judges on Gemini 3.5 Flash, which <code>evals/eval_config.live.yaml</code> defines (<code>grounded</code>, <code>resolved</code>, <code>tool_use</code>). In production, run the script on a schedule. The turns with low scores become eval cases.</p>
+          <p><strong>The managed Online Monitor of Google</strong> does the same every ten minutes, without code. Our tests found two limits. First, the monitor expects one system instruction for each trace. Thus, it does not score a turn where the concierge gives the request to a specialist agent (<code>INSUFFICIENT_DATA</code>). In this lab, that is each turn that calls a tool.</p>
+          <p>Second, the judge of the monitor (Gemini 2.5 Flash or Pro on the regional endpoint) uses shared pay-as-you-go capacity. The spend of the organization sets the priority on this capacity. In a new project or a project with low spend, most judge calls return <code>429 Judge model resource exhausted</code>. You create a monitor anyway, to see the product and to read its log.</p>
         </div>
 
         <h2>Run</h2>
-        <p class="lead"><strong>Offline evals</strong> (about two minutes):</p>
+        <p class="lead"><strong>Offline evals</strong> (approximately two minutes):</p>
         <div class="code"><pre>./scripts/eval.sh</pre></div>
-        <p class="lead"><strong>Score live traffic</strong> (about a minute; it grades your last 20 turns from steps 2–5):</p>
+        <p class="lead"><strong>Score the live traffic</strong> (approximately one minute). The script grades your last 20 turns from steps 2–5:</p>
         <div class="code"><pre>./scripts/score_live.sh</pre></div>
-        <p class="lead"><strong>Google's Online Monitor.</strong> Create it with the script, which also lets the Vertex AI service agent read traces:</p>
+        <p class="lead"><strong>The Online Monitor of Google.</strong> Use the script to create the monitor. The script also gives the Vertex AI service agent permission to read traces:</p>
         <div class="code"><pre>./scripts/monitor.sh</pre></div>
-        <p class="lead">Or in the console: <strong>Agent Platform → Optimize → Evaluation → Online monitors → New monitor</strong>. Select agent <strong>workplace-assistant</strong>, name it <code>workplace-quality</code>, region <strong>europe-west1</strong>, unit <strong>Traces</strong>, <strong>All traces</strong> → Continue. Keep the four default metrics → Continue. Sampling percentage <strong>100</strong>, max samples per evaluation job <strong>20</strong> → <strong>Set up</strong>. Then grant the service agent access, or the monitor shows <em>Failed</em>:</p>
+        <p class="lead">Or use the console:</p>
+        <ol class="plain">
+          <li>Go to <strong>Agent Platform → Optimize → Evaluation → Online monitors → New monitor</strong>.</li>
+          <li>Select the agent <strong>workplace-assistant</strong>.</li>
+          <li>Type the name <code>workplace-quality</code>.</li>
+          <li>Select the region <strong>europe-west1</strong>, the unit <strong>Traces</strong> and <strong>All traces</strong>. Click <strong>Continue</strong>.</li>
+          <li>Keep the four default metrics. Click <strong>Continue</strong>.</li>
+          <li>Set the sampling percentage to <strong>100</strong> and the maximum samples for each evaluation job to <strong>20</strong>. Click <strong>Set up</strong>.</li>
+        </ol>
+        <p class="lead">Then give the service agent access. If you do not do this, the monitor shows <em>Failed</em>:</p>
         <div class="code"><pre>gcloud projects add-iam-policy-binding $PROJECT_ID --condition=None \
   --member=serviceAccount:service-$PROJECT_NUMBER@gcp-sa-aiplatform.iam.gserviceaccount.com \
   --role=roles/observability.viewAccessor</pre></div>
-        <p class="lead"><strong>Close the loop.</strong> Pick a production conversation, ideally one where the answer was wrong, and add it to the eval set. If you don't have one, try this, which should <em>not</em> book anything (29 October is Republic Day for the Istanbul office):</p>
+        <p class="lead"><strong>Complete the loop.</strong> Select a production conversation, if possible one with a wrong answer. Add it to the eval set. If you do not have one, use this conversation. The agent must <em>not</em> book leave, because 29 October is Republic Day for the Istanbul office:</p>
         <div class="code"><pre>uv run python scripts/ask.py "Book 29 October off for me."      <span class="c"># note the session id</span>
 uv run python scripts/session_to_eval_case.py SESSION_ID --id my_regression
 <span class="c"># edit the TODO lines of the new case at the end of the behaviour list in evals/cases.yaml:</span>
 <span class="c">#   expected_agent: leave_agent     forbidden_tools: [submit_leave_request]</span>
 uv run python evals/build_datasets.py && ./scripts/eval.sh behaviour</pre></div>
 
-        <h2>What you should see</h2>
+        <h2>Expected result</h2>
         <div class="out">==> agents-cli eval run (behaviour)
 <span class="ok">PASS</span> routed_to_expected_agent: 1.0 (threshold 0.9, 15 cases, 0 errors)
 <span class="ok">PASS</span> tool_trajectory: 1.0 (threshold 0.85, 15 cases, 0 errors)
@@ -70,7 +80,7 @@ Turn it into a test case:
 
 ==> Creating online monitor workplace-quality (sampling 100%, max 20 traces per run)
 <span class="ok">  ✔</span> requested: projects/…/operations/…</div>
-        <p>The monitor's runs show under Deployments → workplace-assistant → <strong>Dashboard → Evaluation</strong> about ten minutes later. Read what it did with your traffic in its log; expect skipped multi-agent turns and rate-limited grading:</p>
+        <p>Approximately ten minutes later, the results of the monitor show in Deployments → workplace-assistant → <strong>Dashboard → Evaluation</strong>. Read in its log what the monitor did with your traffic. Expect skipped multi-agent turns and judge calls that failed because of rate limits:</p>
         <div class="code"><pre>gcloud logging read 'logName:"online_evaluator"' --freshness=1h --limit=20 \
   --format='value(labels."gen_ai.evaluation.name",labels."gen_ai.evaluation.score.value",labels."error.type")'</pre></div>
 
@@ -83,30 +93,30 @@ Turn it into a test case:
 ==> Step 6 checks passed.</div>
 
         <h3>Fallback</h3>
-        <p>If the evaluation service or Online Monitors are not available to you, run the local part of the eval and look at live-traffic scores recorded during a rehearsal:</p>
+        <p>If you cannot use the evaluation service or Online Monitors, run the local part of the eval. Then read the live-traffic scores that we recorded in a rehearsal:</p>
         <div class="code"><pre>./scripts/fallback_step6.sh</pre></div>
 
         <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
-          <div><code>only 4 of 5 cases ran</code></div><div>A model call timed out during generation and agents-cli dropped that case. Run <code>./scripts/eval.sh</code> again.</div>
-          <div>A metric below its threshold</div><div>The gate lists the failing cases with the judge's explanation. Open <code>artifacts/eval/SUITE/results_*.html</code> for the full traces.</div>
-          <div><code>score_live.sh</code>: <code>No conversations in the last 3 h</code></div><div>Ask the agent a few questions (steps 2–5) or widen the window: <code>./scripts/score_live.sh --hours 24</code>.</div>
-          <div><code>score_live.sh</code>: a metric shows <code>n/a</code> or many failed</div><div>The judge was rate-limited. Run it again; it grades at two calls a second.</div>
-          <div>The monitor's log says <code>429 Judge model resource exhausted</code></div><div>Its judge's shared capacity is busy, and low-spend projects get the lowest priority. Nothing to fix on your side; <code>score_live.sh</code> uses a judge with more headroom.</div>
-          <div>The monitor shows <em>Failed</em></div><div>Usually the service agent permission above. Delete the monitor and create it again after granting.</div>
-          <div>No monitor scores</div><div>The first run is up to ten minutes after creation and only scores traces that exist by then. Ask the agent a few questions.</div>
-          <div>Logs say <code>INSUFFICIENT_DATA</code>: <code>system_instruction is not uniform across call_llm spans</code></div><div>Expected for turns handled by a sub-agent (see "What it can't score yet" above). Ask something the concierge answers itself, such as a salary question, to see scores.</div>
-          <div>Logs say <code>INSUFFICIENT_DATA</code>: <code>system_instruction not present in any call_llm span</code></div><div>The agent was deployed without <code>ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=true</code> (agents-cli deploys it off). Run <code>./scripts/setup.sh --only env</code> and redeploy; only new traces get scores. The monitor's own log: <code>gcloud logging read 'logName:"online_evaluator"' --freshness=1h --limit=5</code>.</div>
-          <div>The API returns <code>INVALID_ARGUMENT</code> creating a monitor</div><div>The request must not set <code>semconvVersion</code>; <code>monitor.sh</code> sends the same body as the console.</div>
+          <div><code>only 4 of 5 cases ran</code></div><div>A model call timed out, and agents-cli removed that case. Run <code>./scripts/eval.sh</code> again.</div>
+          <div>A metric is below its threshold</div><div>The gate lists the cases that failed, with the explanation of the judge. Open <code>artifacts/eval/SUITE/results_*.html</code> to see the full traces.</div>
+          <div><code>score_live.sh</code>: <code>No conversations in the last 3 h</code></div><div>Ask the agent some questions (steps 2–5). Or make the time window larger: <code>./scripts/score_live.sh --hours 24</code>.</div>
+          <div><code>score_live.sh</code>: a metric shows <code>n/a</code>, or many cases failed</div><div>The judge got too many requests. Run the script again. It sends two judge calls each second.</div>
+          <div>The log of the monitor shows <code>429 Judge model resource exhausted</code></div><div>The shared capacity of its judge is busy, and projects with low spend get the lowest priority. You cannot fix this. <code>score_live.sh</code> uses a judge with more capacity.</div>
+          <div>The monitor shows <em>Failed</em></div><div>Usually, the service agent does not have the permission above. Give the permission. Then delete the monitor and create it again.</div>
+          <div>The monitor shows no scores</div><div>The first run starts up to ten minutes after you create the monitor. It scores only the traces that exist at that time. Ask the agent some questions.</div>
+          <div>The log shows <code>INSUFFICIENT_DATA</code>: <code>system_instruction is not uniform across call_llm spans</code></div><div>This is normal for a turn that a specialist agent handles (see the Online Monitor paragraphs above). To see scores, ask a question that the concierge answers, for example a salary question.</div>
+          <div>The log shows <code>INSUFFICIENT_DATA</code>: <code>system_instruction not present in any call_llm span</code></div><div>You deployed the agent without <code>ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=true</code> (agents-cli disables it by default). Run <code>./scripts/setup.sh --only env</code>. Then deploy the agent again. Only new traces get scores. To read the log of the monitor, run <code>gcloud logging read 'logName:"online_evaluator"' --freshness=1h --limit=5</code>.</div>
+          <div>The API returns <code>INVALID_ARGUMENT</code> when you create a monitor</div><div>The request must not set <code>semconvVersion</code>. <code>monitor.sh</code> sends the same request body as the console.</div>
         </div></div></details>
 
         <aside class="customer">
-          <span class="lbl">Taking this to a customer</span>
+          <span class="lbl">Take this to a customer</span>
           <ul>
-            <li><strong>Who writes the cases.</strong> Domain owners (HR, IT) write the expected behaviour; engineers make it executable. Every incident becomes a case before the fix ships.</li>
-            <li><strong>Thresholds are a business decision.</strong> Agree per metric what blocks a release: a leaked salary is a hard 1.0; tone can be 0.8. Run the gate in CI before every deploy.</li>
-            <li><strong>Check what the managed monitor can see</strong> before you promise it: multi-agent turns are skipped today, and its grading depends on shared capacity. A scheduled job running your own judges (like <code>score_live.sh</code>) works now and lets you choose the judge model.</li>
-            <li><strong>Monitors read real prompts.</strong> Treat them like any system that processes employee data: sampling rate, retention of scores and rationales, and who can see the Evaluation tab.</li>
-            <li><strong>Cost:</strong> judge metrics are billed as model tokens. A monitor at 100% sampling of busy traffic adds up; use a lower percentage and a max samples per run.</li>
+            <li><strong>Who writes the cases.</strong> The domain owners (HR, IT) write the expected behaviour. Engineers make it into tests that run. Each incident becomes a case before you release the fix.</li>
+            <li><strong>Thresholds are a business decision.</strong> For each metric, agree on the score that stops a release. For example, the threshold for salary leaks is 1.0, but the threshold for tone can be 0.8. Run the gate in CI before each deployment.</li>
+            <li><strong>Before you promise the managed monitor, check what it can see.</strong> Today it does not score multi-agent turns, and its judge uses shared capacity. A scheduled job with your own judges (for example <code>score_live.sh</code>) works now. It also lets you select the judge model.</li>
+            <li><strong>Monitors read real prompts.</strong> Treat a monitor as a system that processes employee data. Agree on the sampling rate, the retention of scores and rationales, and who can see the Evaluation tab.</li>
+            <li><strong>Cost:</strong> Google bills judge metrics as model tokens. A monitor that samples 100% of busy traffic costs much. Use a lower percentage and a maximum number of samples for each run.</li>
           </ul>
         </aside>
       </section>

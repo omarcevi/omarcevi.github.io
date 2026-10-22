@@ -1,8 +1,8 @@
       <section>
         <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Teardown</h1>
-        <p class="goal">Delete everything the lab created, then confirm nothing is left.</p>
+        <p class="goal">Delete all resources that the lab created. Then make sure that no resource remains.</p>
         <div class="code"><pre>./scripts/teardown.sh</pre></div>
-        <p>It asks once, then deletes in dependency order: the Agent Runtime instance (with its sessions and memories) and the project roles granted to its identity, the online monitor, the access policy and its binding, the gateway's authorization policy, extension and the gateway, the Agent Registry entries, the three Cloud Run services, the image repository and build sources, the logs-based metrics and the dashboard. It ends by listing each resource type and failing if anything is still there:</p>
+        <p>The script asks for confirmation one time, then deletes the resources in the order of their dependencies. First, it deletes the Agent Runtime instance (with its sessions and memories) and the project roles of its identity. Next, it deletes the online monitor, the access policy and its policy binding, and the gateway with its authorization policy and extension. Then it deletes the Agent Registry entries, the three Cloud Run services, the image repository and the build sources. Last, it deletes the logs-based metrics and the dashboard. At the end, it lists each type of resource and fails if a resource remains:</p>
         <div class="out">==> Checking for leftovers
 <span class="ok">  ✔</span> no Agent Runtime instances
 <span class="ok">  ✔</span> no online monitors
@@ -10,7 +10,7 @@
 ...
 <span class="ok">  ✔</span> no dashboards
 ==> Nothing left. APIs stay enabled; they cost nothing while unused.</div>
-        <p>Run <code>./scripts/teardown.sh --verify-only</code> again later if a delete was still in progress. The script never deletes the project and never disables APIs.</p>
-        <p class="lead">Used a project only for this lab? Deleting the project removes everything at once: <code>gcloud projects delete YOUR_PROJECT_ID</code>.</p>
-        <div class="warnbox"><b>LEFT RUNNING?</b>Everything in the lab scales to zero, so a forgotten setup costs cents per day: the Agent Runtime instance and Cloud Run services bill only while handling requests, and the gateway has no idle charge in this setup. Logs and traces are within free tiers. Still, tear down.</div>
+        <p>If a deletion was not complete, run <code>./scripts/teardown.sh --verify-only</code> again later. The script does not delete the project and does not disable APIs.</p>
+        <p class="lead">If you used a project only for this lab, you can delete the project. This removes all resources at the same time: <code>gcloud projects delete YOUR_PROJECT_ID</code>.</p>
+        <div class="warnbox"><b>IF YOU DO NOT DELETE IT</b>All parts of the lab scale to zero, so a forgotten lab costs cents per day. The Agent Runtime instance and the Cloud Run services cost money only when they process requests. In this lab, the gateway has no charge when it is idle. Logs and traces stay in the free tiers. Delete the resources anyway.</div>
       </section>
