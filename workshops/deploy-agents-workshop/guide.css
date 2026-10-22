@@ -244,6 +244,8 @@
     .branch { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .76rem; color: var(--muted);
               border: 1px solid var(--border); border-radius: 999px; padding: .15rem .65rem; background: var(--surface); }
     .branch code { background: none; padding: 0; }
+    /* A heading belongs to the content below it: 2.5rem above, 1rem below. */
+    * + h2 { margin-top: 2.5rem; }
     .how { margin-top: 1.4rem; }
     .how > p { margin: .55rem 0; }
     .customer { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: 10px;
@@ -254,6 +256,8 @@
     .out { background: var(--surface); color: var(--text); border: 1px dashed var(--border); border-radius: 10px; font-family: var(--mono);
            font-size: .78rem; line-height: 1.6; padding: .75rem 1rem; overflow-x: auto; white-space: pre; margin: .3rem 0 .4rem; }
     .out .ok { color: var(--ok); } .out .bad { color: #d93025; } .out .dim { color: var(--faint); }
+    /* Text before a code block introduces it (tight); text after it starts a new thought (space). */
+    :is(.code, .out) + :is(p, ul, ol) { margin-top: 1.1rem; }
     .pager { display: flex; justify-content: space-between; gap: 1rem; margin: 2.5rem 0 0; padding-top: 1.4rem; border-top: 1px solid var(--border);
              font-family: var(--mono); font-size: .82rem; }
     .pager a { text-decoration: none; color: var(--muted); } .pager a:hover { color: var(--accent); }
