@@ -25,7 +25,7 @@
 agents-cli deploy --project $PROJECT_ID --agent-identity --no-confirm-project</pre></div>
         <p class="lead">Then give the agent's identity access to the MCP servers, and set the Memory Bank topics used in step 3:</p>
         <div class="code"><pre>./scripts/grant_agent_access.sh</pre></div>
-        <p class="lead"><strong>Chat.</strong> IAM grants take a minute or two to apply; if the first answer says the HRIS is unavailable, ask again.</p>
+        <p class="lead"><strong>Chat.</strong> IAM grants take a minute or two to apply; if an answer says the HRIS or the compensation system is unavailable, ask again.</p>
         <div class="code"><pre>AGENT_URL=$(./scripts/agent_url.sh)
 agents-cli run --url "$AGENT_URL" --mode adk "What can you help me with?"
 agents-cli run --url "$AGENT_URL" --mode adk "How many unused leave days can I carry over?"
