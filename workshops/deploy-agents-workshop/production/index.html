@@ -3,126 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Production readiness checklist · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
-  <meta name="description" content="What to settle before an agent goes live at a customer.">
-  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/production/">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <meta property="og:type" content="article">
-  <meta property="og:title" content="Production readiness checklist · Deploying Your Agents on Google Cloud">
-  <meta property="og:description" content="What to settle before an agent goes live at a customer.">
-  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/production/">
-  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
-  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <script>
-  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
-  (d => {
-    d.classList.add('js');
-    window.applyTheme = t => {
-      d.setAttribute('data-theme', t);
-      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
-    };
-    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
-  })(document.documentElement);
-  </script>
-  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+  <title>Production readiness checklist (moved) · Omar Elcircevi</title>
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/production/">
+  <meta name="robots" content="noindex">
+  <script>location.replace('/workshops/cloud-agents-workshop/production/' + location.hash);</script>
+  <meta http-equiv="refresh" content="0; url=/workshops/cloud-agents-workshop/production/">
 </head>
 <body>
-<div class="page">
-  <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a><span class="cur"> / <span class="here">Production checklist</span></span></span>
-    <nav aria-label="Workshop sections">
-      <a href="/workshops/deploy-agents-workshop/">Overview</a>
-      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
-      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
-      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
-      <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
-    </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
-      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
-      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
-    </button>
-  </div>
-
-  <div class="layout">
-    <aside class="toc" aria-label="Guide pages">
-      <p class="label">Follow along</p>
-      <ol>
-        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
-        <li class="group">Lab</li>
-        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
-        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
-        <li class="group">After the lab</li>
-        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
-        <li><a class="here" href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
-      </ol>
-    </aside>
-
-    <main>
-      <section>
-        <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Production readiness checklist</h1>
-        <p class="goal">Agree on these items with the customer before the agent goes into production. Each item refers to the step where you saw it.</p>
-
-        <h2>Identity and access</h2>
-        <ul class="checklist">
-          <li><input type="checkbox" aria-label="done"><span>Each agent has its own Agent Identity. You grant roles to its <code>principal://</code>, not to a shared service account (step 2).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Deployments run from CI with a dedicated deployer identity. Developers do not have <code>setIamPolicy</code> on production projects (step 2).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Only a trusted, authenticated front end can call <code>query</code>/<code>streamQuery</code>. The user id that it sends separates the sessions and memories of each user (steps 2, 3).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Tools that act for a person use the token of that person (3-legged OAuth through Auth Manager). The tool server verifies the token (step 4).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Secrets are in Secret Manager. They go to the agent through <code>--secrets</code>, never through <code>.env</code> (step 2).</span></li>
-        </ul>
-
-        <h2>Governance</h2>
-        <ul class="checklist">
-          <li><input type="checkbox" aria-label="done"><span>Each destination has an entry in Agent Registry. The owner of each tool examines its tool annotations (steps 1, 4).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>An egress gateway controls all calls from the agent. The security team owns the policies: organization guardrails, project rules for each agent, and deny rules for sensitive systems (step 4).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>New policies run in <code>DRY_RUN</code> mode first. You read the denial logs before you enforce the policies (step 4).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Model Armor and semantic governance policies (where available) stop prompt injection and requests for data that the model must not get (step 4).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>You examined the organization policies: <code>iam.managed.disableAccessPolicyBindings</code>, <code>iam.allowedPolicyMemberDomains</code> and region restrictions.</span></li>
-        </ul>
-
-        <h2>Data</h2>
-        <ul class="checklist">
-          <li><input type="checkbox" aria-label="done"><span>You chose the region for data at rest. The data protection officer of the customer agreed to the model endpoint: global, multi-region or regional (steps 1, 2).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Memory topics are narrow and memories have a TTL. Requests for deletion (KVKK, GDPR) go to Memory Bank too (step 3).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>The customer agreed to record prompts and answers in logs. These logs go to a restricted log bucket with a retention period (step 5).</span></li>
-        </ul>
-
-        <h2>Operations</h2>
-        <ul class="checklist">
-          <li><input type="checkbox" aria-label="done"><span>A dashboard and alerts show turn latency, tool error rate and blocked calls. Refused calls return HTTP 200, so set alerts on logs-based metrics (step 5).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Model calls have timeouts and retries. If traffic is high or latency is important, you have a plan for capacity (Provisioned Throughput).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>The minimum instances, maximum instances and concurrency come from a load test, not from the default values.</span></li>
-          <li><input type="checkbox" aria-label="done"><span>There is a rollback path. Agent Runtime keeps revisions, and you know how to deploy the previous version again.</span></li>
-        </ul>
-
-        <h2>Quality</h2>
-        <ul class="checklist">
-          <li><input type="checkbox" aria-label="done"><span>The business and the engineers own the eval set together. They agree on a threshold for each metric, and a gate in CI stops deployments that fail (step 6).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>An Online Monitor runs with a sampling rate and a limit for each run that fit the budget (step 6).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>The monitor scores your traffic. To make sure, count the <code>INSUFFICIENT_DATA</code> entries in its log. Today the monitor skips turns that have more than one agent (step 6).</span></li>
-          <li><input type="checkbox" aria-label="done"><span>Each incident and each low monitor score becomes an eval case before you release the fix (step 6).</span></li>
-        </ul>
-      </section>
-
-      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/runtimes/">← Runtime choice</a><a class="next" href="/workshops/deploy-agents-workshop/teardown/">Teardown →</a></nav>
-      <footer>
-        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
-        <p>Google Cloud Day Türkiye · 27 October 2026</p>
-      </footer>
-    </main>
-  </div>
-</div>
-<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+  <p>This page moved to <a href="/workshops/cloud-agents-workshop/production/">omarcevi.dev/workshops/cloud-agents-workshop/production/</a>.</p>
 </body>
 </html>

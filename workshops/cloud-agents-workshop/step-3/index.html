@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 3 · Remember · Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
+  <meta name="description" content="Sessions versus Memory Bank: facts that follow an employee across conversations.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/step-3/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Step 3 · Remember · Deploying your agents on Google Cloud Agent Platform">
+  <meta property="og:description" content="Sessions versus Memory Bank: facts that follow an employee across conversations.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/step-3/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a><span class="cur"> / <span class="here">3 · Remember</span></span></span>
+    <nav aria-label="Workshop sections">
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
+      <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Lab</li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a class="here" data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li class="group">After the lab</li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <section id="step-3" data-mod="step-3">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 3 · Remember</h1>
+          <span class="mod-meta"><span>6 min</span><label class="done-toggle"><input type="checkbox" data-done="step-3">done</label></span>
+        </div>
+        <p class="goal">In this step, you tell the agent about yourself one time. Then the agent uses this information in later conversations, and it does not ask again.</p>
+        <p><span class="branch">checkpoint branch <code>step-3-remember</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/step-3-remember.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/step-3-remember.svg" alt="Sessions compared with Memory Bank during one week. Monday, session A: the employee says that they are on the platform team in the Istanbul office and like Fridays off. Each session contains one conversation. A new session does not see the old one. Memory Bank keeps data for each app and user. (1) It extracts two facts from the Monday turn: team_and_office and work_preferences. (2) On Wednesday, session B recalls the facts at the start of the turn and answers the leave question with Istanbul rules. (3) On Friday, session C uses the office and team to book next Friday. It also tells the employee about the on-call swap." width="1180" height="470"></a></div>
+            <figcaption>A session is one conversation. Memory Bank keeps facts about one user for all sessions.</figcaption>
+          </figure>
+          <p><strong>Sessions</strong> contain the events and state of one conversation. Agent Runtime stores them for you, and the agent uses <code>VertexAiSessionService</code>. A new session starts empty.</p>
+          <p><strong>Memory Bank</strong> contains facts about a user, for each app and user id. After each turn, a plugin sends the turn to Memory Bank. Memory Bank uses an LLM to extract facts on the topics that you allow. Then it merges these facts with the facts that it has. At the start of the next turn, <code>PreloadMemoryTool</code> searches the facts with the new message. It adds the matches to the instructions of the model.</p>
+          <figure class="snip"><div class="snip-head"><span class="snip-file">app/memory.py</span><span class="snip-loc">the save side</span></div><pre class="snip-code"><code><span class="l"><span class="n">1</span><span class="k">class</span> <span class="t">MemoryBankPlugin</span>(<span class="t">BasePlugin</span>):</span><span class="l hl"><span class="n">2</span>    <span class="k">async def</span> <span class="f">after_run_callback</span>(<span class="v">self</span>, *, <span class="v">invocation_context</span>):</span><span class="l"><span class="n">3</span>        <span class="v">events</span> = [<span class="v">e</span> <span class="kc">for</span> <span class="v">e</span> <span class="kc">in</span> <span class="v">session</span>.<span class="v">events</span> <span class="kc">if</span> <span class="v">e</span>.<span class="v">invocation_id</span> == <span class="v">invocation_context</span>.<span class="v">invocation_id</span>]</span><span class="l hl"><span class="n">4</span>        <span class="kc">await</span> <span class="v">memory</span>.<span class="f">add_events_to_memory</span>(..., <span class="v">events</span>=<span class="v">events</span>,</span><span class="l"><span class="n">5</span>            <span class="v">custom_metadata</span>={<span class="s">"wait_for_completion"</span>: <span class="k">False</span>})</span></code></pre><figcaption class="snip-note">A plugin runs after each turn, for all agents. The extraction runs in Memory Bank, not in your container.</figcaption></figure>
+          <p><strong>You choose the facts that Memory Bank keeps.</strong> <code>infra/memory/memory-bank.json</code> limits the extraction to two topics, <code>team_and_office</code> and <code>work_preferences</code>, and to explicit instructions. In step 2, <code>grant_agent_access.sh</code> applied this file.</p>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead"><strong>Monday</strong> (session A). Each <code>agents-cli run</code> starts a new session.</p>
+        <div class="code"><pre>agents-cli run --url "$AGENT_URL" --mode adk \
+  "Hi! I'm on the platform team in the Istanbul office, and I prefer to take Fridays off."</pre></div>
+        <p class="lead">Memory Bank extracts facts in the background, usually in one to two minutes. See the facts that it stored:</p>
+        <div class="code"><pre>uv run python scripts/memory_bank.py list</pre></div>
+        <p class="lead"><strong>Wednesday and Friday</strong> (new sessions; you do not give the context again):</p>
+        <div class="code"><pre>agents-cli run --url "$AGENT_URL" --mode adk "How many leave days do I have?"
+agents-cli run --url "$AGENT_URL" --mode adk "Book next Friday off."</pre></div>
+        <p class="lead"><strong>Optional:</strong> in the console, open Deployments → workplace-assistant → <strong>Sessions</strong> and <strong>Memories</strong>. These tabs show the two stores.</p>
+
+        <h2>Expected result</h2>
+        <div class="out">$ uv run python scripts/memory_bank.py list
+- I work on the platform team in the Istanbul office.  [team_and_office]
+- I prefer to take Fridays off.  [work_preferences]
+
+[leave_agent]: I have submitted your leave request for Friday, 30 October 2026 (1 day).
+It is pending approval by your team lead, Ayşe Demir (LV-1103).
+Reminder for Platform team members: if you are on call that day, arrange a swap
+before your team lead approves it [01-leave-policy.md#platform-team-on-call].</div>
+        <p>The on-call reminder comes from the memory. The Friday session did not say that you are on the platform team.</p>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 3</pre></div>
+        <div class="out">     - I work on the platform team in the Istanbul office.  [team_and_office]
+<span class="ok">  ✔</span> remembers the team
+<span class="ok">  ✔</span> remembers the office
+==> Step 3 checks passed.</div>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div><code>No memories yet for user 'cli-user'</code></div><div>The extraction is asynchronous. Wait one minute. Then list the memories again. If no memories appear after three minutes, send the Monday message again.</div>
+          <div>Memories exist, but the agent does not use them</div><div>The agent recalls memories at the start of a turn, and it matches them with the message. Ask a related question (“book leave”, “my office”).</div>
+          <div>Different user</div><div>Memory Bank keeps memories for each user id. <code>agents-cli run</code> always uses <code>cli-user</code>. With <code>scripts/ask.py --user you@example.com</code>, you can choose the user. Then use the same user with <code>memory_bank.py list --user</code>.</div>
+          <div>Start again</div><div><code>uv run python scripts/memory_bank.py clear</code> deletes the memories of <code>cli-user</code>.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Take this to a customer</span>
+          <ul>
+            <li><strong>Memories are personal data.</strong> Decide with the customer which topics Memory Bank keeps. Keep the list short. Set a retention period; Memory Bank supports TTLs. Decide how a deletion request under KVKK or GDPR gets to Memory Bank. When you delete an Agent Runtime instance, you also delete its memories.</li>
+            <li><strong>The user id is the security boundary.</strong> Memory Bank separates memories by the user id that the caller sends. Make sure that only a trusted front end can call the agent. Examples are Gemini Enterprise or your own authenticated app.</li>
+            <li><strong>Data location:</strong> Memory Bank stores memories in the region of the agent. The extraction uses a Gemini model, and you set its endpoint in the Memory Bank config.</li>
+            <li><strong>Cost:</strong> storage is USD 0.30 for each GiB-month. Extraction and retrieval also use model and embedding tokens. For this lab, the cost is a few cents.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/cloud-agents-workshop/step-2/">← 2 · Deploy</a><a class="next" href="/workshops/cloud-agents-workshop/step-4/">4 · Secure →</a></nav>
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
+        <p>Google Cloud Day Türkiye · 27 October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
+</body>
+</html>

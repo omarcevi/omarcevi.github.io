@@ -1,6 +1,6 @@
-"""Diagrams for workshops/deploy-agents-workshop (Google Cloud architecture style).
+"""Diagrams for workshops/cloud-agents-workshop (Google Cloud architecture style).
 
-    python3 scripts/deploy_agents_diagrams.py     # writes workshops/deploy-agents-workshop/diagrams/*.svg
+    python3 scripts/deploy_agents_diagrams.py     # writes workshops/cloud-agents-workshop/diagrams/*.svg
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from gcp_diagram import AMBER, BLUE, GREEN, INK, MUTED, RED, Diagram
 
-OUT = Path(__file__).resolve().parents[1] / "workshops" / "deploy-agents-workshop" / "diagrams"
+OUT = Path(__file__).resolve().parents[1] / "workshops" / "cloud-agents-workshop" / "diagrams"
 
 
 def architecture() -> Diagram:

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 5 · Observe · Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
+  <meta name="description" content="Follow one leave request through Cloud Trace and build the dashboard.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/step-5/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Step 5 · Observe · Deploying your agents on Google Cloud Agent Platform">
+  <meta property="og:description" content="Follow one leave request through Cloud Trace and build the dashboard.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/step-5/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a><span class="cur"> / <span class="here">5 · Observe</span></span></span>
+    <nav aria-label="Workshop sections">
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
+      <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Lab</li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a class="here" data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li class="group">After the lab</li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <section id="step-5" data-mod="step-5">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 5 · Observe</h1>
+          <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-5">done</label></span>
+        </div>
+        <p class="goal">Follow one leave request in Cloud Trace, from the concierge to the HRIS. Open a dashboard that shows the blocked calls.</p>
+        <p><span class="branch">checkpoint branch <code>step-5-observe</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/step-5-observe.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/step-5-observe.svg" alt="One leave request as a trace waterfall. The span invoke_workflow concierge contains the span invoke_agent concierge, with a model call and transfer_to_agent. Then the span invoke_agent leave_agent contains an MCP tools/list request, a model call, execute_tool get_leave_balance, a model call, execute_tool submit_leave_request and a last model call. Tool calls take milliseconds. Model calls take seconds. On the right, the diagram shows where the telemetry goes. Spans go to Cloud Trace through the telemetry API. OpenTelemetry log records go to Cloud Logging, with the model input and output events and the workplace.tool_blocked audit event. Agent Runtime metrics, ADK metrics, logs-based metrics and the dashboard are in Cloud Monitoring. The gateway writes a log with the allow or deny decision for each request." width="1180" height="520"></a></div>
+            <figcaption>One turn from start to end. Each agent, model call and tool call is a span.</figcaption>
+          </figure>
+          <p><strong>You get traces without extra code.</strong> <code>agents-cli deploy</code> sets <code>GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true</code>, and ADK sends OpenTelemetry spans to Cloud Trace. There is an <code>invoke_workflow</code> span for the turn and an <code>invoke_agent</code> span for each agent. There is a <code>call_llm</code>/<code>generate_content</code> span for each model call and an <code>execute_tool</code> span for each tool call. A failed tool call has the attribute <code>error.type</code>.</p>
+          <p><strong>On Agent Runtime, logs need OpenTelemetry.</strong> Output from <code>print()</code> and from Python logging in the container does not get to Cloud Logging. OpenTelemetry log records get to Cloud Logging. The agent writes its audit event (<code>workplace.tool_blocked</code>) as an OpenTelemetry log record, and it also sends Python warnings this way. Setup also enabled prompt and answer events (<code>EVENT_ONLY</code>) and the instructions of the agent on the <code>call_llm</code> spans (<code>ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=true</code>; agents-cli disables it by default). The Online Monitor of step 6 reads the two.</p>
+          <p><strong>Metrics:</strong> Agent Runtime publishes the request count and the latency. ADK publishes the durations of tools and agents. Two logs-based metrics count the blocked calls, from the audit event of the agent and from the log of the gateway.</p>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead">If you did not book leave in step 3, make one leave request. Wait one minute for the trace. Then run the script:</p>
+        <div class="code"><pre>agents-cli run --url "$AGENT_URL" --mode adk "Book next Monday off as a half day and tell me how many leave days I have left."
+./scripts/observe.sh       <span class="c"># creates the dashboard, prints the newest leave-request trace</span></pre></div>
+        <p class="lead">Open the two links that the script shows: the trace in <strong>Trace Explorer</strong> and the <strong>Workplace Assistant (workshop)</strong> dashboard. The console also shows the traces of each session in Deployments → workplace-assistant → <strong>Traces</strong>.</p>
+
+        <h2>Expected result</h2>
+        <div class="out">   0.00s   17.20s  invoke_workflow concierge
+   0.05s    2.70s    invoke_agent concierge
+   0.10s    2.50s      call_llm
+   0.10s    2.40s        generate_content gemini-3.5-flash
+   2.60s    0.01s      execute_tool transfer_to_agent
+   2.70s   14.40s    invoke_agent leave_agent
+   2.75s    0.90s      MCP send tools/list
+   3.70s    3.10s      call_llm
+   6.90s    0.13s      execute_tool get_leave_balance
+   7.20s    4.00s      call_llm
+  11.30s    0.15s      execute_tool submit_leave_request
+  11.50s    5.60s      call_llm
+
+https://console.cloud.google.com/traces/explorer;traceId=…</div>
+        <p>Read the trace as a profile. The tool calls take milliseconds, and the model calls take seconds. Thus, most of the latency and cost comes from the model calls. The dashboard has five tiles: requests per minute, turn latency (p50 and p95), tool error rate, blocked calls and gateway denials. It shows the tool error rate for each tool and the blocked calls for each reason.</p>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 5</pre></div>
+        <div class="out"><span class="ok">  ✔</span> sub-agent spans: ['invoke_agent leave_agent']
+<span class="ok">  ✔</span> tool spans: ['execute_tool get_leave_balance', 'execute_tool submit_leave_request']
+<span class="ok">  ✔</span> dashboard exists
+<span class="ok">  ✔</span> logs-based metric workplace_tool_blocked exists
+==> Step 5 checks passed.</div>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div><code>No trace matching …</code></div><div>A trace gets to Cloud Trace one to two minutes after the turn. If you booked leave more than three hours ago, book leave again.</div>
+          <div>The dashboard tiles show “No data”</div><div>The tiles show data when traffic arrives. A logs-based metric counts only the log entries that come after you create the metric. For this reason, setup created the metrics early.</div>
+          <div>There are no <code>workplace.tool_blocked</code> entries</div><div>These entries occur only after a refused call (step 4). Ask for a salary band again.</div>
+          <div>The p95 request latency is very high</div><div>The request latency of Agent Runtime includes all of the streamed response. The turn latency tile from ADK gives a better measurement.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Take this to a customer</span>
+          <ul>
+            <li><strong>Prompts in logs are personal data.</strong> <code>EVENT_ONLY</code> writes prompts and answers to Cloud Logging, and span capture puts requests in Cloud Trace. Agree on the retention period with the customer. Agree on who can read the log bucket. Decide if these events must go to a separate bucket with restricted access.</li>
+            <li><strong>Define SLOs early.</strong> The business sees three values: turn latency, tool error rate and refusal rate. Set alerts on the logs-based metrics, not only on HTTP errors. A refused tool call returns 200.</li>
+            <li><strong>Analytics at scale:</strong> the BigQuery Agent Analytics plugin (<code>--bq-analytics</code> in agents-cli) writes one row for each agent event, for analysis with SQL.</li>
+            <li><strong>Cost:</strong> after 2.5 million free spans each month, trace ingestion costs USD 0.20 for each million spans. This lab uses a few thousand spans. Content capture increases the log volume.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/cloud-agents-workshop/step-4/">← 4 · Secure</a><a class="next" href="/workshops/cloud-agents-workshop/step-6/">6 · Evaluate →</a></nav>
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
+        <p>Google Cloud Day Türkiye · 27 October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
+</body>
+</html>

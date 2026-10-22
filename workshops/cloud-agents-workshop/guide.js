@@ -1,4 +1,4 @@
-// Shared behaviour for the deploy-agents-workshop guide pages (copy buttons, done marks,
+// Shared behaviour for the cloud-agents-workshop guide pages (copy buttons, done marks,
 // section highlighting, theme toggle). Adapted from workshops/adk-multi-agent-workshop.
 (() => {
   // Copy buttons on code blocks and prompts
@@ -24,7 +24,7 @@
   });
 
   // "done" checkboxes, remembered in this browser only
-  const KEY = 'deploy-agents-workshop-done';
+  const KEY = 'deploy-agents-workshop-done';   // old key kept so done marks survive the move
   let state = {};
   try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
   const mark = () => document.querySelectorAll('.toc a[data-mod]').forEach(a =>
