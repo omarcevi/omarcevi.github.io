@@ -1,4 +1,4 @@
-/* Shared styles for the deploy-agents-workshop guide pages.
+/* Shared styles for the cloud-agents-workshop guide pages.
    Same tokens and components as workshops/adk-multi-agent-workshop (kept in sync by hand). */
 /* Same tokens as omarcevi.dev */
     :root {
@@ -238,7 +238,7 @@
       .agenda li { grid-template-columns: 3.6rem 1fr; } .agenda .dep { display: none; }
     }
 
-    /* ---- deploy-agents-workshop additions (multi-page guide) ---- */
+    /* ---- cloud-agents-workshop additions (multi-page guide) ---- */
     .toc li a.here { color: var(--accent); border-left-color: var(--accent); }
     .toc .group { color: var(--faint); margin: 1rem 0 .4rem; text-transform: uppercase; letter-spacing: .06em; font-size: .68rem; }
     .branch { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .76rem; color: var(--muted);

@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Step 5 · Observe · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <title>Step 5 · Observe · Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
   <meta name="description" content="Follow one leave request through Cloud Trace and build the dashboard.">
-  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/step-5/">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/step-5/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Step 5 · Observe · Deploying Your Agents on Google Cloud">
+  <meta property="og:title" content="Step 5 · Observe · Deploying your agents on Google Cloud Agent Platform">
   <meta property="og:description" content="Follow one leave request through Cloud Trace and build the dashboard.">
-  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/step-5/">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/step-5/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
@@ -29,17 +29,17 @@
     try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
   })(document.documentElement);
   </script>
-  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
 </head>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a><span class="cur"> / <span class="here">5 · Observe</span></span></span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a><span class="cur"> / <span class="here">5 · Observe</span></span></span>
     <nav aria-label="Workshop sections">
-      <a href="/workshops/deploy-agents-workshop/">Overview</a>
-      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
-      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
-      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
       <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
@@ -52,19 +52,19 @@
     <aside class="toc" aria-label="Guide pages">
       <p class="label">Follow along</p>
       <ol>
-        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
         <li class="group">Lab</li>
-        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
-        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
-        <li><a class="here" data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a class="here" data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
         <li class="group">After the lab</li>
-        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
       </ol>
     </aside>
 
@@ -80,7 +80,7 @@
         <div class="how">
           <h2>How it works</h2>
           <figure class="arch">
-            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-5-observe.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-5-observe.svg" alt="One leave request as a trace waterfall. The span invoke_workflow concierge contains the span invoke_agent concierge, with a model call and transfer_to_agent. Then the span invoke_agent leave_agent contains an MCP tools/list request, a model call, execute_tool get_leave_balance, a model call, execute_tool submit_leave_request and a last model call. Tool calls take milliseconds. Model calls take seconds. On the right, the diagram shows where the telemetry goes. Spans go to Cloud Trace through the telemetry API. OpenTelemetry log records go to Cloud Logging, with the model input and output events and the workplace.tool_blocked audit event. Agent Runtime metrics, ADK metrics, logs-based metrics and the dashboard are in Cloud Monitoring. The gateway writes a log with the allow or deny decision for each request." width="1180" height="520"></a></div>
+            <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/step-5-observe.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/step-5-observe.svg" alt="One leave request as a trace waterfall. The span invoke_workflow concierge contains the span invoke_agent concierge, with a model call and transfer_to_agent. Then the span invoke_agent leave_agent contains an MCP tools/list request, a model call, execute_tool get_leave_balance, a model call, execute_tool submit_leave_request and a last model call. Tool calls take milliseconds. Model calls take seconds. On the right, the diagram shows where the telemetry goes. Spans go to Cloud Trace through the telemetry API. OpenTelemetry log records go to Cloud Logging, with the model input and output events and the workplace.tool_blocked audit event. Agent Runtime metrics, ADK metrics, logs-based metrics and the dashboard are in Cloud Monitoring. The gateway writes a log with the allow or deny decision for each request." width="1180" height="520"></a></div>
             <figcaption>One turn from start to end. Each agent, model call and tool call is a span.</figcaption>
           </figure>
           <p><strong>You get traces without extra code.</strong> <code>agents-cli deploy</code> sets <code>GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true</code>, and ADK sends OpenTelemetry spans to Cloud Trace. There is an <code>invoke_workflow</code> span for the turn and an <code>invoke_agent</code> span for each agent. There is a <code>call_llm</code>/<code>generate_content</code> span for each model call and an <code>execute_tool</code> span for each tool call. A failed tool call has the attribute <code>error.type</code>.</p>
@@ -137,7 +137,7 @@ https://console.cloud.google.com/traces/explorer;traceId=…</div>
         </aside>
       </section>
 
-      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-4/">← 4 · Secure</a><a class="next" href="/workshops/deploy-agents-workshop/step-6/">6 · Evaluate →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/cloud-agents-workshop/step-4/">← 4 · Secure</a><a class="next" href="/workshops/cloud-agents-workshop/step-6/">6 · Evaluate →</a></nav>
       <footer>
         <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
         <p>Google Cloud Day Türkiye · 27 October 2026</p>
@@ -145,6 +145,6 @@ https://console.cloud.google.com/traces/explorer;traceId=…</div>
     </main>
   </div>
 </div>
-<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
 </body>
 </html>

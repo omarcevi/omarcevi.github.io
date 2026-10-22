@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Step 4 · Secure · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <title>Step 4 · Secure · Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
   <meta name="description" content="Agent Identity, delegated OAuth and Agent Gateway: block a tool with policy, not code.">
-  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/step-4/">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/step-4/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Step 4 · Secure · Deploying Your Agents on Google Cloud">
+  <meta property="og:title" content="Step 4 · Secure · Deploying your agents on Google Cloud Agent Platform">
   <meta property="og:description" content="Agent Identity, delegated OAuth and Agent Gateway: block a tool with policy, not code.">
-  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/step-4/">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/step-4/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
@@ -29,17 +29,17 @@
     try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
   })(document.documentElement);
   </script>
-  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
 </head>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a><span class="cur"> / <span class="here">4 · Secure</span></span></span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a><span class="cur"> / <span class="here">4 · Secure</span></span></span>
     <nav aria-label="Workshop sections">
-      <a href="/workshops/deploy-agents-workshop/">Overview</a>
-      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
-      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
-      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
       <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
@@ -52,19 +52,19 @@
     <aside class="toc" aria-label="Guide pages">
       <p class="label">Follow along</p>
       <ol>
-        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
         <li class="group">Lab</li>
-        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
-        <li><a class="here" data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a class="here" data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
         <li class="group">After the lab</li>
-        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
       </ol>
     </aside>
 
@@ -80,7 +80,7 @@
         <div class="how">
           <h2>How it works</h2>
           <figure class="arch">
-            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-4-secure.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-4-secure.svg" alt="Identity and Agent Gateway. On the left, the agent on Agent Runtime has its own Agent Identity. When the agent calls the HRIS and the ticketing system, it acts as itself with an ID token for its own principal. When the agent calls Google Calendar, it acts for the employee with the OAuth token of the employee. Auth Manager keeps that token. In the middle, Agent Gateway does these checks on each outbound call, in this sequence. 1 Agent Registry identifies the destination. 2 IAP examines the IAM access policy for the identity of the agent: allow the HRIS, the ticketing system and Google APIs, and deny the compensation system. 3 An optional semantic policy and Model Armor examine the content. On the right, the gateway allows the calls to the HRIS, the ticketing system and Google APIs. The compensation MCP server gets the error 403 Egress request is not authorized, and the gateway records this error in its log." width="1180" height="560"></a></div>
+            <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/step-4-secure.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/step-4-secure.svg" alt="Identity and Agent Gateway. On the left, the agent on Agent Runtime has its own Agent Identity. When the agent calls the HRIS and the ticketing system, it acts as itself with an ID token for its own principal. When the agent calls Google Calendar, it acts for the employee with the OAuth token of the employee. Auth Manager keeps that token. In the middle, Agent Gateway does these checks on each outbound call, in this sequence. 1 Agent Registry identifies the destination. 2 IAP examines the IAM access policy for the identity of the agent: allow the HRIS, the ticketing system and Google APIs, and deny the compensation system. 3 An optional semantic policy and Model Armor examine the content. On the right, the gateway allows the calls to the HRIS, the ticketing system and Google APIs. The compensation MCP server gets the error 403 Egress request is not authorized, and the gateway records this error in its log." width="1180" height="560"></a></div>
             <figcaption>The identity of the agent when it calls a tool, and the checks that Agent Gateway does on each call.</figcaption>
           </figure>
           <p><strong>Two types of authority.</strong> When the agent calls the HRIS, it acts <em>as itself</em> with an ID token for its own Agent Identity, and Cloud Run checks <code>roles/run.invoker</code>. For external APIs, the same procedure is 2-legged OAuth (client credentials). When the agent adds leave to your calendar, it acts <em>for you</em>, and you must give your consent one time (3-legged OAuth). <strong>Agent Identity Auth Manager</strong> controls the consent procedure and keeps the tokens in storage that Google manages. When the tool runs, Auth Manager gives your token to ADK.</p>
@@ -173,7 +173,7 @@ agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 
         </aside>
       </section>
 
-      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-3/">← 3 · Remember</a><a class="next" href="/workshops/deploy-agents-workshop/step-5/">5 · Observe →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/cloud-agents-workshop/step-3/">← 3 · Remember</a><a class="next" href="/workshops/cloud-agents-workshop/step-5/">5 · Observe →</a></nav>
       <footer>
         <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
         <p>Google Cloud Day Türkiye · 27 October 2026</p>
@@ -181,6 +181,6 @@ agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 
     </main>
   </div>
 </div>
-<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
 </body>
 </html>

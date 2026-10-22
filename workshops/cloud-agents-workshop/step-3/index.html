@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Step 3 · Remember · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <title>Step 3 · Remember · Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
   <meta name="description" content="Sessions versus Memory Bank: facts that follow an employee across conversations.">
-  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/step-3/">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/step-3/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Step 3 · Remember · Deploying Your Agents on Google Cloud">
+  <meta property="og:title" content="Step 3 · Remember · Deploying your agents on Google Cloud Agent Platform">
   <meta property="og:description" content="Sessions versus Memory Bank: facts that follow an employee across conversations.">
-  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/step-3/">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/step-3/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
@@ -29,17 +29,17 @@
     try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
   })(document.documentElement);
   </script>
-  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
 </head>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a><span class="cur"> / <span class="here">3 · Remember</span></span></span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a><span class="cur"> / <span class="here">3 · Remember</span></span></span>
     <nav aria-label="Workshop sections">
-      <a href="/workshops/deploy-agents-workshop/">Overview</a>
-      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
-      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
-      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
       <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
@@ -52,19 +52,19 @@
     <aside class="toc" aria-label="Guide pages">
       <p class="label">Follow along</p>
       <ol>
-        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
         <li class="group">Lab</li>
-        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
-        <li><a class="here" data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
-        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a class="here" data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
         <li class="group">After the lab</li>
-        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
       </ol>
     </aside>
 
@@ -80,7 +80,7 @@
         <div class="how">
           <h2>How it works</h2>
           <figure class="arch">
-            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-3-remember.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-3-remember.svg" alt="Sessions compared with Memory Bank during one week. Monday, session A: the employee says that they are on the platform team in the Istanbul office and like Fridays off. Each session contains one conversation. A new session does not see the old one. Memory Bank keeps data for each app and user. (1) It extracts two facts from the Monday turn: team_and_office and work_preferences. (2) On Wednesday, session B recalls the facts at the start of the turn and answers the leave question with Istanbul rules. (3) On Friday, session C uses the office and team to book next Friday. It also tells the employee about the on-call swap." width="1180" height="470"></a></div>
+            <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/step-3-remember.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/step-3-remember.svg" alt="Sessions compared with Memory Bank during one week. Monday, session A: the employee says that they are on the platform team in the Istanbul office and like Fridays off. Each session contains one conversation. A new session does not see the old one. Memory Bank keeps data for each app and user. (1) It extracts two facts from the Monday turn: team_and_office and work_preferences. (2) On Wednesday, session B recalls the facts at the start of the turn and answers the leave question with Istanbul rules. (3) On Friday, session C uses the office and team to book next Friday. It also tells the employee about the on-call swap." width="1180" height="470"></a></div>
             <figcaption>A session is one conversation. Memory Bank keeps facts about one user for all sessions.</figcaption>
           </figure>
           <p><strong>Sessions</strong> contain the events and state of one conversation. Agent Runtime stores them for you, and the agent uses <code>VertexAiSessionService</code>. A new session starts empty.</p>
@@ -136,7 +136,7 @@ before your team lead approves it [01-leave-policy.md#platform-team-on-call].</d
         </aside>
       </section>
 
-      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-2/">← 2 · Deploy</a><a class="next" href="/workshops/deploy-agents-workshop/step-4/">4 · Secure →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/cloud-agents-workshop/step-2/">← 2 · Deploy</a><a class="next" href="/workshops/cloud-agents-workshop/step-4/">4 · Secure →</a></nav>
       <footer>
         <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
         <p>Google Cloud Day Türkiye · 27 October 2026</p>
@@ -144,6 +144,6 @@ before your team lead approves it [01-leave-policy.md#platform-team-on-call].</d
     </main>
   </div>
 </div>
-<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
 </body>
 </html>

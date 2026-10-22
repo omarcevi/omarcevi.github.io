@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Step 2 · Deploy · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <title>Step 2 · Deploy · Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
   <meta name="description" content="Deploy the agent to Agent Runtime with its own Agent Identity.">
-  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/step-2/">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/step-2/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Step 2 · Deploy · Deploying Your Agents on Google Cloud">
+  <meta property="og:title" content="Step 2 · Deploy · Deploying your agents on Google Cloud Agent Platform">
   <meta property="og:description" content="Deploy the agent to Agent Runtime with its own Agent Identity.">
-  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/step-2/">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/step-2/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
@@ -29,17 +29,17 @@
     try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
   })(document.documentElement);
   </script>
-  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
 </head>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a><span class="cur"> / <span class="here">2 · Deploy</span></span></span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a><span class="cur"> / <span class="here">2 · Deploy</span></span></span>
     <nav aria-label="Workshop sections">
-      <a href="/workshops/deploy-agents-workshop/">Overview</a>
-      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
-      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
-      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
       <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
@@ -52,19 +52,19 @@
     <aside class="toc" aria-label="Guide pages">
       <p class="label">Follow along</p>
       <ol>
-        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
         <li class="group">Lab</li>
-        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
-        <li><a class="here" data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
-        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a class="here" data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
         <li class="group">After the lab</li>
-        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
       </ol>
     </aside>
 
@@ -80,7 +80,7 @@
         <div class="how">
           <h2>How it works</h2>
           <figure class="arch">
-            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-2-deploy.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-2-deploy.svg" alt="What agents-cli deploy does. 1: It uploads the project folder with its Dockerfile. 2: Agent Runtime builds the container in a Google-managed project. It deploys the container as an autoscaled service with query and streamQuery endpoints, sessions, Memory Bank and telemetry. 3: With --agent-identity, it creates a principal for the agent. 4: grant_agent_access.sh gives that principal roles/run.invoker on the MCP servers. 5: You send questions through query or streamQuery with agents-cli run or the console playground. Optionally, agents-cli publish gemini registers the agent with Gemini Enterprise." width="1180" height="470"></a></div>
+            <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/step-2-deploy.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/step-2-deploy.svg" alt="What agents-cli deploy does. 1: It uploads the project folder with its Dockerfile. 2: Agent Runtime builds the container in a Google-managed project. It deploys the container as an autoscaled service with query and streamQuery endpoints, sessions, Memory Bank and telemetry. 3: With --agent-identity, it creates a principal for the agent. 4: grant_agent_access.sh gives that principal roles/run.invoker on the MCP servers. 5: You send questions through query or streamQuery with agents-cli run or the console playground. Optionally, agents-cli publish gemini registers the agent with Gemini Enterprise." width="1180" height="470"></a></div>
             <figcaption><code>agents-cli deploy</code> changes a folder into a managed, autoscaled agent. Your code never runs on a VM that you manage.</figcaption>
           </figure>
           <p><strong>What the package contains.</strong> <code>agents-cli deploy</code> uploads the project and its <code>Dockerfile</code>, without the files that <code>.gcloudignore</code> excludes. Agent Runtime builds the image in a Google-managed project. Thus, the build is not in your Cloud Build history. The values in <code>.env</code> become environment variables of the deployed agent. For this reason, do not put secrets in <code>.env</code>.</p>
@@ -144,7 +144,7 @@ agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 
         </aside>
       </section>
 
-      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-1/">← 1 · Set up</a><a class="next" href="/workshops/deploy-agents-workshop/step-3/">3 · Remember →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/cloud-agents-workshop/step-1/">← 1 · Set up</a><a class="next" href="/workshops/cloud-agents-workshop/step-3/">3 · Remember →</a></nav>
       <footer>
         <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
         <p>Google Cloud Day Türkiye · 27 October 2026</p>
@@ -152,6 +152,6 @@ agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 
     </main>
   </div>
 </div>
-<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
 </body>
 </html>

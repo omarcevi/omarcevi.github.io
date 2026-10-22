@@ -1,4 +1,4 @@
-"""Build the static pages of workshops/deploy-agents-workshop/.
+"""Build the static pages of workshops/cloud-agents-workshop/.
 
 Plain HTML, same look as workshops/adk-multi-agent-workshop (shared guide.css and
 guide.js in the workshop folder). Page bodies live in scripts/deploy_agents_guide/*.html;
@@ -14,13 +14,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = Path(__file__).resolve().parent / "deploy_agents_guide"
-OUT = ROOT / "workshops" / "deploy-agents-workshop"
-BASE = "/workshops/deploy-agents-workshop/"
+OUT = ROOT / "workshops" / "cloud-agents-workshop"
+BASE = "/workshops/cloud-agents-workshop/"
 REPO = "https://github.com/omarcevi/cloud-agents-workshop"
+GUIDE_TITLE = "Deploying your agents on Google Cloud Agent Platform"
 
 # (slug, short name for the index, page title, minutes, description)
 PAGES = [
-    ("", "Overview", "Deploying Your Agents on Google Cloud", None,
+    ("", "Overview", "Deploying your agents on Google Cloud Agent Platform", None,
      "Follow-along guide: deploy a multi-agent Workplace Assistant to Agent Runtime with Agent Identity, Memory Bank, Agent Gateway, Cloud Trace and evals."),
     ("step-1", "1 · Set up", "Step 1 · Set up", 5, "Enable APIs, deploy three MCP servers to Cloud Run and register them."),
     ("step-2", "2 · Deploy", "Step 2 · Deploy", 8, "Deploy the agent to Agent Runtime with its own Agent Identity."),
@@ -39,13 +40,13 @@ HEAD = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title} · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <title>{title}{suffix} · Omar Elcircevi</title>
   <meta name="description" content="{desc}">
   <link rel="canonical" href="https://omarcevi.dev{url}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="{title} · Deploying Your Agents on Google Cloud">
+  <meta property="og:title" content="{title}{suffix}">
   <meta property="og:description" content="{desc}">
   <meta property="og:url" content="https://omarcevi.dev{url}">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
@@ -70,7 +71,7 @@ HEAD = """<!doctype html>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="{base}">deploy-agents</a>{crumb}</span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="{base}">cloud-agents-workshop</a>{crumb}</span>
     <nav aria-label="Workshop sections">
       <a href="{base}">Overview</a>
       <a href="{base}step-1/">Steps</a>
@@ -140,8 +141,9 @@ def build() -> None:
         body = (SRC / f"{slug or 'index'}.html").read_text(encoding="utf-8")
         url = BASE + (slug + "/" if slug else "")
         crumb = f'<span class="cur"> / <span class="here">{html.escape(short)}</span></span>' if slug else ""
+        suffix = f" · {GUIDE_TITLE}" if slug else ""
         page = (
-            HEAD.format(title=html.escape(title), desc=html.escape(desc), url=url, base=BASE, repo=REPO, crumb=crumb,
+            HEAD.format(title=html.escape(title), suffix=html.escape(suffix), desc=html.escape(desc), url=url, base=BASE, repo=REPO, crumb=crumb,
                         toc=toc(slug))
             + body.replace("{{BASE}}", BASE).replace("{{REPO}}", REPO)
             + FOOT.format(pager=pager(i), base=BASE, repo=REPO)

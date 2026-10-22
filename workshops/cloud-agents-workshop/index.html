@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Deploying Your Agents on Google Cloud · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <title>Deploying your agents on Google Cloud Agent Platform · Omar Elcircevi</title>
   <meta name="description" content="Follow-along guide: deploy a multi-agent Workplace Assistant to Agent Runtime with Agent Identity, Memory Bank, Agent Gateway, Cloud Trace and evals.">
-  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/cloud-agents-workshop/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Deploying Your Agents on Google Cloud · Deploying Your Agents on Google Cloud">
+  <meta property="og:title" content="Deploying your agents on Google Cloud Agent Platform">
   <meta property="og:description" content="Follow-along guide: deploy a multi-agent Workplace Assistant to Agent Runtime with Agent Identity, Memory Bank, Agent Gateway, Cloud Trace and evals.">
-  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/cloud-agents-workshop/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
@@ -29,17 +29,17 @@
     try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
   })(document.documentElement);
   </script>
-  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+  <link rel="stylesheet" href="/workshops/cloud-agents-workshop/guide.css">
 </head>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a></span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/cloud-agents-workshop/">cloud-agents-workshop</a></span>
     <nav aria-label="Workshop sections">
-      <a href="/workshops/deploy-agents-workshop/">Overview</a>
-      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
-      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
-      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="/workshops/cloud-agents-workshop/">Overview</a>
+      <a href="/workshops/cloud-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/cloud-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/cloud-agents-workshop/teardown/">Teardown</a>
       <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
@@ -52,36 +52,36 @@
     <aside class="toc" aria-label="Guide pages">
       <p class="label">Follow along</p>
       <ol>
-        <li><a class="here" href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li><a class="here" href="/workshops/cloud-agents-workshop/"><span class="n">Overview</span></a></li>
         <li class="group">Lab</li>
-        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
-        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
-        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
-        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li><a data-mod="step-1" href="/workshops/cloud-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/cloud-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/cloud-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/cloud-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/cloud-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/cloud-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
         <li class="group">After the lab</li>
-        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/cloud-agents-workshop/reading/"><span class="n">Further information</span></a></li>
       </ol>
     </aside>
 
     <main>
       <header class="hero" id="overview">
         <p class="kicker">Workshop · Google Cloud Day Türkiye, Builder Connect · Tue 27 Oct 2026 · Omar Elcircevi</p>
-        <h1>Deploying Your Agents on Google Cloud</h1>
+        <h1>Deploying your agents on Google Cloud Agent Platform</h1>
         <p class="tagline">In about 40 minutes, you move a multi-agent HR and IT assistant from a repo to a production setup. The agent runs on Agent Runtime with its own Agent Identity and uses Memory Bank. Agent Gateway checks each tool call, each turn makes a trace, and an eval gate controls each deploy.</p>
         <div class="actions">
           <a class="btn primary" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/cloud-agents-workshop.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Cloud Shell →</a>
           <a class="btn" href="https://github.com/omarcevi/cloud-agents-workshop">Code on GitHub</a>
-          <a class="btn" href="/workshops/deploy-agents-workshop/step-1/">Start with step 1</a>
+          <a class="btn" href="/workshops/cloud-agents-workshop/step-1/">Start with step 1</a>
         </div>
       </header>
 
       <figure class="arch">
-        <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/architecture.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/architecture.svg" alt="Workplace Assistant architecture. (1) Employees send requests to the workplace-assistant agent on Agent Runtime through Gemini Enterprise, agents-cli or Cloud Shell. The agent has sessions, Memory Bank and its own Agent Identity. (2) Agent Gateway receives each outbound call. (3) IAP compares the call with the access policy for the agent identity and with Agent Registry. (4) Allowed calls go to the HRIS and ticketing MCP servers on Cloud Run and to Gemini. Optionally, they also go to Google Calendar with the OAuth token of the employee. Agent Gateway refuses calls to the compensation MCP server. (5) Spans, logs and metrics go to Cloud Trace, Cloud Logging and Cloud Monitoring. An Online Monitor gives scores to live traces." width="1280" height="800"></a></div>
+        <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/architecture.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/architecture.svg" alt="Workplace Assistant architecture. (1) Employees send requests to the workplace-assistant agent on Agent Runtime through Gemini Enterprise, agents-cli or Cloud Shell. The agent has sessions, Memory Bank and its own Agent Identity. (2) Agent Gateway receives each outbound call. (3) IAP compares the call with the access policy for the agent identity and with Agent Registry. (4) Allowed calls go to the HRIS and ticketing MCP servers on Cloud Run and to Gemini. Optionally, they also go to Google Calendar with the OAuth token of the employee. Agent Gateway refuses calls to the compensation MCP server. (5) Spans, logs and metrics go to Cloud Trace, Cloud Logging and Cloud Monitoring. An Online Monitor gives scores to live traces." width="1280" height="800"></a></div>
         <figcaption>What each participant deploys in their own project. Click or tap the diagram to see it at full size.</figcaption>
       </figure>
 
@@ -89,7 +89,7 @@
         <h2>What you build</h2>
         <p><strong>Workplace Assistant</strong> is one entry point for HR and IT questions at <em>Kuzey Labs</em>, a fictional company. All the employees, salaries, tickets and handbook pages are fictional.</p>
         <figure class="arch" id="agents">
-          <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/agents.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/agents.svg" loading="lazy" alt="Agent architecture. The concierge sends each request with transfer_to_agent to one of three specialist agents. hr_policy_agent uses handbook_search and get_salary_band from the compensation MCP server. leave_agent uses the HRIS MCP server and an optional create_calendar_event tool with 3-legged OAuth from Auth Manager. it_desk_agent uses the ticketing MCP server and handbook_search. Each agent loads the memories of the employee before it answers. A MemoryBankPlugin saves each turn." width="1180" height="470"></a></div>
+          <div class="arch-frame"><a href="/workshops/cloud-agents-workshop/diagrams/agents.svg" title="Open full size"><img src="/workshops/cloud-agents-workshop/diagrams/agents.svg" loading="lazy" alt="Agent architecture. The concierge sends each request with transfer_to_agent to one of three specialist agents. hr_policy_agent uses handbook_search and get_salary_band from the compensation MCP server. leave_agent uses the HRIS MCP server and an optional create_calendar_event tool with 3-legged OAuth from Auth Manager. it_desk_agent uses the ticketing MCP server and handbook_search. Each agent loads the memories of the employee before it answers. A MemoryBankPlugin saves each turn." width="1180" height="470"></a></div>
           <figcaption>The agents in the app: which agent answers which request, and the tools that each agent can call.</figcaption>
         </figure>
         <ul class="plain">
@@ -117,12 +117,12 @@
         <h2>The six steps</h2>
         <p>Each step has the same parts. It starts with <strong>how it works</strong> (one diagram), the <strong>commands</strong> to paste and the <strong>output</strong> that you get. It ends with a <strong>check</strong> (<code>./scripts/check.sh N</code>), <strong>if this fails</strong>, and a box with the title <strong>Take this to a customer</strong>.</p>
         <ul class="steps-grid">
-          <li><a href="/workshops/deploy-agents-workshop/step-1/"><span class="num">STEP 1 · 5 MIN</span><b>Set up</b><span class="d">APIs, three MCP servers on Cloud Run, Agent Registry, and the start of Agent Gateway in the background.</span></a></li>
-          <li><a href="/workshops/deploy-agents-workshop/step-2/"><span class="num">STEP 2 · 8 MIN</span><b>Deploy</b><span class="d"><code>agents-cli deploy</code> to Agent Runtime with Agent Identity. Then ask the agent questions.</span></a></li>
-          <li><a href="/workshops/deploy-agents-workshop/step-3/"><span class="num">STEP 3 · 6 MIN</span><b>Remember</b><span class="d">Tell the agent your team one time. Memory Bank recalls it in a new session.</span></a></li>
-          <li><a href="/workshops/deploy-agents-workshop/step-4/"><span class="num">STEP 4 · 8 MIN</span><b>Secure</b><span class="d">Bind Agent Gateway. A policy refuses a salary request, and the HRIS continues to work.</span></a></li>
-          <li><a href="/workshops/deploy-agents-workshop/step-5/"><span class="num">STEP 5 · 5 MIN</span><b>Observe</b><span class="d">See one leave request as a trace, and a dashboard that shows blocked calls.</span></a></li>
-          <li><a href="/workshops/deploy-agents-workshop/step-6/"><span class="num">STEP 6 · 7 MIN</span><b>Evaluate</b><span class="d">The eval gate, scores for live traffic, the managed Online Monitor, and a production failure that becomes a test.</span></a></li>
+          <li><a href="/workshops/cloud-agents-workshop/step-1/"><span class="num">STEP 1 · 5 MIN</span><b>Set up</b><span class="d">APIs, three MCP servers on Cloud Run, Agent Registry, and the start of Agent Gateway in the background.</span></a></li>
+          <li><a href="/workshops/cloud-agents-workshop/step-2/"><span class="num">STEP 2 · 8 MIN</span><b>Deploy</b><span class="d"><code>agents-cli deploy</code> to Agent Runtime with Agent Identity. Then ask the agent questions.</span></a></li>
+          <li><a href="/workshops/cloud-agents-workshop/step-3/"><span class="num">STEP 3 · 6 MIN</span><b>Remember</b><span class="d">Tell the agent your team one time. Memory Bank recalls it in a new session.</span></a></li>
+          <li><a href="/workshops/cloud-agents-workshop/step-4/"><span class="num">STEP 4 · 8 MIN</span><b>Secure</b><span class="d">Bind Agent Gateway. A policy refuses a salary request, and the HRIS continues to work.</span></a></li>
+          <li><a href="/workshops/cloud-agents-workshop/step-5/"><span class="num">STEP 5 · 5 MIN</span><b>Observe</b><span class="d">See one leave request as a trace, and a dashboard that shows blocked calls.</span></a></li>
+          <li><a href="/workshops/cloud-agents-workshop/step-6/"><span class="num">STEP 6 · 7 MIN</span><b>Evaluate</b><span class="d">The eval gate, scores for live traffic, the managed Online Monitor, and a production failure that becomes a test.</span></a></li>
         </ul>
         <h3>Agenda (60-minute session)</h3>
         <ol class="agenda">
@@ -145,7 +145,7 @@ git checkout step-3-remember   <span class="c"># state after step 3</span>
         <p><strong>Use one terminal tab for the full lab.</strong> Later steps use variables that you set in earlier steps. A deploy takes approximately 5 minutes. Read the guide while it runs.</p>
       </section>
 
-      <nav class="pager" aria-label="Previous and next page"><a class="next" href="/workshops/deploy-agents-workshop/step-1/">1 · Set up →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="next" href="/workshops/cloud-agents-workshop/step-1/">1 · Set up →</a></nav>
       <footer>
         <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
         <p>Google Cloud Day Türkiye · 27 October 2026</p>
@@ -153,6 +153,6 @@ git checkout step-3-remember   <span class="c"># state after step 3</span>
     </main>
   </div>
 </div>
-<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+<script src="/workshops/cloud-agents-workshop/guide.js"></script>
 </body>
 </html>
