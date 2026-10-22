@@ -92,6 +92,7 @@
           </ul>
           <p>The first three are small Python functions that run locally; grounding calls the evaluation service. <strong>agents-cli exits 0 whatever the scores</strong>, so <code>evals/gate.py</code> compares them with <code>evals/thresholds.yaml</code> and fails the build: that is what makes it a gate.</p>
           <p><strong>Online Monitors</strong> score live traces. Every ten minutes the monitor samples recent traces of the agent and runs judge metrics (final response quality, tool use quality, hallucination, safety). It reads prompts and answers from the telemetry events that step 1 turned on, and the agent's instructions and tools from the ADK <code>call_llm</code> spans.</p>
+          <p><strong>What it can't score yet.</strong> The monitor builds one agent configuration per trace and expects the same system instruction on every model call. A turn where the concierge hands over to a sub-agent has two, so the monitor skips that whole trace and logs <code>INSUFFICIENT_DATA</code>. In this lab that means it scores the concierge's own turns (greetings, refusals, out-of-scope requests) and skips the turns that call tools. The offline eval set and the step 5 metrics cover those. Count the skipped traces before you rely on a monitor for a customer.</p>
         </div>
 
         <h2>Run</h2>
@@ -141,6 +142,7 @@ Eval gate (handbook): PASSED
           <div>A metric below its threshold</div><div>The gate lists the failing cases with the judge's explanation. Open <code>artifacts/eval/SUITE/results_*.html</code> for the full traces.</div>
           <div>The monitor shows <em>Failed</em></div><div>Usually the service agent permission above. Delete the monitor and create it again after granting.</div>
           <div>No monitor scores</div><div>The first run is up to ten minutes after creation and only scores traces that exist by then. Ask the agent a few questions.</div>
+          <div>Logs say <code>INSUFFICIENT_DATA</code>: <code>system_instruction is not uniform across call_llm spans</code></div><div>Expected for turns handled by a sub-agent (see "What it can't score yet" above). Ask something the concierge answers itself, such as a salary question, to see scores.</div>
           <div>Logs say <code>INSUFFICIENT_DATA</code>: <code>system_instruction not present in any call_llm span</code></div><div>The agent was deployed without <code>ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=true</code> (agents-cli deploys it off). Run <code>./scripts/setup.sh --only env</code> and redeploy; only new traces get scores. The monitor's own log: <code>gcloud logging read 'logName:"online_evaluator"' --freshness=1h --limit=5</code>.</div>
           <div>The API returns <code>INVALID_ARGUMENT</code> creating a monitor</div><div>The request must not set <code>semconvVersion</code>; <code>monitor.sh</code> sends the same body as the console.</div>
         </div></div></details>
