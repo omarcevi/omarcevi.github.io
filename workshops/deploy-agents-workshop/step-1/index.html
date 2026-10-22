@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 1 · Set up · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <meta name="description" content="Enable APIs, deploy three MCP servers to Cloud Run and register them.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/step-1/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Step 1 · Set up · Deploying Your Agents on Google Cloud">
+  <meta property="og:description" content="Enable APIs, deploy three MCP servers to Cloud Run and register them.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/step-1/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a> / <span class="here">1 · Set up</span></span>
+    <nav aria-label="Workshop sections">
+      <a href="/workshops/deploy-agents-workshop/">Overview</a>
+      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Lab</li>
+        <li><a class="here" data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li class="group">After the lab</li>
+        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further reading</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <section id="step-1" data-mod="step-1">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 1 · Set up</h1>
+          <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-1">done</label></span>
+        </div>
+        <p class="goal">Get the repo into Cloud Shell, enable the APIs, and deploy the three MCP tool servers the agent will call.</p>
+        <p><span class="branch">checkpoint branch <code>step-1-setup</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-1-setup.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-1-setup.svg" alt="What setup.sh creates, in order: 1 enables the APIs; 2 builds one MCP server image with Cloud Build and pushes it to Artifact Registry; 3 deploys it three times to Cloud Run as hris-mcp, ticketing-mcp and compensation-mcp, with no public access; 4 registers the three servers and the Google APIs the agent uses in Agent Registry; 5 creates the logs-based metrics; 6 starts creating Agent Gateway and its IAP authorization policy in the background, ready by step 4." width="1180" height="470"></a></div>
+            <figcaption>What <code>setup.sh</code> creates. Steps 1–5 take two to four minutes; the gateway keeps building in the background.</figcaption>
+          </figure>
+          <p><strong>Tools are services with owners.</strong> The HRIS, ticketing and compensation systems are separate MCP servers (FastMCP, streamable HTTP) on Cloud Run. One image serves all three; an environment variable picks which. Each service accepts only callers with <code>roles/run.invoker</code>: there is no public URL.</p>
+          <p><strong>Read-only tools say so.</strong> Every tool carries MCP annotations such as <code>readOnlyHint</code>. Agent Registry stores them with the tool list, and gateway policies can use them later.</p>
+          <p><strong>The gateway takes time, so it starts now.</strong> Creating Agent Gateway and attaching IAP as its authorizer takes about six minutes. <code>setup.sh</code> starts it in the background; you use it in step 4.</p>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead">Click <strong>Open in Cloud Shell</strong> on the overview page, or open Cloud Shell and clone the repo yourself. Then:</p>
+        <div class="code"><pre><span class="c"># skip the clone if you used the Open in Cloud Shell button</span>
+git clone https://github.com/omarcevi/cloud-agents-workshop.git
+cd cloud-agents-workshop
+
+gcloud config set project YOUR_PROJECT_ID
+uv tool install google-agents-cli    <span class="c"># agents-cli 1.11 or later</span>
+./scripts/check.sh 0                 <span class="c"># tools, login, billing</span>
+./scripts/setup.sh                   <span class="c"># APIs, MCP servers, registry, gateway (2–4 min)</span></pre></div>
+
+        <h2>What you should see</h2>
+        <div class="out">==> Project your-project (123456789012), region europe-west1
+==> Enabling APIs (takes a minute the first time)
+<span class="ok">  ✔</span> APIs enabled
+==> MCP server image mcp-servers:a440ce4b9b7f
+<span class="ok">  ✔</span> built with Cloud Build
+==> Deploying 3 MCP servers to Cloud Run (IAM-only, scale to zero)
+<span class="ok">  ✔</span> hris-mcp
+<span class="ok">  ✔</span> ticketing-mcp
+<span class="ok">  ✔</span> compensation-mcp
+==> Registering MCP servers and Google APIs in Agent Registry
+...
+==> Agent Gateway workplace-gw (background, about 6 minutes)
+<span class="ok">  ✔</span> started; follow it with: tail -f .setup-gateway.log
+==> Setup finished in 154s. Next: ./scripts/check.sh 1</div>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 1</pre></div>
+        <div class="out"><span class="ok">  ✔</span> hris-mcp ready, /health 200 with a token, 403 without
+<span class="ok">  ✔</span> ticketing-mcp ready, /health 200 with a token, 403 without
+<span class="ok">  ✔</span> compensation-mcp ready, /health 200 with a token, 403 without
+==> Step 1 checks passed.</div>
+        <p>The 403 without a token is the point: nothing on Cloud Run is open to the internet.</p>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div><code>agents-cli: command not found</code></div><div>Run <code>uv tool install google-agents-cli</code>, then open a new terminal tab (or run <code>export PATH="$HOME/.local/bin:$PATH"</code>).</div>
+          <div>Billing ✘ in <code>check.sh 0</code></div><div>Link a billing account to the project in the console. No billing account? Pair with a neighbour.</div>
+          <div>Cloud Build fails with a permission error</div><div>New projects take a minute to grant the build service account its roles. Wait a minute and run <code>./scripts/setup.sh</code> again; it skips what already exists. In an organization that turns off default grants, give the Compute Engine default service account <code>roles/cloudbuild.builds.builder</code>.</div>
+          <div><code>FAILED_PRECONDITION</code> or <code>SERVICE_DISABLED</code> right after enabling APIs</div><div>API enablement takes a moment to spread. Run <code>./scripts/setup.sh</code> again.</div>
+          <div><code>.setup-gateway.log</code> ends with <code>GATEWAY FAILED</code></div><div>Read the error above it. Agent Gateway may not be available to your project yet; you can still do steps 2, 3, 5 and 6, and use <code>./scripts/fallback_step4.sh</code> in step 4.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Taking this to a customer</span>
+          <ul>
+            <li><strong>Ask the platform team first:</strong> which region (data residency), which project the agents live in, and which organization policies apply. Two that block this lab: <code>iam.allowedPolicyMemberDomains</code> can reject <code>principal://</code> members, and <code>iam.managed.disableAccessPolicyBindings</code> (on by default in new organizations) blocks the gateway's access policy.</li>
+            <li><strong>Tools have owners.</strong> The HRIS team owns the HRIS MCP server, its IAM and its tool annotations. Agree on who registers servers in Agent Registry and who may grant <code>run.invoker</code>.</li>
+            <li><strong>Cost:</strong> Cloud Run with min instances 0 costs nothing while idle; one image build is a few cents of Cloud Build time.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/">← Overview</a><a class="next" href="/workshops/deploy-agents-workshop/step-2/">2 · Deploy →</a></nav>
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
+        <p>Google Cloud Day Türkiye · 27 October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+</body>
+</html>

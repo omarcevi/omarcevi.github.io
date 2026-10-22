@@ -1,0 +1,85 @@
+      <section id="step-6" data-mod="step-6">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 6 · Evaluate</h1>
+          <span class="mod-meta"><span>7 min</span><label class="done-toggle"><input type="checkbox" data-done="step-6">done</label></span>
+        </div>
+        <p class="goal">Gate changes on an eval set, score live traffic with an Online Monitor, and turn a production conversation into a new test case.</p>
+        <p><span class="branch">checkpoint branch <code>step-6-evaluate</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="{{BASE}}diagrams/step-6-evaluate.svg" title="Open full size"><img src="{{BASE}}diagrams/step-6-evaluate.svg" alt="The evaluation loop: 1 the eval set in evals/cases.yaml is turned into datasets; 2 agents-cli eval run plus the gate script decides whether a change may deploy; 3 deploy; 4 production traffic produces traces; 5 an Online Monitor scores sampled traces every ten minutes; 6 a low score or bad session is found in Trace or the console; 7 it becomes a new eval case with session_to_eval_case.py, and the loop starts again. Lab metrics: routed to the expected agent, tool trajectory (right tool and arguments), no compensation leak (refuses salary questions), and grounding in the handbook." width="1180" height="470"></a></div>
+            <figcaption>Offline evals stop regressions before deploy; online monitors catch what the eval set doesn't cover; every failure becomes a case.</figcaption>
+          </figure>
+          <p><strong>The eval set</strong> lives in <code>evals/cases.yaml</code>: twenty prompts with what should happen. <code>agents-cli eval run</code> runs the agent on each one (locally, against fresh copies of the MCP servers) and grades the traces:</p>
+          <ul class="plain">
+            <li><strong>Right tool, right arguments</strong> (<code>tool_trajectory</code>): did it call <code>submit_leave_request</code> with next Friday's date, open a P1 ticket for a stolen laptop, and never call forbidden tools?</li>
+            <li><strong>Routed to the right specialist</strong> (<code>routed_to_expected_agent</code>).</li>
+            <li><strong>Refuses salary questions</strong> (<code>no_compensation_leak</code>): no individual salary figure in any answer, and a referral to the People Partner when asked.</li>
+            <li><strong>Grounded in the handbook</strong> (<code>grounding_v1</code>): an LLM judge from the Gen AI evaluation service checks every sentence of policy answers against the handbook.</li>
+          </ul>
+          <p>The first three are small Python functions that run locally; grounding calls the evaluation service. <strong>agents-cli exits 0 whatever the scores</strong>, so <code>evals/gate.py</code> compares them with <code>evals/thresholds.yaml</code> and fails the build: that is what makes it a gate.</p>
+          <p><strong>Online Monitors</strong> score live traces. Every ten minutes the monitor samples recent traces of the agent and runs judge metrics (final response quality, tool use quality, hallucination, safety). It reads prompts and answers from the telemetry events that step 1 turned on.</p>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead"><strong>Offline evals</strong> (about two minutes):</p>
+        <div class="code"><pre>./scripts/eval.sh</pre></div>
+        <p class="lead"><strong>Online Monitor.</strong> Create it with the script, which also lets the Vertex AI service agent read traces:</p>
+        <div class="code"><pre>./scripts/monitor.sh</pre></div>
+        <p class="lead">Or in the console: <strong>Agent Platform → Optimize → Evaluation → Online monitors → New monitor</strong>. Select agent <strong>workplace-assistant</strong>, name it <code>workplace-quality</code>, region <strong>europe-west1</strong>, unit <strong>Traces</strong>, <strong>All traces</strong> → Continue. Keep the four default metrics → Continue. Sampling percentage <strong>100</strong>, max samples per evaluation job <strong>20</strong> → <strong>Set up</strong>. Then grant the service agent access, or the monitor shows <em>Failed</em>:</p>
+        <div class="code"><pre>gcloud projects add-iam-policy-binding $PROJECT_ID --condition=None \
+  --member=serviceAccount:service-$PROJECT_NUMBER@gcp-sa-aiplatform.iam.gserviceaccount.com \
+  --role=roles/observability.viewAccessor</pre></div>
+        <p class="lead"><strong>Close the loop.</strong> Pick a production conversation, ideally one where the answer was wrong, and add it to the eval set. If you don't have one, try this, which should <em>not</em> book anything (29 October is Republic Day for the Istanbul office):</p>
+        <div class="code"><pre>uv run python scripts/ask.py "Book 29 October off for me."      <span class="c"># note the session id</span>
+uv run python scripts/session_to_eval_case.py SESSION_ID --id my_regression
+<span class="c"># edit the TODO lines of the new case at the end of the behaviour list in evals/cases.yaml:</span>
+<span class="c">#   expected_agent: leave_agent     forbidden_tools: [submit_leave_request]</span>
+uv run python evals/build_datasets.py && ./scripts/eval.sh behaviour</pre></div>
+
+        <h2>What you should see</h2>
+        <div class="out">==> agents-cli eval run (behaviour)
+<span class="ok">PASS</span> routed_to_expected_agent: 1.0 (threshold 0.9, 15 cases, 0 errors)
+<span class="ok">PASS</span> tool_trajectory: 1.0 (threshold 0.85, 15 cases, 0 errors)
+<span class="ok">PASS</span> no_compensation_leak: 1.0 (threshold 1.0, 15 cases, 0 errors)
+Eval gate (behaviour): PASSED
+==> agents-cli eval run (handbook)
+<span class="ok">PASS</span> grounding_v1: 1.0 (threshold 0.8, 5 cases, 0 errors)
+...
+Eval gate (handbook): PASSED
+
+==> Creating online monitor workplace-quality (sampling 100%, max 20 traces per run)
+<span class="ok">  ✔</span> requested: projects/…/operations/…</div>
+        <p>About ten minutes later the scores show under Deployments → workplace-assistant → <strong>Dashboard → Evaluation</strong>, and per trace on the <strong>Traces</strong> tab.</p>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 6</pre></div>
+        <div class="out"><span class="ok">  ✔</span> eval behaviour passes the thresholds
+<span class="ok">  ✔</span> eval handbook passes the thresholds
+<span class="ok">  ✔</span> online monitor: workplace-quality
+==> Step 6 checks passed.</div>
+
+        <h3>Fallback</h3>
+        <p>If Online Monitors are not available to you, or the evaluation service is down, run the local part of the eval and look at monitor results recorded during a rehearsal:</p>
+        <div class="code"><pre>./scripts/fallback_step6.sh</pre></div>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div><code>only 4 of 5 cases ran</code></div><div>A model call timed out during generation and agents-cli dropped that case. Run <code>./scripts/eval.sh</code> again.</div>
+          <div>A metric below its threshold</div><div>The gate lists the failing cases with the judge's explanation. Open <code>artifacts/eval/SUITE/results_*.html</code> for the full traces.</div>
+          <div>The monitor shows <em>Failed</em></div><div>Usually the service agent permission above. Delete the monitor and create it again after granting.</div>
+          <div>No monitor scores</div><div>The first run is up to ten minutes after creation and only scores traces that exist by then. Ask the agent a few questions.</div>
+          <div>The API returns <code>INVALID_ARGUMENT</code> creating a monitor</div><div>The request must not set <code>semconvVersion</code>; <code>monitor.sh</code> sends the same body as the console.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Taking this to a customer</span>
+          <ul>
+            <li><strong>Who writes the cases.</strong> Domain owners (HR, IT) write the expected behaviour; engineers make it executable. Every incident becomes a case before the fix ships.</li>
+            <li><strong>Thresholds are a business decision.</strong> Agree per metric what blocks a release: a leaked salary is a hard 1.0; tone can be 0.8. Run the gate in CI before every deploy.</li>
+            <li><strong>Monitors read real prompts.</strong> Treat them like any system that processes employee data: sampling rate, retention of scores and rationales, and who can see the Evaluation tab.</li>
+            <li><strong>Cost:</strong> judge metrics are billed as model tokens. A monitor at 100% sampling of busy traffic adds up; use a lower percentage and a max samples per run.</li>
+          </ul>
+        </aside>
+      </section>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Runtime, Cloud Run or GKE · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <meta name="description" content="When to use each runtime for agents.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/runtimes/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Agent Runtime, Cloud Run or GKE · Deploying Your Agents on Google Cloud">
+  <meta property="og:description" content="When to use each runtime for agents.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/runtimes/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a> / <span class="here">Runtime choice</span></span>
+    <nav aria-label="Workshop sections">
+      <a href="/workshops/deploy-agents-workshop/">Overview</a>
+      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Lab</li>
+        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li class="group">After the lab</li>
+        <li><a class="here" href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further reading</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <section>
+        <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Agent Runtime, Cloud Run or GKE</h1>
+        <p class="goal">Start on Agent Runtime. Move to Cloud Run or GKE when you need control the managed runtime doesn't give you.</p>
+        <figure class="arch">
+          <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/runtimes.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/runtimes.svg" alt="Who runs what. Agent Runtime: you bring the agent code; Google runs the container, scaling, sessions, memory, identity, gateway binding and monitors. Cloud Run: you bring the container and its settings; Google handles scaling, TLS and IAM; you bring sessions and memory or use Agent Platform services. GKE: you bring the cluster and manifests; Google runs the control plane; you own nodes, scaling, networking and everything else." width="1180" height="380"></a></div>
+          <figcaption>The further right, the more you own.</figcaption>
+        </figure>
+        <div class="tablewrap"><table>
+          <tr><th></th><th>Agent Runtime</th><th>Cloud Run</th><th>GKE</th></tr>
+          <tr><td>What you run</td><td>Your agent code. Google builds and runs the container.</td><td>A container you own, one service per agent.</td><td>Containers on a cluster you own.</td></tr>
+          <tr><td>Where sessions live</td><td>Built in (Agent Platform Sessions).</td><td>Your choice: in memory, Cloud SQL, or Agent Platform Sessions.</td><td>Your choice: same options as Cloud Run.</td></tr>
+          <tr><td>Long-term memory</td><td>Memory Bank, built in.</td><td>Memory Bank through an Agent Runtime instance, or your own store.</td><td>Same as Cloud Run.</td></tr>
+          <tr><td>Agent identity</td><td>Agent Identity per agent.</td><td>Service account; Agent Identity is Preview.</td><td>Workload Identity.</td></tr>
+          <tr><td>Agent Gateway, monitors</td><td>Bind with one flag; Online Monitors and console playground included.</td><td>Gateway for Cloud Run agents: Preview sign-up.</td><td>Gateway for GKE agents: Preview sign-up.</td></tr>
+          <tr><td>Scaling and cost</td><td>Scales to zero; vCPU-hours and GiB-hours while serving.</td><td>Scales to zero; full control of CPU, concurrency, min instances.</td><td>Whatever your node pools cost, idle or not.</td></tr>
+          <tr><td>Pick it when</td><td>You want the platform to own operations. The default.</td><td>You need custom serving, sidecars, websockets or VPC egress control.</td><td>You already run GKE, need GPUs, a service mesh or other clouds.</td></tr>
+        </table></div>
+
+        <h2 style="margin-top:2rem">Same code, other targets</h2>
+        <p>agents-cli adds the other targets to an existing project. The repo's <code>alt/cloud-run</code> branch is this lab's agent after:</p>
+        <div class="code"><pre>agents-cli scaffold enhance . --deployment-target cloud_run
+agents-cli deploy                 <span class="c"># runs gcloud run deploy with the generated settings</span></pre></div>
+        <p>For GKE, <code>--deployment-target gke</code> adds Kubernetes manifests and Terraform for a cluster, and <code>agents-cli deploy</code> builds the image, applies Terraform and runs <code>kubectl apply</code>. Keep sessions and memory in Agent Platform so pods stay stateless, and use Workload Identity for the pods.</p>
+        <p>The MCP servers in this lab already run on Cloud Run: tools that other teams own usually belong there, next to the agent runtime rather than inside it.</p>
+      </section>
+
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-6/">← 6 · Evaluate</a><a class="next" href="/workshops/deploy-agents-workshop/production/">Production checklist →</a></nav>
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
+        <p>Google Cloud Day Türkiye · 27 October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+      <section>
+        <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Production readiness checklist</h1>
+        <p class="goal">What to settle with a customer before their agent goes live. Each item points back to the step where you saw it.</p>
+
+        <h2>Identity and access</h2>
+        <ul class="checklist">
+          <li><input type="checkbox" aria-label="done"><span>Each agent has its own Agent Identity; roles go to its <code>principal://</code>, not to a shared service account (step 2).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Deploys run from CI with a dedicated deployer; developers don't hold <code>setIamPolicy</code> on production projects (step 2).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Only a trusted, authenticated front end can call <code>query</code>/<code>streamQuery</code>; the user id it sends is the boundary for sessions and memories (steps 2, 3).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Tools that act for a person use that person's own token (3-legged OAuth through Auth Manager), and the tool server verifies it (step 4).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Secrets live in Secret Manager and reach the agent through <code>--secrets</code>, never through <code>.env</code> (step 2).</span></li>
+        </ul>
+
+        <h2>Governance</h2>
+        <ul class="checklist">
+          <li><input type="checkbox" aria-label="done"><span>Every destination is registered in Agent Registry, with tool annotations reviewed by the tool owner (steps 1, 4).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>An egress gateway is bound and policies are owned by security: organization guardrails, project rules per agent, explicit deny rules for sensitive systems (step 4).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>New policies ran in <code>DRY_RUN</code> first and the denial logs were read before enforcing (step 4).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Model Armor and, where available, semantic governance policies cover prompt injection and data the model must not request (step 4).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Organization policies checked: <code>iam.managed.disableAccessPolicyBindings</code>, <code>iam.allowedPolicyMemberDomains</code>, region restrictions.</span></li>
+        </ul>
+
+        <h2>Data</h2>
+        <ul class="checklist">
+          <li><input type="checkbox" aria-label="done"><span>Region chosen for data at rest; the model endpoint (global, multi-region or regional) agreed with the customer's data protection officer (steps 1, 2).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Memory topics are narrow, memories have a TTL, and deletion requests (KVKK, GDPR) reach Memory Bank (step 3).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Prompt and answer capture in logs is a conscious choice, with a restricted log bucket and retention (step 5).</span></li>
+        </ul>
+
+        <h2>Operations</h2>
+        <ul class="checklist">
+          <li><input type="checkbox" aria-label="done"><span>Dashboard and alerts on turn latency, tool error rate and blocked calls; refused calls are 200s, so alert on logs-based metrics (step 5).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Model calls have timeouts and retries; there is a plan for capacity (Provisioned Throughput) if traffic is high or latency matters.</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Min instances, max instances and concurrency set from a load test, not defaults.</span></li>
+          <li><input type="checkbox" aria-label="done"><span>A rollback path: Agent Runtime keeps revisions; know how to redeploy the previous version.</span></li>
+        </ul>
+
+        <h2>Quality</h2>
+        <ul class="checklist">
+          <li><input type="checkbox" aria-label="done"><span>An eval set owned with the business, thresholds agreed per metric, and a gate in CI that blocks deploys (step 6).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>An Online Monitor with a sampling rate and per-run cap that fit the budget (step 6).</span></li>
+          <li><input type="checkbox" aria-label="done"><span>Incidents and low monitor scores become eval cases before the fix ships (step 6).</span></li>
+        </ul>
+      </section>
