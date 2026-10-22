@@ -106,7 +106,7 @@
         <ul class="plain">
           <li>A <strong>Google Cloud project with billing enabled</strong>, where you are Owner (the lab grants IAM roles and binds an access policy). A fresh project is easiest.</li>
           <li>A browser. Everything runs in <strong>Cloud Shell</strong>, which already has <code>gcloud</code>, <code>uv</code>, <code>git</code> and Python.</li>
-          <li><strong>agents-cli 1.11 or later</strong>: <code>uv tool install google-agents-cli</code> (step 1 does this).</li>
+          <li><strong>agents-cli 1.11 or later</strong>: <code>uv tool install --force "google-agents-cli>=1.11"</code> (step 1 does this; Cloud Shell's preinstalled agents-cli is older).</li>
           <li>Region <strong>europe-west1</strong>. Every product in the lab is available there; the model runs on the <code>global</code> endpoint (step 2 explains why).</li>
           <li>Cost: about <strong>USD 0.30–1</strong> per participant, mostly Gemini tokens. Run the teardown at the end.</li>
         </ul>

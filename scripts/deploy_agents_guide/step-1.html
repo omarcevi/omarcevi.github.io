@@ -24,7 +24,8 @@ git clone {{REPO}}.git
 cd cloud-agents-workshop
 
 gcloud config set project YOUR_PROJECT_ID
-uv tool install google-agents-cli    <span class="c"># agents-cli 1.11 or later</span>
+uv tool install --force "google-agents-cli>=1.11"
+export PATH="$HOME/.local/bin:$PATH"   <span class="c"># Cloud Shell has an older agents-cli in /usr/local/bin</span>
 ./scripts/check.sh 0                 <span class="c"># tools, login, billing</span>
 ./scripts/setup.sh                   <span class="c"># APIs, MCP servers, registry, gateway (2–4 min)</span></pre></div>
 
@@ -53,7 +54,7 @@ uv tool install google-agents-cli    <span class="c"># agents-cli 1.11 or later<
         <p>The 403 without a token is the point: nothing on Cloud Run is open to the internet.</p>
 
         <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
-          <div><code>agents-cli: command not found</code></div><div>Run <code>uv tool install google-agents-cli</code>, then open a new terminal tab (or run <code>export PATH="$HOME/.local/bin:$PATH"</code>).</div>
+          <div><code>agents-cli: command not found</code>, or <code>check.sh 0</code> reports an agents-cli older than 1.11</div><div>Cloud Shell comes with an older agents-cli in <code>/usr/local/bin</code>, which wins until <code>~/.local/bin</code> is on your PATH. Run the two install lines above again in this terminal; a new Cloud Shell tab needs the <code>export</code> line too.</div>
           <div>Billing ✘ in <code>check.sh 0</code></div><div>Link a billing account to the project in the console. No billing account? Pair with a neighbour.</div>
           <div>Cloud Build fails with a permission error</div><div>New projects take a minute to grant the build service account its roles. Wait a minute and run <code>./scripts/setup.sh</code> again; it skips what already exists. In an organization that turns off default grants, give the Compute Engine default service account <code>roles/cloudbuild.builds.builder</code>.</div>
           <div><code>FAILED_PRECONDITION</code> or <code>SERVICE_DISABLED</code> right after enabling APIs</div><div>API enablement takes a moment to spread. Run <code>./scripts/setup.sh</code> again.</div>

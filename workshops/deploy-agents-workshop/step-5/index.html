@@ -84,7 +84,7 @@
             <figcaption>One turn, end to end. Every agent, model call and tool call is a span.</figcaption>
           </figure>
           <p><strong>Traces come for free.</strong> <code>agents-cli deploy</code> sets <code>GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true</code>, and ADK exports OpenTelemetry spans to Cloud Trace: <code>invoke_workflow</code> for the turn, <code>invoke_agent</code> per agent, <code>call_llm</code>/<code>generate_content</code> per model call, and <code>execute_tool</code> per tool call. Failed tool calls carry <code>error.type</code>.</p>
-          <p><strong>Logs need OpenTelemetry on Agent Runtime.</strong> Plain <code>print()</code> and Python logging from the running container don't reach Cloud Logging; OpenTelemetry log records do. The agent writes its audit event (<code>workplace.tool_blocked</code>) that way and forwards Python warnings too. Setup also turned on prompt and answer events (<code>EVENT_ONLY</code>), which step 6's Online Monitor reads.</p>
+          <p><strong>Logs need OpenTelemetry on Agent Runtime.</strong> Plain <code>print()</code> and Python logging from the running container don't reach Cloud Logging; OpenTelemetry log records do. The agent writes its audit event (<code>workplace.tool_blocked</code>) that way and forwards Python warnings too. Setup also turned on prompt and answer events (<code>EVENT_ONLY</code>) and the agent's instructions on <code>call_llm</code> spans (<code>ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=true</code>; agents-cli deploys it off). Step 6's Online Monitor reads both.</p>
           <p><strong>Metrics:</strong> Agent Runtime publishes request count and latency; ADK publishes tool and agent durations; two logs-based metrics count blocked calls (from the agent's audit event and from the gateway's own log).</p>
         </div>
 
@@ -129,7 +129,7 @@ https://console.cloud.google.com/traces/explorer;traceId=…</div>
         <aside class="customer">
           <span class="lbl">Taking this to a customer</span>
           <ul>
-            <li><strong>Prompts in logs are personal data.</strong> <code>EVENT_ONLY</code> writes prompts and answers to Cloud Logging. Agree on retention, who may read the log bucket, and whether to route these events to a separate, restricted bucket.</li>
+            <li><strong>Prompts in logs are personal data.</strong> <code>EVENT_ONLY</code> writes prompts and answers to Cloud Logging, and span capture puts requests in Cloud Trace. Agree on retention, who may read the log bucket, and whether to route these events to a separate, restricted bucket.</li>
             <li><strong>Define SLOs early:</strong> turn latency, tool error rate and refusal rate are the three the business notices. Alert on the logs-based metrics, not only on HTTP errors: a refused tool call returns 200.</li>
             <li><strong>Analytics at scale:</strong> the BigQuery Agent Analytics plugin (<code>--bq-analytics</code> in agents-cli) writes one row per agent event for SQL analysis.</li>
             <li><strong>Cost:</strong> trace ingestion is USD 0.20 per million spans after 2.5 million free per month; this lab uses a few thousand. Log volume grows with content capture.</li>
