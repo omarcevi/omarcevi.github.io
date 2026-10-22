@@ -86,7 +86,7 @@ def agents() -> Diagram:
     d.card("root", 440, 60, "concierge", "routes · small talk · refuses out of scope", icon="agents", w=300, accent=BLUE,
            sub2="PreloadMemoryTool")
     d.card("hr", 60, 200, "hr_policy_agent", "policy questions, salary bands", icon="agents", w=300)
-    d.card("leave", 440, 200, "leave_agent", "balance, requests, booking", icon="agents", w=300)
+    d.card("leave", 440, 200, "leave_agent", "balance, requests, new leave", icon="agents", w=300)
     d.card("it", 820, 200, "it_desk_agent", "IT problems and tickets", icon="agents", w=300)
     d.line([(590, 118), (590, 160)])
     d.line([(210, 160), (970, 160)])
@@ -223,7 +223,7 @@ def secure() -> Diagram:
 
     d.zone(350, 20, 500, 520, "Agent Gateway · egress", "cloud", icon="network_security")
     d.card("c1", 375, 60, "1 · Agent Registry", "which destination is this?", icon="service_discovery", w=450)
-    d.card("c2", 375, 160, "2 · IAM access policy (IAP)", "may this agent identity reach it?", icon="identity-aware_proxy",
+    d.card("c2", 375, 160, "2 · IAM access policy (IAP)", "can this agent identity reach it?", icon="identity-aware_proxy",
            w=450, accent=BLUE, sub2="ALLOW HRIS, ticketing, Google APIs · DENY compensation")
     d.card("c3", 375, 270, "3 · Semantic policy + Model Armor", "optional · content and intent checks", icon="cloud_armor",
            w=450, sub2="Preview · needs VPC connectivity")
@@ -321,8 +321,8 @@ def evaluate() -> Diagram:
 
 def runtimes() -> Diagram:
     d = Diagram(1180, 470, "Agent Runtime, Cloud Run or GKE: who runs what")
-    rows = ["Agent code", "Container image and server", "Scaling, revisions", "Sessions and memory",
-            "Agent identity", "Agent Gateway for the agent", "Nodes, cluster, networking"]
+    rows = ["Agent code", "Container image and server", "Scale, revisions", "Sessions and memory",
+            "Agent identity", "Agent Gateway for the agent", "Nodes, cluster, network"]
     cols = [("Agent Runtime", "vertexai", ["you", "google", "google", "google", "google", "google", "google"]),
             ("Cloud Run", "cloud_run", ["you", "you", "google", "either", "you", "preview", "google"]),
             ("GKE", "google_kubernetes_engine", ["you", "you", "you", "either", "you", "preview", "you"])]

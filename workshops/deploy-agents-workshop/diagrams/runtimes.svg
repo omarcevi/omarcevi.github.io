@@ -23,7 +23,7 @@
 <text x="720" y="170" font-size="12.5" fill="#c5221f" font-weight="500" text-anchor="middle">You</text>
 <rect x="870" y="150" width="240" height="30" rx="15" fill="#fce8e6"/>
 <text x="990" y="170" font-size="12.5" fill="#c5221f" font-weight="500" text-anchor="middle">You</text>
-<text x="40" y="214" font-size="13" fill="#202124" font-weight="400" text-anchor="start">Scaling, revisions</text>
+<text x="40" y="214" font-size="13" fill="#202124" font-weight="400" text-anchor="start">Scale, revisions</text>
 <rect x="330" y="196" width="240" height="30" rx="15" fill="#e8f0fe"/>
 <text x="450" y="216" font-size="12.5" fill="#1967d2" font-weight="500" text-anchor="middle">Google</text>
 <rect x="600" y="196" width="240" height="30" rx="15" fill="#e8f0fe"/>
@@ -51,7 +51,7 @@
 <text x="720" y="354" font-size="12.5" fill="#5f6368" font-weight="500" text-anchor="middle">Preview sign-up</text>
 <rect x="870" y="334" width="240" height="30" rx="15" fill="#f1f3f4"/>
 <text x="990" y="354" font-size="12.5" fill="#5f6368" font-weight="500" text-anchor="middle">Preview sign-up</text>
-<text x="40" y="398" font-size="13" fill="#202124" font-weight="400" text-anchor="start">Nodes, cluster, networking</text>
+<text x="40" y="398" font-size="13" fill="#202124" font-weight="400" text-anchor="start">Nodes, cluster, network</text>
 <rect x="330" y="380" width="240" height="30" rx="15" fill="#e8f0fe"/>
 <text x="450" y="400" font-size="12.5" fill="#1967d2" font-weight="500" text-anchor="middle">Google</text>
 <rect x="600" y="380" width="240" height="30" rx="15" fill="#e8f0fe"/>

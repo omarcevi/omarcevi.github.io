@@ -64,7 +64,7 @@
         <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
         <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
         <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
-        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further reading</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further information</span></a></li>
       </ol>
     </aside>
 
@@ -74,23 +74,25 @@
           <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 1 · Set up</h1>
           <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-1">done</label></span>
         </div>
-        <p class="goal">Get the repo into Cloud Shell, enable the APIs, and deploy the three MCP tool servers the agent will call.</p>
+        <p class="goal">In this step, you put the repo in Cloud Shell, enable the APIs, and deploy the three MCP servers that the agent calls.</p>
         <p><span class="branch">checkpoint branch <code>step-1-setup</code></span></p>
 
         <div class="how">
           <h2>How it works</h2>
           <figure class="arch">
-            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-1-setup.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-1-setup.svg" alt="What setup.sh creates, in order: 1 enables the APIs; 2 builds one MCP server image with Cloud Build and pushes it to Artifact Registry; 3 deploys it three times to Cloud Run as hris-mcp, ticketing-mcp and compensation-mcp, with no public access; 4 registers the three servers and the Google APIs the agent uses in Agent Registry; 5 creates the logs-based metrics; 6 starts creating Agent Gateway and its IAP authorization policy in the background, ready by step 4." width="1180" height="470"></a></div>
-            <figcaption>What <code>setup.sh</code> creates. Steps 1–5 take two to four minutes; the gateway keeps building in the background.</figcaption>
+            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-1-setup.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-1-setup.svg" alt="What setup.sh creates, in this sequence. 1: It enables the APIs. 2: It builds one MCP server image with Cloud Build and puts it in Artifact Registry. 3: It deploys the image three times to Cloud Run as hris-mcp, ticketing-mcp and compensation-mcp, without public access. 4: It registers the three servers and the Google APIs that the agent uses in Agent Registry. 5: It creates the logs-based metrics. 6: It starts to create Agent Gateway and its IAP authorization policy in the background. They are ready before step 4." width="1180" height="470"></a></div>
+            <figcaption>What <code>setup.sh</code> creates. Steps 1–5 take two to four minutes. The creation of Agent Gateway continues in the background.</figcaption>
           </figure>
-          <p><strong>Tools are services with owners.</strong> The HRIS, ticketing and compensation systems are separate MCP servers (FastMCP, streamable HTTP) on Cloud Run. One image serves all three; an environment variable picks which. Each service accepts only callers with <code>roles/run.invoker</code>: there is no public URL.</p>
-          <p><strong>Read-only tools say so.</strong> Every tool carries MCP annotations such as <code>readOnlyHint</code>. Agent Registry stores them with the tool list, and gateway policies can use them later.</p>
-          <p><strong>The gateway takes time, so it starts now.</strong> Creating Agent Gateway and attaching IAP as its authorizer takes about six minutes. <code>setup.sh</code> starts it in the background; you use it in step 4.</p>
+          <p><strong>Each tool server is a service with an owner.</strong> The HRIS, ticketing and compensation systems are separate MCP servers on Cloud Run (FastMCP, streamable HTTP). One image serves all three servers. An environment variable selects the server. Each service accepts only callers with <code>roles/run.invoker</code>. No service has a public URL.</p>
+          <p><strong>Read-only tools have a label.</strong> Each tool has MCP annotations, for example <code>readOnlyHint</code>. Agent Registry keeps them with the tool list. Gateway policies can use them.</p>
+          <p><strong>Agent Gateway starts now, because it takes time.</strong> The creation of Agent Gateway and its IAP authorizer takes about six minutes. <code>setup.sh</code> starts this work in the background. You use Agent Gateway in step 4.</p>
         </div>
 
         <h2>Run</h2>
         <p class="lead"><a class="btn primary" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/cloud-agents-workshop.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Cloud Shell →</a></p>
-        <p class="lead">The button clones the repo into Cloud Shell and opens a <strong>tutorial panel</strong> with every step's commands, each with a copy button; keep this guide open for the explanations. In the <em>Open in Cloud Shell</em> dialog, tick <strong>Trust repo</strong>, then <strong>Confirm</strong>. Without it Cloud Shell runs in ephemeral mode: your files are deleted when the session ends, and Google's docs say such sessions don't get your credentials. Then click <strong>Authorize</strong> when Cloud Shell asks to use your credentials. Click the button once: every click clones another copy of the repo. Or open Cloud Shell and clone the repo yourself. Then:</p>
+        <p class="lead">The button copies the repo into Cloud Shell. It also opens a <strong>tutorial panel</strong> that shows the commands for each step, each with a copy button. Keep this guide open for the explanations.</p>
+        <p class="lead">In the <em>Open in Cloud Shell</em> dialog, select <strong>Trust repo</strong>. Then click <strong>Confirm</strong>. If you do not select Trust repo, Cloud Shell runs in ephemeral mode and deletes your files when the session ends. Google's documentation also says that these sessions do not get your credentials.</p>
+        <p class="lead">When Cloud Shell asks to use your credentials, click <strong>Authorize</strong>. Click the button only one time, because each click makes another copy of the repo. You can also open Cloud Shell and clone the repo yourself. Then run these commands:</p>
         <div class="code"><pre><span class="c"># skip the clone if you used the Open in Cloud Shell button</span>
 git clone https://github.com/omarcevi/cloud-agents-workshop.git
 cd cloud-agents-workshop
@@ -101,7 +103,7 @@ export PATH="$HOME/.local/bin:$PATH"   <span class="c"># Cloud Shell has an olde
 ./scripts/check.sh 0                 <span class="c"># tools, login, billing</span>
 ./scripts/setup.sh                   <span class="c"># APIs, MCP servers, registry (about 2 min); the gateway keeps building in the background</span></pre></div>
 
-        <h2>What you should see</h2>
+        <h2>Expected result</h2>
         <div class="out">==> Project your-project (123456789012), region europe-west1
 ==> Enabling APIs (takes a minute the first time)
 <span class="ok">  ✔</span> APIs enabled
@@ -123,22 +125,22 @@ export PATH="$HOME/.local/bin:$PATH"   <span class="c"># Cloud Shell has an olde
 <span class="ok">  ✔</span> ticketing-mcp ready, 403 without a token (IAM-only)
 <span class="ok">  ✔</span> compensation-mcp ready, 403 without a token (IAM-only)
 ==> Step 1 checks passed.</div>
-        <p>The 403 without a token is the point: nothing on Cloud Run is open to the internet.</p>
+        <p>The 403 response without a token is correct. No service on Cloud Run is open to the internet.</p>
 
         <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
-          <div><code>agents-cli: command not found</code>, or <code>check.sh 0</code> reports an agents-cli older than 1.11</div><div>Cloud Shell comes with an older agents-cli in <code>/usr/local/bin</code>, which wins until <code>~/.local/bin</code> is on your PATH. Run the two install lines above again in this terminal; a new Cloud Shell tab needs the <code>export</code> line too.</div>
-          <div>Billing ✘ in <code>check.sh 0</code></div><div>Link a billing account to the project in the console. No billing account? Pair with a neighbour.</div>
-          <div>Cloud Build fails with a permission error</div><div>New projects take a minute to grant the build service account its roles. Wait a minute and run <code>./scripts/setup.sh</code> again; it skips what already exists. In an organization that turns off default grants, give the Compute Engine default service account <code>roles/cloudbuild.builds.builder</code>.</div>
-          <div><code>FAILED_PRECONDITION</code> or <code>SERVICE_DISABLED</code> right after enabling APIs</div><div>API enablement takes a moment to spread. Run <code>./scripts/setup.sh</code> again.</div>
-          <div><code>.setup-gateway.log</code> ends with <code>GATEWAY FAILED</code></div><div>Read the error above it. Agent Gateway may not be available to your project yet; you can still do steps 2, 3, 5 and 6, and use <code>./scripts/fallback_step4.sh</code> in step 4.</div>
+          <div><code>agents-cli: command not found</code>, or <code>check.sh 0</code> reports an agents-cli older than 1.11</div><div>Cloud Shell has an older agents-cli in <code>/usr/local/bin</code>. Cloud Shell uses it until <code>~/.local/bin</code> is first on your PATH. Run the two install lines above again in this terminal. In a new Cloud Shell tab, also run the <code>export</code> line.</div>
+          <div>Billing ✘ in <code>check.sh 0</code></div><div>In the console, link a billing account to the project. If you do not have a billing account, work with the person next to you.</div>
+          <div>Cloud Build fails with a permission error</div><div>In a new project, Google needs about one minute to give roles to the build service account. Wait one minute. Then run <code>./scripts/setup.sh</code> again. The script does not create a resource again if it exists. If your organization does not allow default grants, give <code>roles/cloudbuild.builds.builder</code> to the Compute Engine default service account.</div>
+          <div><code>FAILED_PRECONDITION</code> or <code>SERVICE_DISABLED</code> immediately after you enable the APIs</div><div>Google needs some time to apply a new API to all its systems. Run <code>./scripts/setup.sh</code> again.</div>
+          <div><code>.setup-gateway.log</code> ends with <code>GATEWAY FAILED</code></div><div>Read the error above that line. Possibly, Agent Gateway is not available to your project yet. You can still do steps 2, 3, 5 and 6. In step 4, use <code>./scripts/fallback_step4.sh</code>.</div>
         </div></div></details>
 
         <aside class="customer">
-          <span class="lbl">Taking this to a customer</span>
+          <span class="lbl">Take this to a customer</span>
           <ul>
-            <li><strong>Ask the platform team first:</strong> which region (data residency), which project the agents live in, and which organization policies apply. Two that block this lab: <code>iam.allowedPolicyMemberDomains</code> can reject <code>principal://</code> members, and <code>iam.managed.disableAccessPolicyBindings</code> (on by default in new organizations) blocks the gateway's access policy.</li>
-            <li><strong>Tools have owners.</strong> The HRIS team owns the HRIS MCP server, its IAM and its tool annotations. Agree on who registers servers in Agent Registry and who may grant <code>run.invoker</code>.</li>
-            <li><strong>Cost:</strong> Cloud Run with min instances 0 costs nothing while idle; one image build is a few cents of Cloud Build time.</li>
+            <li><strong>Talk to the platform team first.</strong> Ask which region you must use (data residency), which project contains the agents, and which organization policies apply. Two organization policies can stop this lab. <code>iam.allowedPolicyMemberDomains</code> can refuse <code>principal://</code> members. <code>iam.managed.disableAccessPolicyBindings</code> stops the access policy of the gateway, and it is on by default in new organizations.</li>
+            <li><strong>Tools have owners.</strong> The HRIS team owns the HRIS MCP server, its IAM and its tool annotations. Agree who registers servers in Agent Registry and who can grant <code>run.invoker</code>.</li>
+            <li><strong>Cost:</strong> Cloud Run with min instances 0 costs nothing when it gets no requests. One image build costs a few cents of Cloud Build time.</li>
           </ul>
         </aside>
       </section>

@@ -31,7 +31,7 @@ PAGES = [
     ("runtimes", "Runtime choice", "Agent Runtime, Cloud Run or GKE", None, "When to use each runtime for agents."),
     ("production", "Production checklist", "Production readiness checklist", None, "What to settle before an agent goes live at a customer."),
     ("teardown", "Teardown", "Teardown", None, "Delete everything the lab created."),
-    ("reading", "Further reading", "Further reading", None, "Official documentation for every product used in the lab."),
+    ("reading", "Further information", "Further information", None, "Official documentation for every product used in the lab."),
 ]
 
 HEAD = """<!doctype html>

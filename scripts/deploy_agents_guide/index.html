@@ -1,7 +1,7 @@
       <header class="hero" id="overview">
         <p class="kicker">Workshop · Google Cloud Day Türkiye, Builder Connect · Tue 27 Oct 2026 · Omar Elcircevi</p>
         <h1>Deploying Your Agents on Google Cloud</h1>
-        <p class="tagline">In about 40 minutes you take a multi-agent HR and IT assistant from a repo to production shape: Agent Runtime with its own Agent Identity, Memory Bank, Agent Gateway in front of every tool call, a trace for every turn, and evals that gate deploys.</p>
+        <p class="tagline">In about 40 minutes, you move a multi-agent HR and IT assistant from a repo to a production setup. The agent runs on Agent Runtime with its own Agent Identity and uses Memory Bank. Agent Gateway checks each tool call, each turn makes a trace, and an eval gate controls each deploy.</p>
         <div class="actions">
           <a class="btn primary" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo={{REPO}}.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Cloud Shell →</a>
           <a class="btn" href="{{REPO}}">Code on GitHub</a>
@@ -10,48 +10,48 @@
       </header>
 
       <figure class="arch">
-        <div class="arch-frame"><a href="{{BASE}}diagrams/architecture.svg" title="Open full size"><img src="{{BASE}}diagrams/architecture.svg" alt="Workplace Assistant architecture. Employees reach the workplace-assistant agent on Agent Runtime through Gemini Enterprise, agents-cli or Cloud Shell (1). The agent has Sessions, Memory Bank and its own Agent Identity. Every outbound call goes to Agent Gateway (2), where IAP checks the access policy for the agent's identity against Agent Registry (3). Allowed calls reach the HRIS and ticketing MCP servers on Cloud Run, Gemini, and optionally Google Calendar with the employee's own OAuth (4); calls to the compensation MCP server are denied. Spans, logs and metrics go to Cloud Trace, Cloud Logging and Cloud Monitoring, where an Online Monitor scores live traces (5)." width="1280" height="800"></a></div>
-        <figcaption>What each participant deploys into their own project. Tap to open full size.</figcaption>
+        <div class="arch-frame"><a href="{{BASE}}diagrams/architecture.svg" title="Open full size"><img src="{{BASE}}diagrams/architecture.svg" alt="Workplace Assistant architecture. (1) Employees send requests to the workplace-assistant agent on Agent Runtime through Gemini Enterprise, agents-cli or Cloud Shell. The agent has sessions, Memory Bank and its own Agent Identity. (2) Agent Gateway receives each outbound call. (3) IAP compares the call with the access policy for the agent identity and with Agent Registry. (4) Allowed calls go to the HRIS and ticketing MCP servers on Cloud Run and to Gemini. Optionally, they also go to Google Calendar with the OAuth token of the employee. Agent Gateway refuses calls to the compensation MCP server. (5) Spans, logs and metrics go to Cloud Trace, Cloud Logging and Cloud Monitoring. An Online Monitor gives scores to live traces." width="1280" height="800"></a></div>
+        <figcaption>What each participant deploys in their own project. Click or tap the diagram to see it at full size.</figcaption>
       </figure>
 
       <section>
         <h2>What you build</h2>
-        <p><strong>Workplace Assistant</strong> is one front door for HR and IT at <em>Kuzey Labs</em>, a fictional company. All employees, salaries, tickets and handbook pages are made up.</p>
+        <p><strong>Workplace Assistant</strong> is one entry point for HR and IT questions at <em>Kuzey Labs</em>, a fictional company. All the employees, salaries, tickets and handbook pages are fictional.</p>
         <figure class="arch" id="agents">
-          <div class="arch-frame"><a href="{{BASE}}diagrams/agents.svg" title="Open full size"><img src="{{BASE}}diagrams/agents.svg" loading="lazy" alt="Agent architecture. The concierge routes each request with transfer_to_agent to one of three specialists: hr_policy_agent (handbook_search and the compensation MCP server's get_salary_band), leave_agent (HRIS MCP server and an optional create_calendar_event tool using Auth Manager 3-legged OAuth) and it_desk_agent (ticketing MCP server and handbook_search). Every agent preloads the employee's memories; a MemoryBankPlugin saves every turn." width="1180" height="470"></a></div>
-          <figcaption>Inside the app: which agent answers what, and the tools each one may call.</figcaption>
+          <div class="arch-frame"><a href="{{BASE}}diagrams/agents.svg" title="Open full size"><img src="{{BASE}}diagrams/agents.svg" loading="lazy" alt="Agent architecture. The concierge sends each request with transfer_to_agent to one of three specialist agents. hr_policy_agent uses handbook_search and get_salary_band from the compensation MCP server. leave_agent uses the HRIS MCP server and an optional create_calendar_event tool with 3-legged OAuth from Auth Manager. it_desk_agent uses the ticketing MCP server and handbook_search. Each agent loads the memories of the employee before it answers. A MemoryBankPlugin saves each turn." width="1180" height="470"></a></div>
+          <figcaption>The agents in the app: which agent answers which request, and the tools that each agent can call.</figcaption>
         </figure>
         <ul class="plain">
-          <li><strong>concierge</strong> routes, handles small talk, and refuses anything outside HR and IT.</li>
-          <li><strong>hr_policy_agent</strong> answers from the handbook (in-process BM25 over six markdown files) and looks up published salary bands.</li>
-          <li><strong>leave_agent</strong> reads balances and books leave in the HRIS (an MCP server), and can add leave to the employee's own Google Calendar.</li>
-          <li><strong>it_desk_agent</strong> opens and tracks tickets in the ticketing MCP server.</li>
-          <li>A third MCP server, <strong>compensation</strong>, holds individual salaries. The agent's code can reach it. In step 4 a policy stops it.</li>
+          <li><strong>concierge</strong> sends each request to the correct specialist agent. It answers greetings and general questions, and it refuses all requests outside HR and IT.</li>
+          <li><strong>hr_policy_agent</strong> answers questions with text from the handbook (in-process BM25 search in six Markdown files). It also finds the published salary bands.</li>
+          <li><strong>leave_agent</strong> reads leave balances and books leave in the HRIS, which is an MCP server. It can also add the leave to the Google Calendar of the employee.</li>
+          <li><strong>it_desk_agent</strong> opens tickets in the ticketing MCP server and gives their status.</li>
+          <li>A third MCP server, <strong>compensation</strong>, contains individual salaries. The code of the agent can call it. In step 4, a policy stops these calls.</li>
         </ul>
       </section>
 
       <section>
         <h2>Before you start</h2>
         <ul class="plain">
-          <li>A <strong>Google Cloud project with billing enabled</strong>, where you are Owner (the lab grants IAM roles and binds an access policy). A fresh project is easiest.</li>
-          <li>A browser. Everything runs in <strong>Cloud Shell</strong>, which already has <code>gcloud</code>, <code>uv</code>, <code>git</code> and Python.</li>
-          <li><strong>agents-cli 1.11 or later</strong>: <code>uv tool install --force "google-agents-cli>=1.11"</code> (step 1 does this; Cloud Shell's preinstalled agents-cli is older).</li>
-          <li>Region <strong>europe-west1</strong>. Every product in the lab is available there; the model runs on the <code>global</code> endpoint (step 2 explains why).</li>
-          <li>Cost: about <strong>USD 1</strong> per participant, mostly Gemini tokens. Run the teardown at the end.</li>
+          <li>A <strong>Google Cloud project with billing enabled</strong>. You must have the Owner role, because the lab grants IAM roles and binds an access policy. A new project is the easiest option.</li>
+          <li>A browser. All the commands run in <strong>Cloud Shell</strong>, which already has <code>gcloud</code>, <code>uv</code>, <code>git</code> and Python.</li>
+          <li><strong>agents-cli 1.11 or later</strong>: <code>uv tool install --force "google-agents-cli>=1.11"</code>. Step 1 installs it, because the agents-cli in Cloud Shell is an older version.</li>
+          <li>The <strong>europe-west1</strong> region. All the products in the lab are available there. The model runs on the <code>global</code> endpoint, and step 2 tells you why.</li>
+          <li>Cost: about <strong>USD 1</strong> for each participant, mostly for Gemini tokens. Run the teardown at the end.</li>
         </ul>
-        <div class="warnbox"><b>PREVIEW FEATURES</b>Semantic governance policies and Agent Identity on Cloud Run are Preview. The lab's main path uses only generally available features. Steps 4 and 6 each have a fallback script in case a feature is not available in your project.</div>
+        <div class="warnbox"><b>PREVIEW FEATURES</b>Semantic governance policies and Agent Identity on Cloud Run are Preview features. The main path of the lab uses only generally available features. Steps 4 and 6 each have a fallback script. If a feature is not available in your project, use the fallback script.</div>
       </section>
 
       <section>
         <h2>The six steps</h2>
-        <p>Each step has the same shape: <strong>how it works</strong> (one diagram), <strong>commands</strong> to paste, the <strong>output</strong> you should see, a <strong>check</strong> (<code>./scripts/check.sh N</code>), <strong>if this fails</strong>, and a box on <strong>taking this to a customer</strong>.</p>
+        <p>Each step has the same parts. It starts with <strong>how it works</strong> (one diagram), the <strong>commands</strong> to paste and the <strong>output</strong> that you get. It ends with a <strong>check</strong> (<code>./scripts/check.sh N</code>), <strong>if this fails</strong>, and a box with the title <strong>Take this to a customer</strong>.</p>
         <ul class="steps-grid">
-          <li><a href="{{BASE}}step-1/"><span class="num">STEP 1 · 5 MIN</span><b>Set up</b><span class="d">APIs, three MCP servers on Cloud Run, Agent Registry, and the gateway building in the background.</span></a></li>
-          <li><a href="{{BASE}}step-2/"><span class="num">STEP 2 · 8 MIN</span><b>Deploy</b><span class="d"><code>agents-cli deploy</code> to Agent Runtime with Agent Identity; chat with it.</span></a></li>
-          <li><a href="{{BASE}}step-3/"><span class="num">STEP 3 · 6 MIN</span><b>Remember</b><span class="d">Tell it your team once; see Memory Bank recall it in a new session.</span></a></li>
-          <li><a href="{{BASE}}step-4/"><span class="num">STEP 4 · 8 MIN</span><b>Secure</b><span class="d">Bind Agent Gateway; watch a salary lookup get denied by policy while HRIS keeps working.</span></a></li>
-          <li><a href="{{BASE}}step-5/"><span class="num">STEP 5 · 5 MIN</span><b>Observe</b><span class="d">One leave request as a trace; the dashboard with blocked calls.</span></a></li>
-          <li><a href="{{BASE}}step-6/"><span class="num">STEP 6 · 7 MIN</span><b>Evaluate</b><span class="d">Eval gate, scoring live traffic, the managed Online Monitor, and a production failure turned into a test.</span></a></li>
+          <li><a href="{{BASE}}step-1/"><span class="num">STEP 1 · 5 MIN</span><b>Set up</b><span class="d">APIs, three MCP servers on Cloud Run, Agent Registry, and the start of Agent Gateway in the background.</span></a></li>
+          <li><a href="{{BASE}}step-2/"><span class="num">STEP 2 · 8 MIN</span><b>Deploy</b><span class="d"><code>agents-cli deploy</code> to Agent Runtime with Agent Identity. Then ask the agent questions.</span></a></li>
+          <li><a href="{{BASE}}step-3/"><span class="num">STEP 3 · 6 MIN</span><b>Remember</b><span class="d">Tell the agent your team one time. Memory Bank recalls it in a new session.</span></a></li>
+          <li><a href="{{BASE}}step-4/"><span class="num">STEP 4 · 8 MIN</span><b>Secure</b><span class="d">Bind Agent Gateway. A policy refuses a salary request, and the HRIS continues to work.</span></a></li>
+          <li><a href="{{BASE}}step-5/"><span class="num">STEP 5 · 5 MIN</span><b>Observe</b><span class="d">See one leave request as a trace, and a dashboard that shows blocked calls.</span></a></li>
+          <li><a href="{{BASE}}step-6/"><span class="num">STEP 6 · 7 MIN</span><b>Evaluate</b><span class="d">The eval gate, scores for live traffic, the managed Online Monitor, and a production failure that becomes a test.</span></a></li>
         </ul>
         <h3>Agenda (60-minute session)</h3>
         <ol class="agenda">
@@ -66,10 +66,10 @@
 
       <section>
         <h2>How the lab works</h2>
-        <p><strong>Checkpoint branches.</strong> <code>step-0-start</code> … <code>step-6-evaluate</code> hold the repo as it should look after each step. If you join late or your copy breaks, check out the branch for the step you finished and continue; <code>./scripts/check.sh</code> with no argument checks that step.</p>
+        <p><strong>Checkpoint branches.</strong> The branches <code>step-0-start</code> … <code>step-6-evaluate</code> contain the repo as it is after each step. If you join late or your copy does not work, change to the branch of the last step that you completed. Then continue. <code>./scripts/check.sh</code> without an argument checks the step of that branch.</p>
         <div class="code"><pre>git fetch origin
 git checkout step-3-remember   <span class="c"># state after step 3</span>
 ./scripts/check.sh             <span class="c"># checks step 3</span></pre></div>
-        <p><strong>Your cloud resources are what count.</strong> The branches only change files in the repo. If an earlier step never ran in your project, run its commands first; every script is safe to run again.</p>
-        <p><strong>Two terminal tabs help.</strong> Deploys take a few minutes; start one in tab 2 and keep reading in tab 1.</p>
+        <p><strong>The branches change only files.</strong> They do not change your cloud resources. If you did not do an earlier step in your project, run its commands first. You can safely run each script again.</p>
+        <p><strong>Use two terminal tabs.</strong> A deploy takes a few minutes. Start the deploy in tab 2, and continue to read in tab 1.</p>
       </section>
