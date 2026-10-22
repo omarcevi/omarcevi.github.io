@@ -254,20 +254,19 @@ def secure() -> Diagram:
 
 def observe() -> Diagram:
     d = Diagram(1180, 520, "Step 5: one leave request as a trace, and where telemetry lands")
-    d.zone(20, 20, 760, 480, "Cloud Trace · one turn (“Book next Friday off”)", "cloud", icon="trace")
+    d.zone(20, 20, 760, 480, "Cloud Trace · one turn (“Book next Monday off as a half day…”)", "cloud", icon="trace")
     rows = [
-        ("invoke_workflow concierge", 0.0, 17.2, 0, BLUE),
-        ("invoke_agent concierge", 0.05, 2.7, 1, BLUE),
-        ("call_llm → generate_content", 0.1, 2.5, 2, "#7baaf7"),
-        ("execute_tool transfer_to_agent", 2.6, 0.05, 2, MUTED),
-        ("invoke_agent leave_agent", 2.7, 14.4, 1, BLUE),
-        ("MCP initialize / tools/list", 2.75, 0.9, 2, "#9aa0a6"),
-        ("call_llm → generate_content", 3.7, 3.1, 2, "#7baaf7"),
-        ("execute_tool get_my_profile", 6.9, 0.2, 2, GREEN),
-        ("execute_tool handbook_search", 6.9, 0.05, 2, GREEN),
-        ("call_llm → generate_content", 7.2, 4.0, 2, "#7baaf7"),
-        ("execute_tool submit_leave_request", 11.3, 0.15, 2, GREEN),
-        ("call_llm → generate_content", 11.5, 5.6, 2, "#7baaf7"),
+        ("invoke_workflow concierge", 0.0, 12.9, 0, BLUE),
+        ("invoke_agent concierge", 0.05, 2.1, 1, BLUE),
+        ("call_llm → generate_content", 0.1, 1.9, 2, "#7baaf7"),
+        ("execute_tool transfer_to_agent", 2.0, 0.05, 2, MUTED),
+        ("invoke_agent leave_agent", 2.1, 10.8, 1, BLUE),
+        ("MCP tools/list", 2.19, 0.16, 2, "#9aa0a6"),
+        ("call_llm → generate_content", 2.6, 3.1, 2, "#7baaf7"),
+        ("execute_tool get_leave_balance", 5.45, 0.13, 2, GREEN),
+        ("call_llm → generate_content", 6.0, 4.0, 2, "#7baaf7"),
+        ("execute_tool submit_leave_request", 9.75, 0.13, 2, GREEN),
+        ("call_llm → generate_content", 10.2, 2.7, 2, "#7baaf7"),
     ]
     x0, scale, y = 300, 26.0, 70
     for name, start, length, depth, color in rows:
@@ -292,26 +291,31 @@ def observe() -> Diagram:
 
 
 def evaluate() -> Diagram:
-    d = Diagram(1180, 470, "Step 6: the evaluation loop")
-    d.zone(20, 20, 1140, 430, "Quality loop", "cloud")
+    d = Diagram(1180, 560, "Step 6: the evaluation loop")
+    d.zone(20, 20, 1140, 520, "Quality loop", "cloud")
     d.card("set", 60, 80, "Eval set", "evals/cases.yaml → datasets", glyph="doc", w=230)
     d.card("run", 360, 80, "agents-cli eval run", "+ evals/gate.py thresholds", glyph="terminal", w=240, accent=BLUE)
     d.card("dep", 680, 80, "Deploy", "only if the gate passes", icon="vertexai", w=200)
-    d.card("prod", 920, 80, "Production traffic", "Agent Runtime traces", icon="trace", w=210)
-    d.card("om", 920, 260, "Online Monitor", "scores sampled traces", icon="vertexai", w=210, sub2="every ~10 minutes")
-    d.card("fail", 560, 260, "Low score or bad session", "find it in Trace / console", icon="cloud_logging", w=280)
-    d.card("case", 60, 260, "New eval case", "session_to_eval_case.py", glyph="doc", w=230)
+    d.card("prod", 920, 80, "Production traffic", "Agent Runtime sessions", icon="trace", w=210)
+    d.card("live", 920, 250, "score_live.sh", "your LLM judges, every turn", glyph="terminal", w=210, accent=BLUE,
+           sub2="on demand or scheduled")
+    d.card("om", 920, 390, "Online Monitor", "managed, every ~10 minutes", icon="vertexai", w=210,
+           sub2="skips multi-agent turns")
+    d.card("fail", 560, 250, "Low score or bad session", "find it in Trace / console", icon="cloud_logging", w=280)
+    d.card("case", 60, 250, "New eval case", "session_to_eval_case.py", glyph="doc", w=230)
     d.edge("set", "run", "r", "l", num=1)
     d.edge("run", "dep", "r", "l", num=2, label="pass")
     d.edge("dep", "prod", "r", "l", num=3)
-    d.edge("prod", "om", "b", "t", num=4)
-    d.edge("om", "fail", "l", "r", num=5)
+    d.edge("prod", "live", "b", "t", num=4)
+    d.edge("live", "fail", "l", "r", num=5)
     d.edge("fail", "case", "l", "r", num=6)
     d.edge("case", "set", "t", "b", num=7)
-    d.text(60, 380, "Lab metrics: routed_to_expected_agent · tool_trajectory (right tool and arguments) · "
-                    "no_compensation_leak (refuses salary questions)", 12.5, INK)
-    d.text(60, 402, "· grounding (answers grounded in the handbook, LLM judge). agents-cli exits 0 whatever the scores;"
-                    " the gate script decides.", 12.5, INK)
+    d.edge("om", "fail", "l", "b", dashed=True, label="when it can score", via=[(700, 425)])
+    d.text(60, 410, "Gate metrics: routed_to_expected_agent · tool_trajectory (right tool and arguments) · "
+                    "no_compensation_leak", 12.5, INK)
+    d.text(60, 432, "· grounding (LLM judge). agents-cli exits 0 whatever the scores; the gate script decides.", 12.5, INK)
+    d.text(60, 466, "Live metrics: grounded · resolved · tool_use (LLM judges on Gemini 3.5 Flash) · no_compensation_leak",
+           12.5, INK)
     return d
 
 

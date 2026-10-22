@@ -3,34 +3,32 @@
 <rect width="1180" height="520" fill="#fff"/>
 <rect x="20" y="20" width="760" height="480" rx="10" fill="#f8f9fa" stroke="#dadce0" stroke-width="1.2"/>
 <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNHB4IiBoZWlnaHQ9IjI0cHgiIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGRlZnM+PHN0eWxlPi5jbHMtMXtmaWxsOm5vbmU7fS5jbHMtMntmaWxsOiM0Mjg1ZjQ7fS5jbHMtM3tmaWxsOiM2NjlkZjY7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT5JY29uXzI0cHhfVHJhY2VfQ29sb3I8L3RpdGxlPjxnIGRhdGEtbmFtZT0iUHJvZHVjdCBJY29ucyI+PGcgZGF0YS1uYW1lPSJjb2xvcmVkLTMyL3RyYWNlcyI+PHJlY3QgY2xhc3M9ImNscy0xIiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiLz48ZyA+PHBvbHlnb24gaWQ9IkZpbGwtMSIgY2xhc3M9ImNscy0yIiBwb2ludHM9IjEyIDE0IDIyIDE0IDIyIDEwIDEyIDEwIDEyIDE0Ii8+PC9nPjxnIGRhdGEtbmFtZT0iU2hhcGUiPjxwb2x5Z29uIGlkPSJGaWxsLTEtMiIgZGF0YS1uYW1lPSJGaWxsLTEiIGNsYXNzPSJjbHMtMiIgcG9pbnRzPSIxMiAyMiAyMiAyMiAyMiAxOCAxMiAxOCAxMiAyMiIvPjwvZz48ZyBkYXRhLW5hbWU9IlNoYXBlIj48cG9seWdvbiBpZD0iRmlsbC0xLTMiIGRhdGEtbmFtZT0iRmlsbC0xIiBjbGFzcz0iY2xzLTMiIHBvaW50cz0iOCAyMiAxMiAyMiAxMiAxOCA4IDE4IDggMjIiLz48L2c+PC9nPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iMiIgeT0iMiIgd2lkdGg9IjYiIGhlaWdodD0iNCIvPjxyZWN0IGNsYXNzPSJjbHMtMyIgeD0iMiIgeT0iMTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSI0Ii8+PC9nPjwvc3ZnPg==" x="32" y="29" width="18" height="18"/>
-<text x="56" y="43" font-size="12.5" fill="#5f6368" font-weight="500" letter-spacing=".02em">Cloud Trace · one turn (“Book next Friday off”)</text>
+<text x="56" y="43" font-size="12.5" fill="#5f6368" font-weight="500" letter-spacing=".02em">Cloud Trace · one turn (“Book next Monday off as a half day…”)</text>
 <rect x="810" y="20" width="350" height="480" rx="10" fill="#ffffff" stroke="#bdc1c6" stroke-width="1.2"/>
 <image href="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0ic3RhbmRhcmRfcHJvZHVjdF9pY29uIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZlcnNpb249IjEuMSIgdmlld0JveD0iMCAwIDUxMiA1MTIiPgogIDwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyOS4xLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiAyLjEuMCBCdWlsZCAxNDIpICAtLT4KICA8ZyBpZD0iYm91bmRpbmdfYm94Ij4KICAgIDxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiBmaWxsPSJub25lIi8+CiAgPC9nPgogIDxnIGlkPSJhcnQiPgogICAgPHBhdGggZD0iTTQyNi41LDQ1OC41SDg1LjVjLTE3LjY3MywwLTMyLTE0LjMyNy0zMi0zMlY4NS41YzAtMTcuNjczLDE0LjMyNy0zMiwzMi0zMmgzNDFjMTcuNjczLDAsMzIsMTQuMzI3LDMyLDMydjM0MWMwLDE3LjY3My0xNC4zMjcsMzItMzIsMzJaTTg1LjUsNDI2LjVoMzQxVjg1LjVIODUuNXYzNDFaIiBmaWxsPSIjNDI4NWY0Ii8+CiAgICA8cGF0aCBkPSJNMTY2LDM2NWMtOC44MzcsMC0xNi03LjE2My0xNi0xNnYtMTMxYzAtOC44MzcsNy4xNjMtMTYsMTYtMTZzMTYsNy4xNjMsMTYsMTZ2MTMxYzAsOC44MzctNy4xNjMsMTYtMTYsMTZaIiBmaWxsPSIjOWFhMGE2Ii8+CiAgICA8cGF0aCBkPSJNMzQ2LDM2NWMtOC44MzcsMC0xNi03LjE2My0xNi0xNnYtNTZjMC04LjgzNyw3LjE2My0xNiwxNi0xNnMxNiw3LjE2MywxNiwxNnY1NmMwLDguODM3LTcuMTYzLDE2LTE2LDE2WiIgZmlsbD0iIzlhYTBhNiIvPgogICAgPHBhdGggZD0iTTI1NiwzNjVjLTguODM3LDAtMTYtNy4xNjMtMTYtMTZ2LTE4N2MwLTguODM3LDcuMTYzLTE2LDE2LTE2czE2LDcuMTYzLDE2LDE2djE4N2MwLDguODM3LTcuMTYzLDE2LTE2LDE2WiIgZmlsbD0iIzQyODVmNCIvPgogICAgPHBhdGggZD0iTTQyNi41LDQ1OC41SDg1LjQ5M2MtMTcuNjczLDAtMzItMTQuMzI3LTMyLTMyaDM3My4wMDdWODUuNWgzMnYzNDFjMCwxNy42NzMtMTQuMzI3LDMyLTMyLDMyWiIgZmlsbD0iIzlhYTBhNiIvPgogIDwvZz4KPC9zdmc+" x="822" y="29" width="18" height="18"/>
 <text x="846" y="43" font-size="12.5" fill="#5f6368" font-weight="500" letter-spacing=".02em">Where it lands</text>
 <text x="40" y="82" font-size="12" fill="#202124" font-weight="400" text-anchor="start">invoke_workflow concierge</text>
-<rect x="300.0" y="70" width="447.2" height="16" rx="3" fill="#1a73e8"/>
+<rect x="300.0" y="70" width="335.4" height="16" rx="3" fill="#1a73e8"/>
 <text x="54" y="112" font-size="12" fill="#202124" font-weight="400" text-anchor="start">invoke_agent concierge</text>
-<rect x="301.3" y="100" width="70.2" height="16" rx="3" fill="#1a73e8"/>
+<rect x="301.3" y="100" width="54.6" height="16" rx="3" fill="#1a73e8"/>
 <text x="68" y="142" font-size="12" fill="#202124" font-weight="400" text-anchor="start">call_llm → generate_content</text>
-<rect x="302.6" y="130" width="65.0" height="16" rx="3" fill="#7baaf7"/>
+<rect x="302.6" y="130" width="49.4" height="16" rx="3" fill="#7baaf7"/>
 <text x="68" y="172" font-size="12" fill="#202124" font-weight="400" text-anchor="start">execute_tool transfer_to_agent</text>
-<rect x="367.6" y="160" width="3.0" height="16" rx="3" fill="#5f6368"/>
+<rect x="352.0" y="160" width="3.0" height="16" rx="3" fill="#5f6368"/>
 <text x="54" y="202" font-size="12" fill="#202124" font-weight="400" text-anchor="start">invoke_agent leave_agent</text>
-<rect x="370.2" y="190" width="374.4" height="16" rx="3" fill="#1a73e8"/>
-<text x="68" y="232" font-size="12" fill="#202124" font-weight="400" text-anchor="start">MCP initialize / tools/list</text>
-<rect x="371.5" y="220" width="23.4" height="16" rx="3" fill="#9aa0a6"/>
+<rect x="354.6" y="190" width="280.8" height="16" rx="3" fill="#1a73e8"/>
+<text x="68" y="232" font-size="12" fill="#202124" font-weight="400" text-anchor="start">MCP tools/list</text>
+<rect x="356.9" y="220" width="4.2" height="16" rx="3" fill="#9aa0a6"/>
 <text x="68" y="262" font-size="12" fill="#202124" font-weight="400" text-anchor="start">call_llm → generate_content</text>
-<rect x="396.2" y="250" width="80.6" height="16" rx="3" fill="#7baaf7"/>
-<text x="68" y="292" font-size="12" fill="#202124" font-weight="400" text-anchor="start">execute_tool get_my_profile</text>
-<rect x="479.4" y="280" width="5.2" height="16" rx="3" fill="#188038"/>
-<text x="68" y="322" font-size="12" fill="#202124" font-weight="400" text-anchor="start">execute_tool handbook_search</text>
-<rect x="479.4" y="310" width="3.0" height="16" rx="3" fill="#188038"/>
-<text x="68" y="352" font-size="12" fill="#202124" font-weight="400" text-anchor="start">call_llm → generate_content</text>
-<rect x="487.2" y="340" width="104.0" height="16" rx="3" fill="#7baaf7"/>
-<text x="68" y="382" font-size="12" fill="#202124" font-weight="400" text-anchor="start">execute_tool submit_leave_request</text>
-<rect x="593.8" y="370" width="3.9" height="16" rx="3" fill="#188038"/>
-<text x="68" y="412" font-size="12" fill="#202124" font-weight="400" text-anchor="start">call_llm → generate_content</text>
-<rect x="599.0" y="400" width="145.6" height="16" rx="3" fill="#7baaf7"/>
+<rect x="367.6" y="250" width="80.6" height="16" rx="3" fill="#7baaf7"/>
+<text x="68" y="292" font-size="12" fill="#202124" font-weight="400" text-anchor="start">execute_tool get_leave_balance</text>
+<rect x="441.7" y="280" width="3.4" height="16" rx="3" fill="#188038"/>
+<text x="68" y="322" font-size="12" fill="#202124" font-weight="400" text-anchor="start">call_llm → generate_content</text>
+<rect x="456.0" y="310" width="104.0" height="16" rx="3" fill="#7baaf7"/>
+<text x="68" y="352" font-size="12" fill="#202124" font-weight="400" text-anchor="start">execute_tool submit_leave_request</text>
+<rect x="553.5" y="340" width="3.4" height="16" rx="3" fill="#188038"/>
+<text x="68" y="382" font-size="12" fill="#202124" font-weight="400" text-anchor="start">call_llm → generate_content</text>
+<rect x="565.2" y="370" width="70.2" height="16" rx="3" fill="#7baaf7"/>
 <text x="300.0" y="450" font-size="11" fill="#5f6368" font-weight="400" text-anchor="middle">0s</text>
 <text x="378.0" y="450" font-size="11" fill="#5f6368" font-weight="400" text-anchor="middle">3s</text>
 <text x="456.0" y="450" font-size="11" fill="#5f6368" font-weight="400" text-anchor="middle">6s</text>
