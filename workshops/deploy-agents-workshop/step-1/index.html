@@ -98,7 +98,7 @@ gcloud config set project YOUR_PROJECT_ID
 uv tool install --force "google-agents-cli>=1.11"
 export PATH="$HOME/.local/bin:$PATH"   <span class="c"># Cloud Shell has an older agents-cli in /usr/local/bin</span>
 ./scripts/check.sh 0                 <span class="c"># tools, login, billing</span>
-./scripts/setup.sh                   <span class="c"># APIs, MCP servers, registry, gateway (2–4 min)</span></pre></div>
+./scripts/setup.sh                   <span class="c"># APIs, MCP servers, registry (about 2 min); the gateway keeps building in the background</span></pre></div>
 
         <h2>What you should see</h2>
         <div class="out">==> Project your-project (123456789012), region europe-west1
@@ -114,13 +114,13 @@ export PATH="$HOME/.local/bin:$PATH"   <span class="c"># Cloud Shell has an olde
 ...
 ==> Agent Gateway workplace-gw (background, about 6 minutes)
 <span class="ok">  ✔</span> started; follow it with: tail -f .setup-gateway.log
-==> Setup finished in 154s. Next: ./scripts/check.sh 1</div>
+==> Setup finished in 111s. Next: ./scripts/check.sh 1</div>
 
         <h2>Check</h2>
         <div class="code"><pre>./scripts/check.sh 1</pre></div>
-        <div class="out"><span class="ok">  ✔</span> hris-mcp ready, /health 200 with a token, 403 without
-<span class="ok">  ✔</span> ticketing-mcp ready, /health 200 with a token, 403 without
-<span class="ok">  ✔</span> compensation-mcp ready, /health 200 with a token, 403 without
+        <div class="out"><span class="ok">  ✔</span> hris-mcp ready, 403 without a token (IAM-only)
+<span class="ok">  ✔</span> ticketing-mcp ready, 403 without a token (IAM-only)
+<span class="ok">  ✔</span> compensation-mcp ready, 403 without a token (IAM-only)
 ==> Step 1 checks passed.</div>
         <p>The 403 without a token is the point: nothing on Cloud Run is open to the internet.</p>
 

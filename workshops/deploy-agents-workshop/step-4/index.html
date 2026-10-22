@@ -136,6 +136,7 @@ so I can't look up that salary band. Your People Partner can share the published
         <div class="code"><pre>./scripts/fallback_step4.sh
 agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 in Istanbul?"
 ./scripts/check.sh 4             <span class="c"># the log reason is permission_denied instead</span></pre></div>
+        <p>Removing an IAM grant takes one to three minutes to apply. If the salary band still comes back, wait a minute and ask again.</p>
 
         <h3>Optional: the employee's own Calendar (3-legged OAuth)</h3>
         <p>An instructor demo, since it needs an OAuth client and a consent screen. Outline:</p>
