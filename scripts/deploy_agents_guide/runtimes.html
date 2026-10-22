@@ -16,14 +16,14 @@
           <tr><td>Use it when</td><td>You want the platform to operate the agent. This is the default.</td><td>You need a custom server, sidecars, WebSockets or control of VPC egress.</td><td>You already use GKE, or you need GPUs, a service mesh or other clouds.</td></tr>
         </table></div>
 
-        <h2 style="margin-top:2rem">Same code, other targets</h2>
+        <h2>Same code, other targets</h2>
         <p>agents-cli adds the other targets to a project that you already have. The <code>alt/cloud-run</code> branch of the repo contains the agent of this lab after these commands:</p>
         <div class="code"><pre>agents-cli scaffold enhance . --deployment-target cloud_run
 agents-cli deploy                 <span class="c"># runs gcloud run deploy with the generated settings</span></pre></div>
         <p>For GKE, <code>--deployment-target gke</code> adds Kubernetes manifests and Terraform for a cluster. Then <code>agents-cli deploy</code> builds the image, applies Terraform and runs <code>kubectl apply</code>. Keep sessions and memory in Agent Platform, so that the pods keep no state. Use Workload Identity for the pods.</p>
         <p>The MCP servers of this lab already run on Cloud Run. Tools that other teams own usually go there too, next to the agent runtime and not in it.</p>
 
-        <h2 style="margin-top:2rem">Departments as separate agents (A2A)</h2>
+        <h2>Departments as separate agents (A2A)</h2>
         <p>The lab deploys one app with four agents. If each department owns its agent, deploy each agent to its own Agent Runtime instance. Then let the concierge find the agents. The <code>alt/multi-agent-a2a</code> branch of the repo is a tested proof of concept (refer to <code>docs/A2A.md</code> in that branch):</p>
         <ul class="plain">
           <li><strong>Discovery.</strong> Each Agent Runtime deployment adds itself to Agent Registry. When the concierge starts, it reads the list of agents in the registry. It gets the A2A card of each agent and adds the agent as a <code>RemoteA2aAgent</code>. You do not configure a URL.</li>

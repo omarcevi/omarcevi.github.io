@@ -139,7 +139,7 @@ def build() -> None:
     for i, (slug, short, title, _minutes, desc) in enumerate(PAGES):
         body = (SRC / f"{slug or 'index'}.html").read_text(encoding="utf-8")
         url = BASE + (slug + "/" if slug else "")
-        crumb = f' / <span class="here">{html.escape(short)}</span>' if slug else ""
+        crumb = f'<span class="cur"> / <span class="here">{html.escape(short)}</span></span>' if slug else ""
         page = (
             HEAD.format(title=html.escape(title), desc=html.escape(desc), url=url, base=BASE, repo=REPO, crumb=crumb,
                         toc=toc(slug))
