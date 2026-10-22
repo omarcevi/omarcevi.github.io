@@ -10,8 +10,6 @@ from pathlib import Path
 from gcp_diagram import AMBER, BLUE, GREEN, INK, MUTED, RED, Diagram
 
 OUT = Path(__file__).resolve().parents[1] / "workshops" / "cloud-agents-workshop" / "diagrams"
-# Old guide address: images cannot redirect, so older copies of the lab tutorial load them from here.
-OLD_OUT = Path(__file__).resolve().parents[1] / "workshops" / "deploy-agents-workshop" / "diagrams"
 
 
 def architecture() -> Diagram:
@@ -353,8 +351,6 @@ def main() -> None:
         "step-6-evaluate": evaluate, "runtimes": runtimes,
     }.items():
         build().write(OUT / f"{name}.svg")
-        OLD_OUT.mkdir(parents=True, exist_ok=True)
-        (OLD_OUT / f"{name}.svg").write_bytes((OUT / f"{name}.svg").read_bytes())
         print(f"wrote diagrams/{name}.svg")
 
 

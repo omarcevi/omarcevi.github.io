@@ -16,8 +16,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = Path(__file__).resolve().parent / "deploy_agents_guide"
 OUT = ROOT / "workshops" / "cloud-agents-workshop"
 BASE = "/workshops/cloud-agents-workshop/"
-# The guide moved from here; every old page redirects to its new address.
-OLD_OUT = ROOT / "workshops" / "deploy-agents-workshop"
 REPO = "https://github.com/omarcevi/cloud-agents-workshop"
 GUIDE_TITLE = "Deploying your agents on Google Cloud Agent Platform"
 
@@ -127,24 +125,6 @@ def toc(current: str) -> str:
     return "\n".join(lines)
 
 
-REDIRECT = """<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title} (moved) · Omar Elcircevi</title>
-  <link rel="canonical" href="https://omarcevi.dev{url}">
-  <meta name="robots" content="noindex">
-  <script>location.replace('{url}' + location.hash);</script>
-  <meta http-equiv="refresh" content="0; url={url}">
-</head>
-<body>
-  <p>This page moved to <a href="{url}">omarcevi.dev{url}</a>.</p>
-</body>
-</html>
-"""
-
-
 def pager(index: int) -> str:
     prev_link = next_link = ""
     if index > 0:
@@ -172,9 +152,6 @@ def build() -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(page, encoding="utf-8")
         print(f"wrote {target.relative_to(ROOT)}")
-        old = OLD_OUT / slug / "index.html" if slug else OLD_OUT / "index.html"
-        old.parent.mkdir(parents=True, exist_ok=True)
-        old.write_text(REDIRECT.format(url=url, title=html.escape(title)), encoding="utf-8")
 
 
 if __name__ == "__main__":

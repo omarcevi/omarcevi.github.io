@@ -24,7 +24,7 @@
   });
 
   // "done" checkboxes, remembered in this browser only
-  const KEY = 'deploy-agents-workshop-done';   // old key kept so done marks survive the move
+  const KEY = 'cloud-agents-workshop-done';
   let state = {};
   try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
   const mark = () => document.querySelectorAll('.toc a[data-mod]').forEach(a =>
