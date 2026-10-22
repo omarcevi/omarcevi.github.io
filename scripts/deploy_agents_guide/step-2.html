@@ -1,0 +1,74 @@
+      <section id="step-2" data-mod="step-2">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 2 · Deploy</h1>
+          <span class="mod-meta"><span>8 min</span><label class="done-toggle"><input type="checkbox" data-done="step-2">done</label></span>
+        </div>
+        <p class="goal">Deploy the agent to Agent Runtime with its own Agent Identity, let that identity call the MCP servers, and chat with it.</p>
+        <p><span class="branch">checkpoint branch <code>step-2-deploy</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="{{BASE}}diagrams/step-2-deploy.svg" title="Open full size"><img src="{{BASE}}diagrams/step-2-deploy.svg" alt="What agents-cli deploy does: 1 it uploads the project folder with its Dockerfile; 2 Agent Runtime builds the container in a Google-managed project and rolls it out as an autoscaled service with query and streamQuery endpoints, Sessions, Memory Bank and telemetry; 3 with --agent-identity it creates the agent's own principal; 4 grant_agent_access.sh gives that principal roles/run.invoker on the MCP servers; 5 you chat through query/streamQuery with agents-cli run or the console playground. Optionally, agents-cli publish gemini registers the agent with Gemini Enterprise." width="1180" height="470"></a></div>
+            <figcaption><code>agents-cli deploy</code> turns a folder into a managed, autoscaled agent. Your code never runs on a VM you manage.</figcaption>
+          </figure>
+          <p><strong>What gets packaged.</strong> <code>agents-cli deploy</code> uploads the project (minus whatever <code>.gcloudignore</code> excludes) and its <code>Dockerfile</code>. Agent Runtime builds the image in a Google-managed project, so you won't see it in your Cloud Build history. Values in <code>.env</code> become environment variables of the deployed agent, which is why secrets never go there.</p>
+          <p><strong>What Agent Runtime gives you.</strong> A container that scales to zero (min 0, max 10 instances, 1 vCPU, 4 GiB by default) behind two IAM-protected methods, <code>:query</code> and <code>:streamQuery</code>. <strong>Sessions</strong> are stored by the platform, traces and logs flow to Cloud Trace and Cloud Logging, and the console has a playground for every deployment.</p>
+          <p><strong>Agent Identity.</strong> With <code>--agent-identity</code> the agent gets its own principal, <code>principal://agents.global.…/reasoningEngines/ID</code>, backed by a SPIFFE certificate. You grant roles to the agent, not to a shared service account; deleting the agent ends its access.</p>
+          <p><strong>Why the model runs on <code>global</code>.</strong> Agent Runtime lives in europe-west1, but Gemini 3.x Flash is served from the <code>global</code> and <code>eu</code> endpoints. With Agent Identity the SDK calls Google APIs on their mTLS hostnames, and the <code>eu</code> endpoint has none, so the agent uses <code>global</code>.</p>
+          <p><strong>Gemini Enterprise.</strong> <code>agents-cli publish gemini</code> registers the deployed agent in a Gemini Enterprise app, where employees chat with it next to their other agents. It needs a Gemini Enterprise app; it is optional for this lab.</p>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead"><strong>Tab 2</strong>: deploy (about 5 minutes; read the section above while it runs).</p>
+        <div class="code"><pre>source .workshop.env
+agents-cli deploy --project $PROJECT_ID --agent-identity --no-confirm-project</pre></div>
+        <p class="lead">Then give the agent's identity access to the MCP servers, and set the Memory Bank topics used in step 3:</p>
+        <div class="code"><pre>./scripts/grant_agent_access.sh</pre></div>
+        <p class="lead"><strong>Chat.</strong> IAM grants take a minute or two to apply; if an answer says the HRIS or the compensation system is unavailable, ask again.</p>
+        <div class="code"><pre>AGENT_URL=$(./scripts/agent_url.sh)
+agents-cli run --url "$AGENT_URL" --mode adk "What can you help me with?"
+agents-cli run --url "$AGENT_URL" --mode adk "How many unused leave days can I carry over?"
+agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 in Istanbul?"</pre></div>
+        <p>Remember that last answer: the agent just read the compensation system. In step 4 a policy stops it without touching the code.</p>
+        <p class="lead"><strong>Optional:</strong> open the console playground: Agent Platform → Agents → Deployments → <strong>workplace-assistant</strong> → <strong>Playground</strong>.</p>
+
+        <h2>What you should see</h2>
+        <div class="out">🔧 Creating agent identity for: workplace-assistant
+🔐 Granting IAM roles to: principal://agents.global.proj-123456789012.system.id.goog/resources/aiplatform/projects/123456789012/locations/europe-west1/reasoningEngines/1913890203655733248
+🚀 Updating agent: workplace-assistant (this can take a few minutes)...
+✅ Deployment successful!
+
+[user]: How many unused leave days can I carry over?
+[concierge]:
+[hr_policy_agent]: You can carry up to <b>5 unused days</b> into the next year. They expire on <b>31 March</b>. [01-leave-policy.md#carry-over]</div>
+        <p><code>agents-cli run --url</code> always sends the user id <code>cli-user</code>. The demo maps it to the fictional employee Deniz Kaya (platform team, Istanbul). Gemini Enterprise sends the signed-in user instead.</p>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 2</pre></div>
+        <div class="out"><span class="ok">  ✔</span> Agent Identity: principal://agents.global.proj-123456789012.system.id.goog/…
+<span class="ok">  ✔</span> agent may invoke hris-mcp
+<span class="ok">  ✔</span> agent may invoke ticketing-mcp
+<span class="ok">  ✔</span> agent may invoke compensation-mcp
+<span class="ok">  ✔</span> handbook answer: You can carry up to 5 unused days…
+==> Step 2 checks passed.</div>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div><code>confirmation required … --project</code></div><div>Non-interactive deploys need <code>--project</code> (and <code>--no-confirm-project</code>), as in the command above.</div>
+          <div>Deploy fails on <code>setIamPolicy</code></div><div>With Agent Identity, the first deploy grants the agent six project roles, so you need <code>resourcemanager.projects.setIamPolicy</code> (Owner has it). Without it, deploy with <code>--no-agent-identity</code> and skip step 4's gateway (use the fallback).</div>
+          <div>“HRIS server is unavailable” right after deploying</div><div>The <code>run.invoker</code> grants need a minute or two to apply. Ask again. Cloud Run's log shows <em>The IAM principal lacks run.routes.invoke</em> until then.</div>
+          <div>The first answer takes a minute</div><div>Cold start: the agent and the MCP servers scale to zero. Later answers take 5–20 seconds.</div>
+          <div>A question seems to hang</div><div>Shared model capacity occasionally stalls a call. The agent gives up on a model call after 45 seconds and retries up to three times.</div>
+          <div><code>No deployed agent</code> from the scripts</div><div>Run the scripts from the repo root, where <code>deployment_metadata.json</code> is written.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Taking this to a customer</span>
+          <ul>
+            <li><strong>Agent Identity vs service accounts.</strong> One principal per agent makes reviews and revocation simple: ask the security team to grant roles to <code>principal://…</code> members, or to a <code>principalSet://…/attribute.platformContainer/aiplatform/projects/NUMBER</code> for all agents in a project.</li>
+            <li><strong>Who may deploy.</strong> The first deploy with Agent Identity edits project IAM. Many customers won't give that to developers: have the platform team pre-grant the roles, or run deploys from CI with a dedicated deployer.</li>
+            <li><strong>Secrets.</strong> Everything in <code>.env</code> ships as plain environment variables. Use Secret Manager and <code>agents-cli deploy --secrets ENV=SECRET</code>.</li>
+            <li><strong>Cost:</strong> about USD 0.085 per vCPU-hour and 0.009 per GiB-hour, billed by the second while handling requests; idle time between turns is not billed. Raise <code>--min-instances</code> only if cold starts matter.</li>
+          </ul>
+        </aside>
+      </section>

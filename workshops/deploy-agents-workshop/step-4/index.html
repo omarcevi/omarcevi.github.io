@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Step 4 · Secure · Deploying Your Agents on Google Cloud · Omar Elcircevi</title>
+  <meta name="description" content="Agent Identity, delegated OAuth and Agent Gateway: block a tool with policy, not code.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/deploy-agents-workshop/step-4/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Step 4 · Secure · Deploying Your Agents on Google Cloud">
+  <meta property="og:description" content="Agent Identity, delegated OAuth and Agent Gateway: block a tool with policy, not code.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/deploy-agents-workshop/step-4/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <link rel="stylesheet" href="/workshops/deploy-agents-workshop/guide.css">
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/deploy-agents-workshop/">deploy-agents</a> / <span class="here">4 · Secure</span></span>
+    <nav aria-label="Workshop sections">
+      <a href="/workshops/deploy-agents-workshop/">Overview</a>
+      <a href="/workshops/deploy-agents-workshop/step-1/">Steps</a>
+      <a href="/workshops/deploy-agents-workshop/production/">Checklist</a>
+      <a href="/workshops/deploy-agents-workshop/teardown/">Teardown</a>
+      <a href="https://github.com/omarcevi/cloud-agents-workshop">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="/workshops/deploy-agents-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Lab</li>
+        <li><a data-mod="step-1" href="/workshops/deploy-agents-workshop/step-1/"><span class="n">1 · Set up</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-2" href="/workshops/deploy-agents-workshop/step-2/"><span class="n">2 · Deploy</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-3" href="/workshops/deploy-agents-workshop/step-3/"><span class="n">3 · Remember</span><span class="t">6 min</span></a></li>
+        <li><a class="here" data-mod="step-4" href="/workshops/deploy-agents-workshop/step-4/"><span class="n">4 · Secure</span><span class="t">8 min</span></a></li>
+        <li><a data-mod="step-5" href="/workshops/deploy-agents-workshop/step-5/"><span class="n">5 · Observe</span><span class="t">5 min</span></a></li>
+        <li><a data-mod="step-6" href="/workshops/deploy-agents-workshop/step-6/"><span class="n">6 · Evaluate</span><span class="t">7 min</span></a></li>
+        <li class="group">After the lab</li>
+        <li><a href="/workshops/deploy-agents-workshop/runtimes/"><span class="n">Runtime choice</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/production/"><span class="n">Production checklist</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/teardown/"><span class="n">Teardown</span></a></li>
+        <li><a href="/workshops/deploy-agents-workshop/reading/"><span class="n">Further reading</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <section id="step-4" data-mod="step-4">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 4 · Secure</h1>
+          <span class="mod-meta"><span>8 min</span><label class="done-toggle"><input type="checkbox" data-done="step-4">done</label></span>
+        </div>
+        <p class="goal">Route every outbound call through Agent Gateway, and block the compensation system with a policy while the code stays the same.</p>
+        <p><span class="branch">checkpoint branch <code>step-4-secure</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="/workshops/deploy-agents-workshop/diagrams/step-4-secure.svg" title="Open full size"><img src="/workshops/deploy-agents-workshop/diagrams/step-4-secure.svg" alt="Identity and Agent Gateway. On the left, the agent on Agent Runtime has its own Agent Identity. It acts as itself with an ID token for its own principal when it calls HRIS and ticketing, and acts for the employee with the employee's own OAuth token, kept by Auth Manager, when it calls Google Calendar. In the middle, Agent Gateway checks every outbound call in order: 1 Agent Registry identifies the destination; 2 IAP evaluates the IAM access policy for the agent's identity (allow HRIS, ticketing and Google APIs, deny compensation); 3 optional semantic policy and Model Armor check content. On the right, HRIS, ticketing and Google APIs are allowed and the compensation MCP server gets 403 Egress request is not authorized, which is logged." width="1180" height="560"></a></div>
+            <figcaption>Who the agent is when it calls a tool, and the checks Agent Gateway runs on every call.</figcaption>
+          </figure>
+          <p><strong>Two kinds of authority.</strong> When the agent calls the HRIS it acts <em>as itself</em>: it gets an ID token for its own Agent Identity, and Cloud Run checks <code>roles/run.invoker</code> (for external APIs the same idea is 2-legged OAuth, client credentials). When it adds leave to your calendar it acts <em>for you</em>: that needs your consent once (3-legged OAuth). <strong>Agent Identity Auth Manager</strong> runs the consent flow, keeps the tokens in a Google-managed vault, and hands ADK your token when the tool runs.</p>
+          <p><strong>Agent Gateway checks every outbound call</strong>, in order:</p>
+          <ol class="plain">
+            <li><strong>Agent Registry</strong> resolves the destination. Unregistered destinations are refused unless a policy names them.</li>
+            <li><strong>IAM access policy.</strong> IAP evaluates the policy for the agent's identity: who may reach which MCP server, endpoint, or even which tool, with conditions on tool names or annotations such as <code>read_only_hint</code>. Deny rules win over allow rules.</li>
+            <li><strong>Content checks</strong> (optional): a <strong>semantic governance policy</strong> (Preview) judges each tool call the model proposes against a plain-language rule such as “never retrieve an individual's compensation”, and <strong>Model Armor</strong> screens MCP tool calls for prompt injection and sensitive data.</li>
+          </ol>
+          <p><strong>Default deny.</strong> Once bound, the gateway refuses everything not allowed, including the agent's own calls to Gemini, Sessions, Memory Bank and telemetry. That's why <code>setup.sh</code> registered a <code>google-apis</code> endpoint and the policy allows it.</p>
+          <p><strong>Egress and ingress.</strong> This lab uses an <em>egress</em> gateway (Agent-to-Anywhere): it governs what the agent calls. An <em>ingress</em> gateway (Client-to-Agent) sits in front of the agent instead and screens <code>query</code>/<code>streamQuery</code> traffic with Model Armor or a semantic policy; it must be in the agent's project and region. An agent can be bound to both.</p>
+          <p><strong>Who owns the policy.</strong> The security or platform team writes the access policy; the agent team registers its tools and asks for access. The policy file in this repo is short on purpose:</p>
+          <figure class="snip"><div class="snip-head"><span class="snip-file">infra/gateway/egress-policy.rules.json</span><span class="snip-loc">the deny rule</span></div><pre class="snip-code"><code><span class="l"><span class="n">1</span>{</span><span class="l"><span class="n">2</span>  <span class="v">"description"</span>: <span class="s">"No agent in this project may call the compensation system."</span>,</span><span class="l hl"><span class="n">3</span>  <span class="v">"effect"</span>: <span class="s">"DENY"</span>,</span><span class="l hl"><span class="n">4</span>  <span class="v">"principals"</span>: [<span class="s">"principalSet://agents.global.proj-NUMBER…/aiplatform/projects/NUMBER"</span>],</span><span class="l"><span class="n">5</span>  <span class="v">"operation"</span>: {<span class="v">"permissions"</span>: [<span class="s">"iap.googleapis.com/resources.egressViaIAP"</span>]},</span><span class="l hl"><span class="n">6</span>  <span class="v">"conditions"</span>: {<span class="v">"iap.googleapis.com"</span>: {<span class="v">"expression"</span>:</span><span class="l hl"><span class="n">7</span>    <span class="s">"destination.agent_registry.resource_type == 'MCP_SERVER' &amp;&amp; destination.agent_registry.mcp_server.name == 'projects/PROJECT_ID/…/mcpServers/…'"</span>}}</span><span class="l"><span class="n">8</span>}</span></code></pre><figcaption class="snip-note">The allow rules name this agent's principal; the deny rule covers every agent in the project. <code>secure.sh</code> fills in the names from Agent Registry.</figcaption></figure>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead">Make sure the gateway finished building in the background (step 1):</p>
+        <div class="code"><pre>tail -1 .setup-gateway.log      <span class="c"># should say GATEWAY READY</span></pre></div>
+        <p class="lead">Apply the access policy, then bind the agent to the gateway (a redeploy, about 4 minutes):</p>
+        <div class="code"><pre>./scripts/secure.sh
+agents-cli deploy --project $PROJECT_ID --update-only --agent-identity --no-confirm-project \
+  --agent-gateway-egress=projects/$PROJECT_ID/locations/europe-west1/agentGateways/workplace-gw \
+  --update-env-vars GOOGLE_API_ENABLE_RUNTIME_BOUND_TOKEN=false</pre></div>
+        <p>The gateway inspects TLS, so the agent's certificate-bound tokens can't pass through it unchanged; <code>GOOGLE_API_ENABLE_RUNTIME_BOUND_TOKEN=false</code> switches the agent to unbound tokens for Google APIs, as the gateway documentation requires.</p>
+        <p class="lead">Ask the same salary question as in step 2, and check that HRIS still works:</p>
+        <div class="code"><pre>agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 in Istanbul?"
+agents-cli run --url "$AGENT_URL" --mode adk "How many leave days do I have?"</pre></div>
+        <p class="lead">See the denial in the logs, from the agent's side and from the gateway's side:</p>
+        <div class="code"><pre>gcloud logging read 'labels."event.name"="workplace.tool_blocked"' --freshness=15m --limit=3 \
+  --format='value(timestamp,jsonPayload.tool,jsonPayload.reason)'
+gcloud logging read 'resource.type="networkservices.googleapis.com/Gateway" AND jsonPayload.authzPolicyInfo.result="DENIED"' \
+  --freshness=15m --limit=3 --format='value(timestamp,httpRequest.requestUrl,jsonPayload.mcpInfo.method)'</pre></div>
+
+        <h2>What you should see</h2>
+        <div class="out">[hr_policy_agent]: I'm sorry, but I can't access the compensation system right now,
+so I can't look up that salary band. Your People Partner can share the published bands.
+
+[leave_agent]: You have 14 available leave days this year (2 more are pending approval).
+
+2026-10-27T11:42:10Z  get_salary_band  <span class="bad">gateway_denied</span>
+2026-10-27T11:42:09Z  https://compensation-mcp-…run.app/mcp</div>
+        <p>Same code, same tools wired in; the answer changed because of a policy. The agent's audit callback logged <code>gateway_denied</code>, and the gateway logged its own decision.</p>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 4</pre></div>
+        <div class="out"><span class="ok">  ✔</span> get_salary_band was refused: I'm sorry, but I can't access the compensation system…
+<span class="ok">  ✔</span> HRIS still answers (get_leave_balance)
+<span class="ok">  ✔</span> logged in Cloud Logging: get_salary_band	gateway_denied
+==> Step 4 checks passed.</div>
+
+        <h3>No Agent Gateway in your project? Use the fallback</h3>
+        <p>If <code>.setup-gateway.log</code> says <code>GATEWAY FAILED</code>, or the gateway is not available in your project, block the compensation server with plain Cloud Run IAM instead. The agent's code still calls it; IAM refuses it. The script prints how this differs from the gateway.</p>
+        <div class="code"><pre>./scripts/fallback_step4.sh
+agents-cli run --url "$AGENT_URL" --mode adk "What is the salary band for an L5 in Istanbul?"
+./scripts/check.sh 4             <span class="c"># the log reason is permission_denied instead</span></pre></div>
+        <p>Removing an IAM grant takes one to three minutes to apply. If the salary band still comes back, wait a minute and ask again.</p>
+
+        <h3>Optional: the employee's own Calendar (3-legged OAuth)</h3>
+        <p>An instructor demo, since it needs an OAuth client and a consent screen. Outline:</p>
+        <ol class="plain">
+          <li>Create an OAuth client (type <em>Web application</em>) in APIs &amp; Services → Credentials, and enable the Google Calendar API.</li>
+          <li>Create the Auth Manager provider:
+            <div class="code"><pre>gcloud agent-identity auth-providers create calendar-3lo --location=europe-west1 \
+  --three-legged-oauth-client-id=CLIENT_ID --three-legged-oauth-client-secret=CLIENT_SECRET \
+  --three-legged-oauth-authorization-url=https://accounts.google.com/o/oauth2/v2/auth \
+  --three-legged-oauth-token-url=https://oauth2.googleapis.com/token</pre></div></li>
+          <li>Add the provider's redirect URL (<code>…/authProviders/calendar-3lo/oauthcallback</code> on <code>agentidentitycredentials.googleapis.com</code>) to the OAuth client.</li>
+          <li>Let the agent use it: <code>gcloud agent-identity auth-providers add-iam-policy-binding calendar-3lo --location=europe-west1 --role=roles/agentidentity.user --member="$AGENT_PRINCIPAL"</code></li>
+          <li>Set <code>CALENDAR_AUTH_PROVIDER=projects/$PROJECT_ID/locations/europe-west1/authProviders/calendar-3lo</code> in <code>.env</code> and redeploy. <code>leave_agent</code> now has <code>create_calendar_event</code>; the first call asks the employee for consent through a client that handles ADK's <code>adk_request_credential</code> event, then Auth Manager keeps the token.</li>
+        </ol>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div>Every question fails right after binding (<code>Reasoning Engine Execution failed</code>)</div><div>The access policy hasn't applied yet: policy changes take one to three minutes to reach the gateway. Wait and ask again. Gateway logs show <code>DENIED</code> for <code>…aiplatform.mtls.googleapis.com</code> until then.</div>
+          <div>Google API calls return <code>401</code> through the gateway</div><div>The agent is still using certificate-bound tokens. Redeploy with <code>--update-env-vars GOOGLE_API_ENABLE_RUNTIME_BOUND_TOKEN=false</code>.</div>
+          <div>Everything is <code>DENIED</code>, minutes after the policy</div><div>The policy binding must target the project <em>number</em> (<code>secure.sh</code> does this), while the names inside conditions use the project <em>ID</em>, as <code>gcloud agent-registry … list</code> prints them. Gateway logs show numbers, which is misleading.</div>
+          <div><code>498</code> errors</div><div>A Google API hostname the agent uses is not registered. Find it in the gateway log (<code>jsonPayload.enforcedGatewaySecurityPolicy.hostname</code>), add it to <code>infra/gateway/platform-endpoints.txt</code>, run <code>./scripts/setup.sh --only registry</code>.</div>
+          <div>The salary band still works</div><div>The agent isn't bound yet (the deploy is still running), or you're on the fallback and IAM hasn't applied (one minute).</div>
+          <div>Undo the block</div><div><code>./scripts/fallback_step4.sh --undo</code> for the fallback; for the gateway, remove the deny rule and run <code>./scripts/secure.sh</code> again.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Taking this to a customer</span>
+          <ul>
+            <li><strong>Ownership.</strong> Security owns the access policies (organization or folder level for guardrails, project level for each agent). Agent teams register tools and request access. Start in <code>DRY_RUN</code> enforcement and read the logs before you enforce.</li>
+            <li><strong>Ask the security team:</strong> Is there a central governance project for the gateway and registry? Is <code>iam.managed.disableAccessPolicyBindings</code> enforced? Which external SaaS endpoints may agents reach? Who reviews tool annotations such as <code>readOnlyHint</code>?</li>
+            <li><strong>End-user identity.</strong> In this lab the agent tells the MCP servers who the employee is (<code>X-User-Email</code>), and they trust the agent. In production, pass the employee's own token (3-legged OAuth through Auth Manager) or a signed assertion, and have the server verify it.</li>
+            <li><strong>Trade-off to discuss:</strong> behind the gateway the agent uses unbound tokens for Google APIs. The gateway compensates (every call is authorized and logged), but say it out loud.</li>
+            <li><strong>Cost:</strong> the gateway and IAP add per-call processing; semantic governance and Model Armor add model calls per tool call. Check the Agent Platform pricing page for the current rates.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/deploy-agents-workshop/step-3/">← 3 · Remember</a><a class="next" href="/workshops/deploy-agents-workshop/step-5/">5 · Observe →</a></nav>
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/cloud-agents-workshop">source</a> · Google Cloud icons from <a href="https://cloud.google.com/icons">cloud.google.com/icons</a></p>
+        <p>Google Cloud Day Türkiye · 27 October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+<script src="/workshops/deploy-agents-workshop/guide.js"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+      <section>
+        <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Agent Runtime, Cloud Run or GKE</h1>
+        <p class="goal">Start on Agent Runtime. Move to Cloud Run or GKE when you need control the managed runtime doesn't give you.</p>
+        <figure class="arch">
+          <div class="arch-frame"><a href="{{BASE}}diagrams/runtimes.svg" title="Open full size"><img src="{{BASE}}diagrams/runtimes.svg" alt="Who runs what. Agent Runtime: you bring the agent code; Google runs the container, scaling, sessions, memory, identity, gateway binding and monitors. Cloud Run: you bring the container and its settings; Google handles scaling, TLS and IAM; you bring sessions and memory or use Agent Platform services. GKE: you bring the cluster and manifests; Google runs the control plane; you own nodes, scaling, networking and everything else." width="1180" height="380"></a></div>
+          <figcaption>The further right, the more you own.</figcaption>
+        </figure>
+        <div class="tablewrap"><table>
+          <tr><th></th><th>Agent Runtime</th><th>Cloud Run</th><th>GKE</th></tr>
+          <tr><td>What you run</td><td>Your agent code. Google builds and runs the container.</td><td>A container you own, one service per agent.</td><td>Containers on a cluster you own.</td></tr>
+          <tr><td>Where sessions live</td><td>Built in (Agent Platform Sessions).</td><td>Your choice: in memory, Cloud SQL, or Agent Platform Sessions.</td><td>Your choice: same options as Cloud Run.</td></tr>
+          <tr><td>Long-term memory</td><td>Memory Bank, built in.</td><td>Memory Bank through an Agent Runtime instance, or your own store.</td><td>Same as Cloud Run.</td></tr>
+          <tr><td>Agent identity</td><td>Agent Identity per agent.</td><td>Service account; Agent Identity is Preview.</td><td>Workload Identity.</td></tr>
+          <tr><td>Agent Gateway, monitors</td><td>Bind with one flag; Online Monitors and console playground included.</td><td>Gateway for Cloud Run agents: Preview sign-up.</td><td>Gateway for GKE agents: Preview sign-up.</td></tr>
+          <tr><td>Scaling and cost</td><td>Scales to zero; vCPU-hours and GiB-hours while serving.</td><td>Scales to zero; full control of CPU, concurrency, min instances.</td><td>Whatever your node pools cost, idle or not.</td></tr>
+          <tr><td>Pick it when</td><td>You want the platform to own operations. The default.</td><td>You need custom serving, sidecars, websockets or VPC egress control.</td><td>You already run GKE, need GPUs, a service mesh or other clouds.</td></tr>
+        </table></div>
+
+        <h2 style="margin-top:2rem">Same code, other targets</h2>
+        <p>agents-cli adds the other targets to an existing project. The repo's <code>alt/cloud-run</code> branch is this lab's agent after:</p>
+        <div class="code"><pre>agents-cli scaffold enhance . --deployment-target cloud_run
+agents-cli deploy                 <span class="c"># runs gcloud run deploy with the generated settings</span></pre></div>
+        <p>For GKE, <code>--deployment-target gke</code> adds Kubernetes manifests and Terraform for a cluster, and <code>agents-cli deploy</code> builds the image, applies Terraform and runs <code>kubectl apply</code>. Keep sessions and memory in Agent Platform so pods stay stateless, and use Workload Identity for the pods.</p>
+        <p>The MCP servers in this lab already run on Cloud Run: tools that other teams own usually belong there, next to the agent runtime rather than inside it.</p>
+
+        <h2 style="margin-top:2rem">Departments as separate agents (A2A)</h2>
+        <p>The lab deploys one app with four agents. When departments own their agents, deploy each as its own Agent Runtime and let the front door find them. The repo's <code>alt/multi-agent-a2a</code> branch is a tested proof of concept (see <code>docs/A2A.md</code> there):</p>
+        <ul class="plain">
+          <li><strong>Discovery.</strong> Every Agent Runtime deployment registers itself in Agent Registry. The concierge lists the registry at startup, fetches each agent's A2A card and adds it as a <code>RemoteA2aAgent</code>; no URL is configured anywhere.</li>
+          <li><strong>Identity.</strong> The concierge calls with its own Agent Identity and passes the employee in A2A request metadata; the department agent acts for that employee, and its MCP server logs the right person.</li>
+          <li><strong>Observability.</strong> Each agent gets its own traces, which also removes the managed Online Monitor's multi-agent skip.</li>
+          <li><strong>Not there yet.</strong> Agent Gateway passes and logs the calls, but classifies them as the Google APIs endpoint, so a policy rule per agent doesn't apply yet. A turn costs a second hop: 7–12 s warm, about 50 s when both agents are cold.</li>
+        </ul>
+      </section>

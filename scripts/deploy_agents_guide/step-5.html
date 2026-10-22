@@ -1,0 +1,67 @@
+      <section id="step-5" data-mod="step-5">
+        <div class="mod-head">
+          <h1 style="font-size:clamp(1.8rem,4vw,2.4rem)">Step 5 · Observe</h1>
+          <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-5">done</label></span>
+        </div>
+        <p class="goal">Follow one leave request from the concierge to the HRIS in Cloud Trace, and open a dashboard that shows blocked calls.</p>
+        <p><span class="branch">checkpoint branch <code>step-5-observe</code></span></p>
+
+        <div class="how">
+          <h2>How it works</h2>
+          <figure class="arch">
+            <div class="arch-frame"><a href="{{BASE}}diagrams/step-5-observe.svg" title="Open full size"><img src="{{BASE}}diagrams/step-5-observe.svg" alt="One leave request as a trace waterfall: invoke_workflow concierge contains invoke_agent concierge with a model call and transfer_to_agent, then invoke_agent leave_agent with MCP initialize and tools/list, model calls, and tool calls get_my_profile, handbook_search and submit_leave_request. On the right, where telemetry lands: spans in Cloud Trace through the telemetry API; OpenTelemetry log records in Cloud Logging, including model input and output events and the workplace.tool_blocked audit event; Agent Runtime and ADK metrics, logs-based metrics and the dashboard in Cloud Monitoring; and the gateway's per-request allow and deny log." width="1180" height="520"></a></div>
+            <figcaption>One turn, end to end. Every agent, model call and tool call is a span.</figcaption>
+          </figure>
+          <p><strong>Traces come for free.</strong> <code>agents-cli deploy</code> sets <code>GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY=true</code>, and ADK exports OpenTelemetry spans to Cloud Trace: <code>invoke_workflow</code> for the turn, <code>invoke_agent</code> per agent, <code>call_llm</code>/<code>generate_content</code> per model call, and <code>execute_tool</code> per tool call. Failed tool calls carry <code>error.type</code>.</p>
+          <p><strong>Logs need OpenTelemetry on Agent Runtime.</strong> Plain <code>print()</code> and Python logging from the running container don't reach Cloud Logging; OpenTelemetry log records do. The agent writes its audit event (<code>workplace.tool_blocked</code>) that way and forwards Python warnings too. Setup also turned on prompt and answer events (<code>EVENT_ONLY</code>) and the agent's instructions on <code>call_llm</code> spans (<code>ADK_CAPTURE_MESSAGE_CONTENT_IN_SPANS=true</code>; agents-cli deploys it off). Step 6's Online Monitor reads both.</p>
+          <p><strong>Metrics:</strong> Agent Runtime publishes request count and latency; ADK publishes tool and agent durations; two logs-based metrics count blocked calls (from the agent's audit event and from the gateway's own log).</p>
+        </div>
+
+        <h2>Run</h2>
+        <p class="lead">Make one leave request (if you didn't book in step 3), wait a minute for the trace to arrive, then:</p>
+        <div class="code"><pre>agents-cli run --url "$AGENT_URL" --mode adk "Book next Monday off as a half day and tell me how many leave days I have left."
+./scripts/observe.sh       <span class="c"># creates the dashboard, prints the newest leave-request trace</span></pre></div>
+        <p class="lead">Open the links it prints: the trace in <strong>Trace Explorer</strong>, and the <strong>Workplace Assistant (workshop)</strong> dashboard. The console also shows traces per session under Deployments → workplace-assistant → <strong>Traces</strong>.</p>
+
+        <h2>What you should see</h2>
+        <div class="out">   0.00s   17.20s  invoke_workflow concierge
+   0.05s    2.70s    invoke_agent concierge
+   0.10s    2.50s      call_llm
+   0.10s    2.40s        generate_content gemini-3.5-flash
+   2.60s    0.01s      execute_tool transfer_to_agent
+   2.70s   14.40s    invoke_agent leave_agent
+   2.75s    0.90s      MCP send tools/list
+   3.70s    3.10s      call_llm
+   6.90s    0.13s      execute_tool get_leave_balance
+   7.20s    4.00s      call_llm
+  11.30s    0.15s      execute_tool submit_leave_request
+  11.50s    5.60s      call_llm
+
+https://console.cloud.google.com/traces/explorer;traceId=…</div>
+        <p>Read it like a profile: the tool calls take milliseconds, the model calls take seconds. That is where latency and cost go. Dashboard tiles: requests per minute, turn latency p50/p95, tool error rate by tool, blocked calls by reason, gateway denials.</p>
+
+        <h2>Check</h2>
+        <div class="code"><pre>./scripts/check.sh 5</pre></div>
+        <div class="out"><span class="ok">  ✔</span> sub-agent spans: ['invoke_agent leave_agent']
+<span class="ok">  ✔</span> tool spans: ['execute_tool get_leave_balance', 'execute_tool submit_leave_request']
+<span class="ok">  ✔</span> dashboard exists
+<span class="ok">  ✔</span> logs-based metric workplace_tool_blocked exists
+==> Step 5 checks passed.</div>
+
+        <details class="stuck"><summary>If this fails</summary><div class="body"><div class="fix">
+          <div><code>No trace matching …</code></div><div>Traces arrive one to two minutes after the turn. Book leave again if the last booking was more than three hours ago.</div>
+          <div>Dashboard tiles say “No data”</div><div>Tiles fill as traffic arrives; logs-based metrics only count entries written after they were created (setup created them early for that reason).</div>
+          <div>No <code>workplace.tool_blocked</code> entries</div><div>They only appear after a refused call (step 4). Ask for a salary band again.</div>
+          <div>Request latency p95 looks huge</div><div>Agent Runtime's request latency includes the whole streamed response. The ADK turn-latency tile is the better signal.</div>
+        </div></div></details>
+
+        <aside class="customer">
+          <span class="lbl">Taking this to a customer</span>
+          <ul>
+            <li><strong>Prompts in logs are personal data.</strong> <code>EVENT_ONLY</code> writes prompts and answers to Cloud Logging, and span capture puts requests in Cloud Trace. Agree on retention, who may read the log bucket, and whether to route these events to a separate, restricted bucket.</li>
+            <li><strong>Define SLOs early:</strong> turn latency, tool error rate and refusal rate are the three the business notices. Alert on the logs-based metrics, not only on HTTP errors: a refused tool call returns 200.</li>
+            <li><strong>Analytics at scale:</strong> the BigQuery Agent Analytics plugin (<code>--bq-analytics</code> in agents-cli) writes one row per agent event for SQL analysis.</li>
+            <li><strong>Cost:</strong> trace ingestion is USD 0.20 per million spans after 2.5 million free per month; this lab uses a few thousand. Log volume grows with content capture.</li>
+          </ul>
+        </aside>
+      </section>
