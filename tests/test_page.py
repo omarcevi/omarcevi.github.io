@@ -157,5 +157,40 @@ class Speaking(unittest.TestCase):
             self.assertTrue(t.attrs.get("href"))
 
 
+class AboutExperience(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+
+    def test_about_two_columns(self):
+        about = find_all(self.doc, "section", id="about")[0]
+        body = find_all(about, cls="about-body")[0]
+        fig = find_all(about, id="att-fig")[0]
+        self.assertIs(body.parent, fig.parent)
+        self.assertIn("two", body.parent.classes)
+        kids = body.parent.elements()
+        self.assertLess(kids.index(body), kids.index(fig))
+
+    def test_badge_moved(self):
+        about = find_all(self.doc, "section", id="about")[0]
+        self.assertFalse(find_all(about, cls="badge"))
+        badges = find_all(self.doc, cls="badge")
+        self.assertEqual(len(badges), 1)
+        self.assertTrue(find_all(find_all(self.doc, "header")[0], cls="badge"))
+
+    def test_community_list(self):
+        exp = find_all(self.doc, "section", id="experience")[0]
+        h3 = [h for h in find_all(exp, "h3") if h.text().strip() == "Community"]
+        self.assertEqual(len(h3), 1)
+        sib = h3[0].parent.elements()
+        ul = sib[sib.index(h3[0]) + 1]
+        self.assertEqual((ul.tag, "list" in ul.classes), ("ul", True))
+        self.assertEqual([n.text().strip() for n in find_all(ul, cls="item-title")],
+                         ["Google Developer Expert, Cloud AI", "Co-organizer, GDG Istanbul", "Gemma Train-the-Trainer"])
+        self.assertEqual([n.text().strip() for n in find_all(ul, cls="item-meta")],
+                         ["Google · 2026", "Google Developer Groups", "Google Developer Experts · 2026"])
+        self.assertFalse([h for h in find_all(exp, "h3") if "Education" in h.text()])
+
+
 if __name__ == "__main__":
     unittest.main()

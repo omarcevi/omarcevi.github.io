@@ -449,6 +449,8 @@
       margin: 0.4rem 0 1.4rem; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
     }
     .att-fig.ready { display: grid; }
+    .about-two .att-fig { margin: 0.2rem 0 0; align-self: start; }
+    .about-two .prose p:last-child { margin-bottom: 0; }
     .hg { display: grid; grid-template-columns: repeat(12, 11px) 14px; gap: 2px; }
     .hg button { width: 11px; height: 11px; border: 0; border-radius: 2px; padding: 0; cursor: pointer; background: rgba(var(--accent-rgb), var(--v, 0.1)); }
     .hg button.avg { margin-left: 3px; box-shadow: inset 0 0 0 1px var(--border); }
@@ -661,22 +663,24 @@
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">about.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
       <h2>About</h2>
       <p class="att-hint" id="att-hint"></p>
-      <div class="about-body prose">
-        <svg class="att-svg" aria-hidden="true"></svg>
-        <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
-        <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
-        <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
-      </div>
-      <div class="att-fig" id="att-fig">
-        <div>
-          <div class="hg" id="hg" role="group" aria-label="Attention heads: rows are layers, columns are heads"></div>
-          <div class="hg-axis"><span>heads 0–11 →</span><span>avg</span></div>
+      <div class="two about-two">
+        <div class="about-body prose">
+          <svg class="att-svg" aria-hidden="true"></svg>
+          <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
+          <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
+          <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
         </div>
-        <div class="att-desc">
-          <p class="sel-label" id="att-sel"></p>
-          <p>These are the real attention weights of <b>GPT-2 small</b> reading the three paragraphs above, pooled from tokens to words. GPT-2 only looks backwards, so arcs always point to earlier words.</p>
-          <p>Each square is one head; rows are layers 0–11, and brighter squares look further back. Click one to switch.</p>
-          <p class="small">computed by <a href="https://github.com/omarcevi/omarcevi.github.io/blob/main/scripts/ml_figures.py">scripts/ml_figures.py</a> · &lt;|endoftext|&gt; sink removed, rows renormalized</p>
+        <div class="att-fig" id="att-fig">
+          <div>
+            <div class="hg" id="hg" role="group" aria-label="Attention heads: rows are layers, columns are heads"></div>
+            <div class="hg-axis"><span>heads 0–11 →</span><span>avg</span></div>
+          </div>
+          <div class="att-desc">
+            <p class="sel-label" id="att-sel"></p>
+            <p>These are the real attention weights of <b>GPT-2 small</b> reading the three paragraphs of this section, pooled from tokens to words. GPT-2 only looks backwards, so arcs always point to earlier words.</p>
+            <p>Each square is one head; rows are layers 0–11, and brighter squares look further back. Click one to switch.</p>
+            <p class="small">computed by <a href="https://github.com/omarcevi/omarcevi.github.io/blob/main/scripts/ml_figures.py">scripts/ml_figures.py</a> · &lt;|endoftext|&gt; sink removed, rows renormalized</p>
+          </div>
         </div>
       </div>
     </section>
@@ -684,29 +688,50 @@
     <section id="experience">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">experience.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
       <h2>Experience</h2>
-      <ul class="timeline">
-        <li>
-          <div class="role-head">
-            <span class="company"><img class="logo-word logo-light" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"><img class="logo-word logo-dark" loading="lazy" decoding="async" src="assets/logos/trendyol-dark.png" width="284" height="96" alt="Trendyol"></span>
-            <span class="when">Mar 2024 – Sep 2026</span>
-          </div>
-          <div class="role">Machine Learning Engineer, Inference Platform</div>
-          <ul class="bullets">
-            <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
-            <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
-            <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
-            <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
-            <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+      <div class="two wide-left">
+        <div>
+          <ul class="timeline">
+            <li>
+              <div class="role-head">
+                <span class="company"><img class="logo-word logo-light" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"><img class="logo-word logo-dark" loading="lazy" decoding="async" src="assets/logos/trendyol-dark.png" width="284" height="96" alt="Trendyol"></span>
+                <span class="when">Mar 2024 – Sep 2026</span>
+              </div>
+              <div class="role">Machine Learning Engineer, Inference Platform</div>
+              <ul class="bullets">
+                <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
+                <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
+                <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
+                <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
+                <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+            </ul>
+            </li>
+            <li>
+              <div class="role-head">
+                <span class="company"><img class="logo-mark" loading="lazy" decoding="async" src="assets/logos/turkcell.png" width="191" height="192" alt="">Turkcell</span>
+                <span class="when">2022 – 2024</span>
+              </div>
+              <div class="role">AI &amp; Analytical Solutions</div>
+            </li>
           </ul>
-        </li>
-        <li>
-          <div class="role-head">
-            <span class="company"><img class="logo-mark" loading="lazy" decoding="async" src="assets/logos/turkcell.png" width="191" height="192" alt="">Turkcell</span>
-            <span class="when">2022 – 2024</span>
-          </div>
-          <div class="role">AI &amp; Analytical Solutions</div>
-        </li>
-      </ul>
+        </div>
+        <div class="sub">
+          <h3>Community</h3>
+          <ul class="list">
+            <li>
+              <div class="item-title">Google Developer Expert, Cloud AI</div>
+              <div class="item-meta">Google · 2026</div>
+            </li>
+            <li>
+              <div class="item-title">Co-organizer, GDG Istanbul</div>
+              <div class="item-meta">Google Developer Groups</div>
+            </li>
+            <li>
+              <div class="item-title">Gemma Train-the-Trainer</div>
+              <div class="item-meta">Google Developer Experts · 2026</div>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section id="speaking">
