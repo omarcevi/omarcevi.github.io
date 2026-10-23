@@ -283,9 +283,9 @@
         <p class="part-of">Part of <em>The Google Cloud Stack for Production AI Agents</em> by Omar Elcircevi</p>
         <p class="tagline">You'll take a ready-made agent, the <strong>DevFest Samsun Assistant</strong>, and run it in Cloud Shell. Then you'll deploy it to <strong>Agent Runtime</strong> on Google Cloud and explore it in <strong>Agent Platform</strong>. You don't write any code, and you don't install anything on your laptop.</p>
         <div class="actions">
-          <a class="btn primary" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/devfest-samsun-assistant.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Google Cloud Shell →</a>
+          <a class="btn primary" href="#step-1">Start with step 1</a>
           <a class="btn" href="https://github.com/omarcevi/devfest-samsun-assistant">Code on GitHub</a>
-          <a class="btn" href="#step-1">Start with step 1</a>
+          <a class="btn" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/devfest-samsun-assistant.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Google Cloud Shell →</a>
           <a class="btn" href="/demos/devfest-samsun-agent/">No laptop? Chat on your phone</a>
         </div>
       </header>
@@ -468,7 +468,7 @@ source ~/.profile</pre></div>
           <li>It takes <strong>about 5 minutes</strong>. Leave it running and watch the demo on stage while you wait.</li>
         </ul>
         <div class="see"><span class="lbl">✅ Check</span>The output shows <code>✅ Deployment successful!</code>, followed by your agent's ID and its Agent Identity.</div>
-        <p style="margin-top:1.2rem">The deploy keeps running on Google Cloud even if Cloud Shell disconnects. Click <strong>Reconnect</strong>, run <code>cd devfest-samsun-assistant</code>, then check progress with:</p>
+        <p style="margin-top:1.2rem">The deploy keeps running on Google Cloud even if Cloud Shell disconnects. Click <strong>Reconnect</strong>, go back to the repo folder (<code>cd ~/cloudshell_open/devfest-samsun-assistant</code> if you used the Cloud Shell button, <code>cd devfest-samsun-assistant</code> if you cloned by hand), then check progress with:</p>
         <div class="code"><pre>agents-cli deploy --status</pre></div>
         <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-3">← Step 3</a><a class="next" href="#step-5">Step 5: Agent Platform →</a></nav>
       </section>
@@ -558,7 +558,7 @@ source ~/.profile</pre></div>
           <div><code>429</code> or <code>RESOURCE_EXHAUSTED</code></div><div>You hit a Gemini rate limit. Wait 30 seconds and try again.</div>
           <div>Web preview shows an error page</div><div>Check that <code>adk web</code> is still running in Cloud Shell and that you used port 8080.</div>
           <div>Web preview shows a blank page</div><div>Stop <code>adk web</code> with Ctrl+C and start it again with <code class="flag">--allow_origins "*"</code>, as in <a href="#step-3">Step 3</a>.</div>
-          <div>Cloud Shell says the session ended</div><div>Click <strong>Reconnect</strong>, then run <code>cd devfest-samsun-assistant</code>.</div>
+          <div>Cloud Shell says the session ended</div><div>Click <strong>Reconnect</strong>, then run <code>cd ~/cloudshell_open/devfest-samsun-assistant</code> (Cloud Shell button) or <code>cd devfest-samsun-assistant</code> (cloned by hand).</div>
           <div><code>agents-cli: confirmation required</code></div><div>Add <code class="flag">-i</code> to the deploy command, as shown in <a href="#step-4">Step 4</a>.</div>
           <div><code>agents-cli --version</code> doesn't say <code>1.11.0</code></div><div>Run <code>source ~/.profile</code>. Cloud Shell has an older Agents CLI built in; this switches to the one <code>setup.sh</code> installed.</div>
           <div>A warning that <code>npx</code> isn't installed</div><div>Ignore it.</div>
