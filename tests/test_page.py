@@ -62,5 +62,46 @@ class GuardRails(unittest.TestCase):
         self.assertTrue(find_all(self.doc, id="talks"))
 
 
+class Hero(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.doc = parse(cls.html)
+
+    def test_page_width_1120(self):
+        self.assertIn(".page { max-width: 1120px;", self.html)
+
+    def test_hero_photo(self):
+        imgs = find_all(self.doc, "img", src="assets/photos/omar-gdd-istanbul.jpg")
+        self.assertEqual(len(imgs), 1)
+        img = imgs[0]
+        self.assertEqual((img.attrs.get("width"), img.attrs.get("height")), ("720", "900"))
+        self.assertEqual(img.attrs.get("alt"), "Omar Elcircevi speaking at Google for Developers Day Istanbul")
+        self.assertNotEqual(img.attrs.get("loading"), "lazy")
+
+    def test_sprite_symbols(self):
+        ids = {n.attrs.get("id") for n in find_all(self.doc, "symbol")}
+        self.assertLessEqual({"i-gh", "i-li", "i-md", "i-mail", "i-cal"}, ids)
+
+    def test_nav(self):
+        topbar = find_all(self.doc, cls="topbar")[0]
+        links = find_all(topbar, "a")
+        nav = [a.attrs.get("href") for a in links if "domain" not in a.classes]
+        self.assertEqual(nav, ["#about", "#experience", "#speaking", "#projects", "#writing", "#contact"])
+        cta = links[-1]
+        self.assertIn("cta", cta.classes)
+        self.assertEqual(cta.text().strip(), "Book a call")
+
+    def test_hero_links_have_icons(self):
+        header = find_all(self.doc, "header")[0]
+        row = find_all(header, cls="links")[0]
+        links = find_all(row, "a")
+        self.assertEqual([a.attrs.get("href") for a in links], [
+            "#contact", "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            "https://github.com/omarcevi", "https://omarcevi.medium.com"])
+        for a in links:
+            self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
+
+
 if __name__ == "__main__":
     unittest.main()
