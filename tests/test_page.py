@@ -1,0 +1,362 @@
+import re
+import unittest
+from urllib.parse import urlsplit
+
+from pagecheck import ROOT, find_all, ml_digest, parse
+
+SKIP_SCHEMES = ("#", "mailto:", "data:", "tel:", "javascript:", "http:", "https:", "//")
+
+
+class GuardRails(unittest.TestCase):
+    """Must hold before and after the revamp."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+
+    def test_ml_source_text_unchanged(self):
+        self.assertEqual(ml_digest(), (ROOT / "assets/ml/source.sha").read_text().strip())
+
+    def test_medium_markers_inside_list(self):
+        comments = [n for n in self.doc.iter() if n.tag == "#comment"]
+        start = [c for c in comments if c.data.strip() == "MEDIUM:START"]
+        end = [c for c in comments if c.data.strip() == "MEDIUM:END"]
+        self.assertEqual((len(start), len(end)), (1, 1))
+        parent = start[0].parent
+        self.assertIs(parent, end[0].parent)
+        self.assertEqual(parent.tag, "ul")
+        self.assertIn("list", parent.classes)
+        between = parent.children[parent.children.index(start[0]) + 1:parent.children.index(end[0])]
+        items = [n for n in between if n.tag != "#text"]
+        self.assertTrue(items)
+        self.assertTrue(all(n.tag == "li" for n in items))
+
+    def test_one_span_per_section(self):
+        sections = find_all(self.doc, "section")
+        self.assertTrue(sections)
+        for s in sections:
+            spans = [c for c in s.elements() if "span" in c.classes]
+            self.assertEqual(len(spans), 1, s.attrs.get("id"))
+        in_sections = {id(c) for s in sections for c in s.elements() if "span" in c.classes}
+        self.assertEqual({id(n) for n in find_all(self.doc, cls="span")}, in_sections)
+
+    def test_images_have_dimensions_and_alt(self):
+        for img in find_all(self.doc, "img"):
+            self.assertTrue(img.attrs.get("width"), img)
+            self.assertTrue(img.attrs.get("height"), img)
+            self.assertIn("alt", img.attrs, img)
+
+    def test_local_links_resolve(self):
+        for n in self.doc.iter():
+            for key in ("href", "src"):
+                url = n.attrs.get(key)
+                if not url or url.startswith(SKIP_SCHEMES):
+                    continue
+                path = urlsplit(url).path
+                target = ROOT / path.lstrip("/")
+                if path.endswith("/") or path == "":
+                    target = target / "index.html"
+                self.assertTrue(target.exists(), f"{key}={url} on {n.tag}")
+
+    def test_talks_anchor_exists(self):
+        self.assertTrue(find_all(self.doc, id="talks"))
+
+
+class Hero(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.doc = parse(cls.html)
+
+    def test_page_width_1120(self):
+        self.assertIn(".page { max-width: 1120px;", self.html)
+
+    def test_hero_photo(self):
+        imgs = find_all(self.doc, "img", src="assets/photos/omar-gdd-istanbul.jpg")
+        self.assertEqual(len(imgs), 1)
+        img = imgs[0]
+        self.assertEqual((img.attrs.get("width"), img.attrs.get("height")), ("720", "900"))
+        self.assertEqual(img.attrs.get("alt"), "Omar Elcircevi speaking at Google for Developers Day Istanbul")
+        self.assertNotEqual(img.attrs.get("loading"), "lazy")
+
+    def test_sprite_symbols(self):
+        ids = {n.attrs.get("id") for n in find_all(self.doc, "symbol")}
+        self.assertLessEqual({"i-gh", "i-li", "i-md", "i-mail", "i-cal"}, ids)
+
+    def test_nav(self):
+        topbar = find_all(self.doc, cls="topbar")[0]
+        links = find_all(topbar, "a")
+        nav = [a.attrs.get("href") for a in links if "domain" not in a.classes]
+        self.assertEqual(nav, ["#about", "#experience", "#speaking", "#projects", "#writing", "#contact"])
+        cta = links[-1]
+        self.assertIn("cta", cta.classes)
+        self.assertEqual(cta.text().strip(), "Book a call")
+
+    def test_topbar_cta_compact_on_phones(self):
+        cta = [a for a in find_all(find_all(self.doc, cls="topbar")[0], "a") if "cta" in a.classes][0]
+        self.assertEqual(cta.attrs.get("aria-label"), "Book a call")
+        self.assertTrue(find_all(cta, "svg", cls="ic"))
+        self.assertEqual(find_all(cta, cls="cta-label")[0].text().strip(), "Book a call")
+        phone = re.search(r"@media \(max-width: 640px\) \{(.*?)\n    \}", self.html, re.S)
+        self.assertIn(".topbar .cta-label { display: none; }", phone.group(1))
+
+    def test_hero_links_have_icons(self):
+        header = find_all(self.doc, "header")[0]
+        row = find_all(header, cls="links")[0]
+        links = find_all(row, "a")
+        self.assertEqual([a.attrs.get("href") for a in links], [
+            "#contact", "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            "https://github.com/omarcevi", "https://omarcevi.medium.com"])
+        for a in links:
+            self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
+
+
+DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
+FULL_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class Speaking(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+        found = find_all(cls.doc, "section", id="speaking")
+        cls.sec = found[0] if found else None
+
+    def items(self, list_id):
+        lists = find_all(self.doc, "ul", id=list_id)
+        self.assertEqual(len(lists), 1, list_id)
+        return [c for c in lists[0].elements() if c.tag == "li"]
+
+    def test_speaking_section(self):
+        self.assertIsNotNone(self.sec)
+        span = [c for c in self.sec.elements() if "span" in c.classes][0]
+        self.assertEqual(find_all(span, cls="sp-name")[0].text().strip(), "speaking.md")
+        self.assertTrue(find_all(self.sec, id="talks"))
+        self.assertFalse(find_all(self.doc, "section", id="talks"))
+
+    def test_item_dates(self):
+        talks, shops = self.items("talk-list"), self.items("workshop-list")
+        self.assertEqual((len(talks), len(shops)), (6, 4))
+        for li in talks + shops:
+            self.assertRegex(li.attrs.get("data-date", ""), DATE_RE)
+
+    def test_upcoming_needs_full_date(self):
+        for li in self.items("talk-list") + self.items("workshop-list"):
+            d = li.attrs.get("data-date", "")
+            if FULL_DATE_RE.match(d) and d >= "2026-10-23":
+                for key in ("data-event", "data-place", "data-format", "data-lang", "data-url"):
+                    self.assertTrue(li.attrs.get(key), f"{d} missing {key}")
+
+    def test_no_js_fallback(self):
+        card = find_all(self.doc, id="up-card")
+        self.assertEqual(len(card), 1)
+        self.assertIn("hidden", card[0].attrs)
+        self.assertFalse(card[0].elements())
+        self.assertIn("hidden", find_all(self.doc, id="strip-next")[0].attrs)
+        dated = [li.attrs.get("data-date") for li in self.items("workshop-list")]
+        self.assertIn("2026-10-27", dated)
+
+    def test_strip_hidden_without_js(self):
+        strip = find_all(self.doc, id="strip")
+        self.assertEqual(len(strip), 1)
+        self.assertIn("js-only", strip[0].classes)
+
+    def test_tags_are_links(self):
+        self.assertIsNotNone(self.sec)
+        tags = find_all(self.sec, cls="tag")
+        self.assertTrue(tags)
+        for t in tags:
+            self.assertEqual(t.tag, "a")
+            self.assertTrue(t.attrs.get("href"))
+
+
+class AboutExperience(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+
+    def test_about_two_columns(self):
+        about = find_all(self.doc, "section", id="about")[0]
+        body = find_all(about, cls="about-body")[0]
+        fig = find_all(about, id="att-fig")[0]
+        self.assertIs(body.parent, fig.parent)
+        self.assertIn("two", body.parent.classes)
+        kids = body.parent.elements()
+        self.assertLess(kids.index(body), kids.index(fig))
+
+    def test_badge_moved(self):
+        about = find_all(self.doc, "section", id="about")[0]
+        self.assertFalse(find_all(about, cls="badge"))
+        badges = find_all(self.doc, cls="badge")
+        self.assertEqual(len(badges), 1)
+        self.assertTrue(find_all(find_all(self.doc, "header")[0], cls="badge"))
+
+    def test_community_list(self):
+        exp = find_all(self.doc, "section", id="experience")[0]
+        h3 = [h for h in find_all(exp, "h3") if h.text().strip() == "Community"]
+        self.assertEqual(len(h3), 1)
+        sib = h3[0].parent.elements()
+        ul = sib[sib.index(h3[0]) + 1]
+        self.assertEqual((ul.tag, "list" in ul.classes), ("ul", True))
+        self.assertEqual([n.text().strip() for n in find_all(ul, cls="item-title")],
+                         ["Google Developer Expert, Cloud AI", "Co-organizer, GDG Istanbul", "Gemma Train-the-Trainer"])
+        self.assertEqual([n.text().strip() for n in find_all(ul, cls="item-meta")],
+                         ["Google · 2026", "Google Developer Groups", "Google Developer Experts · 2026"])
+        self.assertFalse([h for h in find_all(exp, "h3") if "Education" in h.text()])
+
+
+class ProjectsWriting(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.doc = parse(cls.html)
+
+    def cards(self, cls_name):
+        box = find_all(self.doc, cls=cls_name)
+        self.assertEqual(len(box), 1, cls_name)
+        return [c for c in box[0].elements() if c.tag == "article" and "card" in c.classes]
+
+    def test_featured_pair(self):
+        cards = self.cards("feat2")
+        self.assertEqual([find_all(c, cls="name")[0].text().strip() for c in cards], ["tensorhane.com", "sdlc-agent-pipeline"])
+        th = cards[0]
+        self.assertEqual(find_all(th, cls="label")[0].text().strip(), "Live · rising")
+        self.assertEqual(find_all(th, cls="what")[0].text().strip(), "Learn machine learning by writing it, in Turkish")
+        self.assertEqual([s.text().strip() for s in find_all(find_all(th, cls="chips")[0], "span")], ["Python", "NumPy", "Triton", "Türkçe"])
+        img = find_all(th, "img")[0]
+        self.assertEqual((img.attrs.get("src"), img.attrs.get("width"), img.attrs.get("height")), ("assets/projects/tensorhane.jpg", "880", "550"))
+        self.assertEqual(find_all(find_all(th, cls="name")[0], "a")[0].attrs.get("href"), "https://tensorhane.com")
+
+    def test_grid_of_four(self):
+        cards = self.cards("grid4")
+        self.assertEqual([find_all(c, cls="name")[0].text().strip() for c in cards],
+                         ["vllm-metal-bench", "triton-beginner-demo", "augury", "claude-caps"])
+        for c in cards:
+            kids = c.elements()
+            first_img = next(i for i, k in enumerate(kids) if find_all(k, "img") or k.tag == "img")
+            first_text = next(i for i, k in enumerate(kids) if find_all(k, cls="name"))
+            self.assertLess(first_img, first_text)
+
+    def test_card_img_css(self):
+        rule = re.search(r"\.card img \{([^}]*)\}", self.html)
+        self.assertIsNotNone(rule)
+        self.assertIn("height: auto", rule.group(1))
+        self.assertIn("aspect-ratio: 16 / 10", rule.group(1))
+
+    def test_writing_oss_merged(self):
+        sec = find_all(self.doc, "section", id="writing")
+        self.assertEqual(len(sec), 1)
+        self.assertEqual(find_all(sec[0], "h2")[0].text().strip(), "Writing & Open Source")
+        self.assertTrue([n for n in sec[0].iter() if n.tag == "#comment" and n.data.strip() == "MEDIUM:START"])
+        hrefs = [a.attrs.get("href") for a in find_all(sec[0], "a")]
+        self.assertIn("https://github.com/google/adk-python/pull/3037", hrefs)
+        self.assertIn("https://github.com/google/adk-web/pull/272", hrefs)
+        self.assertFalse(find_all(self.doc, "section", id="oss"))
+
+    def test_span_names_final(self):
+        names = [find_all(s, cls="sp-name")[0].text().strip() for s in find_all(self.doc, cls="span")]
+        self.assertEqual(names, ["about.md", "experience.md", "speaking.md", "projects.md", "writing.md", "contact.md"])
+
+
+BOOKING_URL = ("https://calendar.google.com/calendar/appointments/schedules/"
+               "AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true")
+
+
+class Booking(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+
+    def test_iframe(self):
+        frames = find_all(self.doc, "iframe", cls="booking-frame")
+        self.assertEqual(len(frames), 1)
+        f = frames[0]
+        self.assertEqual(f.attrs.get("src"), BOOKING_URL)
+        self.assertTrue(f.attrs.get("title"))
+        self.assertEqual(f.attrs.get("loading"), "lazy")
+
+    def test_fallback_link(self):
+        links = find_all(self.doc, "a", cls="booking-link")
+        self.assertEqual(len(links), 1)
+        a = links[0]
+        self.assertEqual(a.attrs.get("href"), BOOKING_URL)
+        self.assertEqual(a.text().strip(), "Open the booking page ↗")
+        node = a.parent
+        while node is not None:
+            self.assertNotEqual(node.tag, "iframe")
+            node = node.parent
+
+    def test_book_a_call_targets(self):
+        booking = [a for a in find_all(self.doc, "a") if a.text().strip() == "Book a call"]
+        self.assertGreaterEqual(len(booking), 2)
+        for a in booking:
+            self.assertEqual(a.attrs.get("href"), "#contact")
+        contact = find_all(self.doc, "section", id="contact")[0]
+        self.assertEqual(find_all(contact, "h2")[0].text().strip(), "Book a call")
+
+    def test_contact_links_have_icons(self):
+        contact = find_all(self.doc, "section", id="contact")[0]
+        links = find_all(find_all(contact, cls="links")[0], "a")
+        self.assertEqual([a.attrs.get("href") for a in links], [
+            "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            "https://github.com/omarcevi", "https://omarcevi.medium.com"])
+        for a in links:
+            self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
+
+
+def _lum(hex_color):
+    rgb = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def contrast(a, b):
+    hi, lo = sorted((_lum(a), _lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+class Meta(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.llms = (ROOT / "llms.txt").read_text(encoding="utf-8")
+
+    def blocks(self):
+        """The three token blocks: light :root, the OS-dark :root, and :root[data-theme="dark"]."""
+        heads = [r"    :root \{\n", r':root:not\(\[data-theme="light"\]\) \{\n', r':root\[data-theme="dark"\] \{\n']
+        out = []
+        for h in heads:
+            m = re.search(h + r"(.*?)\}", self.html, re.S)
+            self.assertIsNotNone(m, h)
+            out.append(dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6});", m.group(1))))
+        return out
+
+    def test_llms_txt(self):
+        self.assertIn("Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, October 2026", self.llms)
+        self.assertIn("Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye, October 2026", self.llms)
+        self.assertIn("Book a call: " + BOOKING_URL, self.llms)
+
+    def test_faint_contrast(self):
+        light, os_dark, dark = self.blocks()
+        self.assertEqual(os_dark.get("faint"), dark.get("faint"))
+        for block, bg in ((light, light["bg"]), (dark, dark["bg"])):
+            self.assertGreaterEqual(contrast(block["faint"], bg), 4.5, block["faint"])
+        # keep the hierarchy: faint stays fainter than muted
+        self.assertLess(contrast(light["faint"], light["bg"]), contrast(light["muted"], light["bg"]))
+        self.assertLess(contrast(dark["faint"], dark["bg"]), contrast(dark["muted"], dark["bg"]))
+
+    def test_primary_hover_readable_in_dark(self):
+        # white on the dark theme's light accent (#7aa2ff) is 2.5:1; the page ground colour reads in both themes
+        for sel in (r"\.topbar \.cta:hover", r"\.links a\.primary:hover"):
+            rule = re.search(sel + r" \{([^}]*)\}", self.html)
+            self.assertIsNotNone(rule, sel)
+            self.assertIn("color: var(--bg)", rule.group(1), sel)
+            self.assertNotIn("#fff", rule.group(1), sel)
+
+    def test_date_modified(self):
+        m = re.search(r'"dateModified": "(\d{4}-\d{2}-\d{2})"', self.html)
+        self.assertGreaterEqual(m.group(1), "2026-10-23")
+
+
+if __name__ == "__main__":
+    unittest.main()

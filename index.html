@@ -39,7 +39,7 @@
     "@type": "ProfilePage",
     "url": "https://omarcevi.dev/",
     "name": "Omar Elcircevi — ML Inference Engineer · Istanbul, Turkey",
-    "dateModified": "2026-10-04",
+    "dateModified": "2026-10-23",
     "inLanguage": "en",
     "mainEntity": {
       "@type": "Person",
@@ -101,7 +101,7 @@
       --surface: #ffffff;
       --text: #18181b;
       --muted: #5f6168;
-      --faint: #9a9ca3;
+      --faint: #6f7178;
       --accent: #2a5bd7;
       --accent-rgb: 42, 91, 215;
       --accent-soft: #e6ecfb;
@@ -131,7 +131,7 @@
         --surface: #171a20;
         --text: #e8e9ec;
         --muted: #a0a4ad;
-        --faint: #6b7079;
+        --faint: #80858e;
         --accent: #7aa2ff;
         --accent-rgb: 122, 162, 255;
         --accent-soft: #1d2740;
@@ -148,7 +148,7 @@
       --surface: #171a20;
       --text: #e8e9ec;
       --muted: #a0a4ad;
-      --faint: #6b7079;
+      --faint: #80858e;
       --accent: #7aa2ff;
       --accent-rgb: 122, 162, 255;
       --accent-soft: #1d2740;
@@ -173,7 +173,10 @@
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
-    .page { max-width: 760px; margin: 0 auto; padding: 1rem 1.5rem 4rem; }
+    .page { max-width: 1120px; margin: 0 auto; padding: 1rem 1.5rem 4rem; }
+    .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3rem; }
+    .two.wide-left { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+    .ic { width: 14px; height: 14px; flex: none; }
 
     a {
       color: inherit;
@@ -206,6 +209,12 @@
     .topbar nav::-webkit-scrollbar { display: none; }
     .topbar nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
     .topbar nav a:hover, .topbar nav a[aria-current] { color: var(--accent); }
+    .topbar .cta {
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.4rem;
+      white-space: nowrap; text-decoration: none; padding: 0.3rem 0.8rem; border-radius: 999px;
+      background: var(--text); color: var(--bg); transition: background 0.15s, color 0.15s;
+    }
+    .topbar .cta:hover { background: var(--accent); color: var(--bg); }
     .theme-toggle {
       flex-shrink: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.25rem -0.4rem -0.25rem 0;
       border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
@@ -218,6 +227,14 @@
 
     /* ---------- header ---------- */
     header { padding: 4rem 0 2.5rem; position: relative; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 3rem; align-items: end; }
+    .hero-text { position: relative; } /* the GPT-2 token popup is positioned inside the h1's parent */
+    .hero .links { margin-top: 1.5rem; }
+    .hero .badge { margin-top: 1.4rem; }
+    .hero .badge img { width: 220px; }
+    .hero-photo { margin: 0; }
+    .hero-photo img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--border); }
+    .hero-photo .cap { margin-top: 0.55rem; }
     .kicker { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-bottom: 1.1rem; }
     .kicker .avail { color: var(--ok); text-decoration: none; white-space: nowrap; }
     .kicker .avail:hover { text-decoration: underline; }
@@ -388,6 +405,32 @@
     .span.reading .sp-time { color: var(--accent); }
     .span.reading .sp-name { color: var(--text); }
 
+    /* ---------- next-talk strip (full bleed) + upcoming card ---------- */
+    html, body { overflow-x: clip; } /* the strip spans 100vw, which includes a classic scrollbar */
+    .strip { margin: 2.5rem calc(50% - 50vw) 0; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .strip-in {
+      max-width: 1120px; margin: 0 auto; padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.4rem 1rem; flex-wrap: wrap;
+      font-family: var(--mono); font-size: 0.8rem; color: var(--muted); min-height: 1.6rem;
+    }
+    .strip-in b { color: var(--text); font-weight: 500; }
+    .strip-in a { color: var(--accent); text-decoration: none; }
+    .strip-in a:hover { text-decoration: underline; }
+    #strip-count b { font-family: var(--sans); font-size: 1.05rem; font-weight: 600; }
+    .soon { display: inline-block; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0.05rem 0.55rem; margin-left: 0.2rem; }
+    .up-card {
+      display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) auto; gap: 1.2rem; align-items: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 2rem;
+    }
+    .up-card[hidden] { display: none; }
+    .up-cal { text-align: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: var(--mono); }
+    .up-cal b { display: block; background: var(--accent); color: var(--bg); font-size: 0.72rem; font-weight: 500; padding: 0.1rem 0; }
+    .up-cal span { display: block; font-size: 1.3rem; padding: 0.15rem 0; }
+    .up-go { font-family: var(--mono); font-size: 0.8rem; text-decoration: none; color: var(--accent); white-space: nowrap; }
+    .mats { margin-top: 0.15rem; }
+    .mats .tag { margin: 0.35rem 0.35rem 0 0; }
+    .anchor { display: block; position: relative; top: -3.25rem; }
+    .two > .sub + .sub { margin-top: 0; }
+
     h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1.3rem; }
     .prose p { max-width: 38em; }
 
@@ -407,6 +450,8 @@
       margin: 0.4rem 0 1.4rem; padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
     }
     .att-fig.ready { display: grid; }
+    .about-two .att-fig { margin: 0.2rem 0 0; align-self: start; }
+    .about-two .prose p:last-child { margin-bottom: 0; }
     .hg { display: grid; grid-template-columns: repeat(12, 11px) 14px; gap: 2px; }
     .hg button { width: 11px; height: 11px; border: 0; border-radius: 2px; padding: 0; cursor: pointer; background: rgba(var(--accent-rgb), var(--v, 0.1)); }
     .hg button.avg { margin-left: 3px; box-shadow: inset 0 0 0 1px var(--border); }
@@ -469,9 +514,15 @@
       transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .card:hover { transform: translateY(-2px); border-color: rgba(var(--accent-rgb), 0.45); }
-    .card.has-thumb { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 1.2rem; align-items: start; }
-    .thumb { display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); text-decoration: none; }
-    .thumb img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.3s ease; }
+    .feat2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .feat2 .card, .grid4 .card { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .card-body { display: flex; flex-direction: column; flex: 1; padding: 1rem 1.1rem 1.1rem; }
+    .card-body .chips { margin-top: auto; padding-top: 0.85rem; }
+    .feat2 .what { font-size: 1.15rem; }
+    .grid4 .item-desc { font-size: 0.88rem; }
+    .thumb { display: block; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--bg); text-decoration: none; }
+    .card img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.3s ease; }
     .card:hover .thumb img { transform: scale(1.03); }
     .card .name { font-family: var(--mono); font-weight: 500; font-size: 0.95rem; }
     .card .name a { text-decoration: none; }
@@ -487,22 +538,36 @@
     .more a { text-decoration: none; color: var(--accent); }
     .more a:hover { text-decoration: underline; }
 
+    .booking-box { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; } /* Google's booking page is light in both themes */
+    .booking-frame { display: block; width: 100%; height: 600px; }
+    .booking-link { display: inline-block; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.8rem; color: var(--accent); text-decoration: none; }
+    .booking-link:hover { text-decoration: underline; }
     .contact p { font-size: 1.15rem; line-height: 1.5; max-width: 30em; letter-spacing: -0.01em; }
     .links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
     .links a {
+      display: inline-flex; align-items: center; gap: 0.5rem;
       font-family: var(--mono); font-size: 0.82rem; text-decoration: none; padding: 0.5rem 1rem;
       border: 1px solid var(--border); border-radius: 999px; background: var(--surface); transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
     .links a:hover { border-color: var(--accent); color: var(--accent); }
     .links a.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-    .links a.primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .links a.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 
     footer {
       margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--faint);
       font-size: 0.76rem; font-family: var(--mono); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
     }
 
+    @media (max-width: 860px) {
+      .two, .two.wide-left, .hero, .feat2 { grid-template-columns: minmax(0, 1fr); }
+      .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .hero { align-items: start; }
+      .hero-photo { max-width: 340px; }
+    }
+
     @media (max-width: 640px) {
+      .topbar .cta { padding: 0.35rem; }
+      .topbar .cta-label { display: none; } /* the hero has the full button; keep room for the section nav */
       body { font-size: 16px; }
       .page { padding: 0.5rem 1rem 3rem; }
       header { padding: 3rem 0 2rem; }
@@ -515,9 +580,9 @@
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
       .rows > li { grid-template-columns: 1fr; gap: 0.15rem; }
       .rows .date { padding-top: 0; }
-      .card { padding: 1.05rem; }
-      .card.has-thumb { grid-template-columns: 1fr; }
-      .card.has-thumb .thumb { order: -1; }
+      .grid4 { grid-template-columns: minmax(0, 1fr); }
+      .up-card { grid-template-columns: 3.8rem minmax(0, 1fr); gap: 0.6rem 1rem; align-items: start; }
+      .up-go { grid-column: 2; }
       .cand { min-width: 13rem; }
       .ag-body { grid-template-columns: 1fr; }
       .ag-graph { border-right: 0; border-bottom: 1px solid var(--p-line2); }
@@ -530,17 +595,25 @@
   </style>
 </head>
 <body>
+  <!-- icons: brand marks from simple-icons, mail and calendar drawn to match the theme toggle -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="i-gh" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+    <symbol id="i-li" viewBox="0 0 24 24"><path fill="currentColor" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></symbol>
+    <symbol id="i-md" viewBox="0 0 24 24"><path fill="currentColor" d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42-1.87 0-3.39-2.88-3.39-6.42s1.52-6.42 3.39-6.42 3.38 2.88 3.38 6.42M24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="3.25" width="12.5" height="9.5" rx="1.5"/><path d="M2.5 4.25 8 8.5l5.5-4.25"/></g></symbol>
+    <symbol id="i-cal" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="11.5" rx="1.5"/><path d="M1.75 6.25h12.5M5 1.5v2.5M11 1.5v2.5"/></g></symbol>
+  </svg>
   <div class="page">
     <div class="topbar">
       <a class="domain" href="#">omarcevi.dev</a>
       <nav aria-label="Sections">
         <a href="#about">About</a>
         <a href="#experience">Experience</a>
-        <a href="#talks">Talks</a>
+        <a href="#speaking">Speaking</a>
         <a href="#projects">Projects</a>
         <a href="#writing">Writing</a>
-        <a href="#contact">Contact</a>
       </nav>
+      <a class="cta" href="#contact" aria-label="Book a call"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg><span class="cta-label">Book a call</span></a>
       <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
         <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
         <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
@@ -548,10 +621,35 @@
     </div>
 
     <header>
-      <p class="kicker"><span class="dot" title="Open to collaborations"></span>ML Inference Systems Engineer · Istanbul, Turkey · <a href="#contact" class="avail">open to collaborations</a></p>
-      <h1 id="name" class="stream">Omar Elcircevi</h1>
-      <p id="tagline" class="tagline stream"><strong>Building production ML inference systems.</strong> Google Developer Expert, Cloud AI · Google Dev Group organizer · Speaker · OSS contributor</p>
-      <div class="gen" id="gen" aria-hidden="true"></div>
+      <div class="hero">
+        <div class="hero-text">
+          <p class="kicker"><span class="dot" title="Open to collaborations"></span>ML Inference Systems Engineer · Istanbul, Turkey · <a href="#contact" class="avail">open to collaborations</a></p>
+          <h1 id="name" class="stream">Omar Elcircevi</h1>
+          <p id="tagline" class="tagline stream"><strong>Building production ML inference systems.</strong> Google Developer Expert, Cloud AI · Google Dev Group organizer · Speaker · OSS contributor</p>
+          <div class="gen" id="gen" aria-hidden="true"></div>
+          <div class="links">
+            <a class="primary" href="#contact"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg>Book a call</a>
+            <a href="mailto:hi@omarcevi.dev"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>hi@omarcevi.dev</a>
+            <a href="https://www.linkedin.com/in/omarcevi/"><svg class="ic" aria-hidden="true"><use href="#i-li"/></svg>LinkedIn</a>
+            <a href="https://github.com/omarcevi"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
+            <a href="https://omarcevi.medium.com"><svg class="ic" aria-hidden="true"><use href="#i-md"/></svg>Medium</a>
+          </div>
+          <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
+            <img src="gde-cloud-ai-2026.png" width="900" height="319" decoding="async" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
+          </a>
+        </div>
+        <figure class="hero-photo">
+          <img src="assets/photos/omar-gdd-istanbul.jpg" width="720" height="900" decoding="async" fetchpriority="high" alt="Omar Elcircevi speaking at Google for Developers Day Istanbul">
+          <figcaption class="cap">Google for Developers Day Istanbul</figcaption>
+        </figure>
+      </div>
+
+      <div class="strip js-only" id="strip">
+        <div class="strip-in">
+          <span id="strip-next" hidden></span>
+          <span id="strip-count"></span>
+        </div>
+      </div>
 
       <div class="panel js-only" id="simbox">
         <div class="p-head">
@@ -579,139 +677,167 @@
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">about.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
       <h2>About</h2>
       <p class="att-hint" id="att-hint"></p>
-      <div class="about-body prose">
-        <svg class="att-svg" aria-hidden="true"></svg>
-        <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
-        <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
-        <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
-      </div>
-      <div class="att-fig" id="att-fig">
-        <div>
-          <div class="hg" id="hg" role="group" aria-label="Attention heads: rows are layers, columns are heads"></div>
-          <div class="hg-axis"><span>heads 0–11 →</span><span>avg</span></div>
+      <div class="two about-two">
+        <div class="about-body prose">
+          <svg class="att-svg" aria-hidden="true"></svg>
+          <p>I work on ML inference systems: deploying and optimizing the platforms that serve recommendation engines, search ranking, and increasingly AI agents in production. Most recently that meant a platform serving 100M+ users at over 1M requests per minute.</p>
+          <p>My work sits at the intersection of ML, systems, and infrastructure — vLLM and Triton for serving, and Kubernetes across cloud and on-prem. I care about the parts of ML that don't make it into most conference talks: p99 latency, GPU utilization, what breaks at 3am.</p>
+          <p>I'm a Google Developer Expert in Cloud AI. I co-organize GDG Istanbul and speak regularly at DevFest, Build with AI, and GDG events across Turkey and abroad, in both Turkish and English.</p>
         </div>
-        <div class="att-desc">
-          <p class="sel-label" id="att-sel"></p>
-          <p>These are the real attention weights of <b>GPT-2 small</b> reading the three paragraphs above, pooled from tokens to words. GPT-2 only looks backwards, so arcs always point to earlier words.</p>
-          <p>Each square is one head; rows are layers 0–11, and brighter squares look further back. Click one to switch.</p>
-          <p class="small">computed by <a href="https://github.com/omarcevi/omarcevi.github.io/blob/main/scripts/ml_figures.py">scripts/ml_figures.py</a> · &lt;|endoftext|&gt; sink removed, rows renormalized</p>
+        <div class="att-fig" id="att-fig">
+          <div>
+            <div class="hg" id="hg" role="group" aria-label="Attention heads: rows are layers, columns are heads"></div>
+            <div class="hg-axis"><span>heads 0–11 →</span><span>avg</span></div>
+          </div>
+          <div class="att-desc">
+            <p class="sel-label" id="att-sel"></p>
+            <p>These are the real attention weights of <b>GPT-2 small</b> reading the three paragraphs of this section, pooled from tokens to words. GPT-2 only looks backwards, so arcs always point to earlier words.</p>
+            <p>Each square is one head; rows are layers 0–11, and brighter squares look further back. Click one to switch.</p>
+            <p class="small">computed by <a href="https://github.com/omarcevi/omarcevi.github.io/blob/main/scripts/ml_figures.py">scripts/ml_figures.py</a> · &lt;|endoftext|&gt; sink removed, rows renormalized</p>
+          </div>
         </div>
       </div>
-      <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
-        <img src="gde-cloud-ai-2026.png" width="900" height="319" loading="lazy" decoding="async" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
-      </a>
     </section>
 
     <section id="experience">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">experience.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
       <h2>Experience</h2>
-      <ul class="timeline">
-        <li>
-          <div class="role-head">
-            <span class="company"><img class="logo-word logo-light" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"><img class="logo-word logo-dark" loading="lazy" decoding="async" src="assets/logos/trendyol-dark.png" width="284" height="96" alt="Trendyol"></span>
-            <span class="when">Mar 2024 – Sep 2026</span>
-          </div>
-          <div class="role">Machine Learning Engineer, Inference Platform</div>
-          <ul class="bullets">
-            <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
-            <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
-            <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
-            <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
-            <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+      <div class="two wide-left">
+        <div>
+          <ul class="timeline">
+            <li>
+              <div class="role-head">
+                <span class="company"><img class="logo-word logo-light" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"><img class="logo-word logo-dark" loading="lazy" decoding="async" src="assets/logos/trendyol-dark.png" width="284" height="96" alt="Trendyol"></span>
+                <span class="when">Mar 2024 – Sep 2026</span>
+              </div>
+              <div class="role">Machine Learning Engineer, Inference Platform</div>
+              <ul class="bullets">
+                <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
+                <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
+                <li>Designed the platform's deployment client, auth, active zone switching, and pipeline event notifications.</li>
+                <li>Built TensorRT conversion pipelines and tuned models from data science teams across the company; traced CPU inference bottlenecks down to memory latency with perf and TMA.</li>
+                <li>Benchmarked AMD MI325X against H200 for LLM and ranking workloads, and built an MCP tool and a set of Claude skills for the platform.</li>
+            </ul>
+            </li>
+            <li>
+              <div class="role-head">
+                <span class="company"><img class="logo-mark" loading="lazy" decoding="async" src="assets/logos/turkcell.png" width="191" height="192" alt="">Turkcell</span>
+                <span class="when">2022 – 2024</span>
+              </div>
+              <div class="role">AI &amp; Analytical Solutions</div>
+            </li>
           </ul>
-        </li>
-        <li>
-          <div class="role-head">
-            <span class="company"><img class="logo-mark" loading="lazy" decoding="async" src="assets/logos/turkcell.png" width="191" height="192" alt="">Turkcell</span>
-            <span class="when">2022 – 2024</span>
-          </div>
-          <div class="role">AI &amp; Analytical Solutions</div>
-        </li>
-      </ul>
+        </div>
+        <div class="sub">
+          <h3>Community</h3>
+          <ul class="list">
+            <li>
+              <div class="item-title">Google Developer Expert, Cloud AI</div>
+              <div class="item-meta">Google · 2026</div>
+            </li>
+            <li>
+              <div class="item-title">Co-organizer, GDG Istanbul</div>
+              <div class="item-meta">Google Developer Groups</div>
+            </li>
+            <li>
+              <div class="item-title">Gemma Train-the-Trainer</div>
+              <div class="item-meta">Google Developer Experts · 2026</div>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
-    <section id="talks">
-      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">talks.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Talks &amp; Workshops</h2>
-      <div class="sub">
-        <h3>Selected talks</h3>
-        <ul class="rows">
-          <li>
-            <span class="date">Sep 2026</span>
-            <div>
-              <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
-              <div class="item-meta">Google Developer Day Istanbul</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Apr 2026</span>
-            <div>
-              <div class="item-title">Build with AI: Gemini SDK &amp; Cloud Run</div>
-              <div class="item-meta">42 Türkiye</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Apr 2026</span>
-            <div>
-              <div class="item-title">Build with AI: Google Antigravity</div>
-              <div class="item-meta">42 Türkiye</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Nov 2025</span>
-            <div>
-              <div class="item-title">Architecture of High Performance ML Solutions</div>
-              <div class="item-meta">GDG Baku</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">2023</span>
-            <div>
-              <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8" aria-label="Watch the recording">▶ video</a></div>
-              <div class="item-meta">DevFest Istanbul</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">2023</span>
-            <div>
-              <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
-              <div class="item-meta">DevFest Trabzon</div>
-            </div>
-          </li>
-        </ul>
-      </div>
-      <div class="sub">
-        <h3>Workshops</h3>
-        <ul class="rows">
-          <li>
-            <span class="date">Oct 2026</span>
-            <div>
-              <div class="item-title"><a href="/workshops/cloud-agents-workshop/">Deploying your agents on Google Cloud Agent Platform</a><a class="tag" href="/workshops/cloud-agents-workshop/" aria-label="Open the workshop guide">guide</a></div>
-              <div class="item-meta">Google Cloud Day Türkiye – Builder Connect</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Oct 2026</span>
-            <div>
-              <div class="item-title"><a href="/workshops/adk-multi-agent-workshop/">Architecting Multi-Agent Systems with Google ADK</a><a class="tag" href="/workshops/adk-multi-agent-workshop/" aria-label="Open the workshop guide">guide</a></div>
-              <div class="item-meta">Google Developer Day Istanbul</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Aug 2026</span>
-            <div>
-              <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
-              <div class="item-meta">Google Developer Experts</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">May 2026</span>
-            <div>
-              <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
-              <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
-            </div>
-          </li>
-        </ul>
+    <section id="speaking">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">speaking.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <a id="talks" class="anchor" aria-hidden="true" tabindex="-1"></a>
+      <h2>Speaking</h2>
+      <div class="up-card" id="up-card" hidden></div>
+      <div class="two">
+        <div class="sub">
+          <h3>Talks</h3>
+          <ul class="rows" id="talk-list">
+            <li data-date="2026-09">
+              <span class="date">Sep 2026</span>
+              <div>
+                <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
+                <div class="item-meta">Google Developer Day Istanbul</div>
+              </div>
+            </li>
+            <li data-date="2026-04">
+              <span class="date">Apr 2026</span>
+              <div>
+                <div class="item-title">Build with AI: Gemini SDK &amp; Cloud Run</div>
+                <div class="item-meta">42 Türkiye</div>
+              </div>
+            </li>
+            <li data-date="2026-04">
+              <span class="date">Apr 2026</span>
+              <div>
+                <div class="item-title">Build with AI: Google Antigravity</div>
+                <div class="item-meta">42 Türkiye</div>
+              </div>
+            </li>
+            <li data-date="2025-11">
+              <span class="date">Nov 2025</span>
+              <div>
+                <div class="item-title">Architecture of High Performance ML Solutions</div>
+                <div class="item-meta">GDG Baku</div>
+              </div>
+            </li>
+            <li data-date="2023">
+              <span class="date">2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a></div>
+                <div class="item-meta">DevFest Istanbul</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <li data-date="2023">
+              <span class="date">2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
+                <div class="item-meta">DevFest Trabzon</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/CzMdVHatqDF/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="sub">
+          <h3>Workshops</h3>
+          <ul class="rows" id="workshop-list">
+            <li data-date="2026-10-27" data-event="Google Cloud Day Türkiye – Builder Connect" data-place="Istanbul, Wyndham Grand Levent" data-format="in person" data-lang="EN" data-url="https://cloudonair.withgoogle.com/events/cloud-day-tr">
+              <span class="date">Oct 2026</span>
+              <div>
+                <div class="item-title"><a href="/workshops/cloud-agents-workshop/">Deploying your agents on Google Cloud Agent Platform</a></div>
+                <div class="item-meta">Google Cloud Day Türkiye – Builder Connect</div>
+                <div class="mats"><a class="tag" href="/workshops/cloud-agents-workshop/" aria-label="Open the workshop guide">guide</a><a class="tag" href="https://github.com/omarcevi/cloud-agents-workshop" aria-label="Workshop repository on GitHub">repo</a></div>
+              </div>
+            </li>
+            <li data-date="2026-10-09">
+              <span class="date">Oct 2026</span>
+              <div>
+                <div class="item-title"><a href="/workshops/adk-multi-agent-workshop/">Architecting Multi-Agent Systems with Google ADK</a></div>
+                <div class="item-meta">Google Developer Day Istanbul</div>
+                <div class="mats"><a class="tag" href="/workshops/adk-multi-agent-workshop/" aria-label="Open the workshop guide">guide</a><a class="tag" href="https://github.com/omarcevi/adk-multi-agent-workshop" aria-label="Workshop repository on GitHub">repo</a></div>
+              </div>
+            </li>
+            <li data-date="2026-08">
+              <span class="date">Aug 2026</span>
+              <div>
+                <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
+                <div class="item-meta">Google Developer Experts</div>
+              </div>
+            </li>
+            <li data-date="2026-05">
+              <span class="date">May 2026</span>
+              <div>
+                <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
+                <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -743,60 +869,75 @@
       </div>
       <p class="cap js-only projects-cap" id="ag-cap"><span id="ag-cap-text">A recorded run of my issue-to-PR agents, replayed with its real timestamps, tokens and cost.</span> <a href="https://omarcevi.dev/sdlc-agent-pipeline/">All recorded runs →</a></p>
 
-      <div class="cards">
-        <article class="card has-thumb">
+      <div class="feat2">
+        <article class="card">
+          <a class="thumb" href="https://tensorhane.com" tabindex="-1" aria-hidden="true"><img src="assets/projects/tensorhane.jpg" width="880" height="550" loading="lazy" decoding="async" alt="tensorhane.com home page: a Turkish machine learning course with an interactive gradient descent demo"></a>
           <div class="card-body">
-          <div class="label">Featured</div>
-          <div class="name"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a></div>
-          <div class="what">Agents that turn a GitHub issue into a tested pull request</div>
-          <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
-          <div class="chips"><span>Python</span><span>Google ADK</span><span>Agent Runtime</span><span>Vertex AI</span><span>Terraform</span><span>GitHub Actions</span></div>
+            <div class="label">Live · rising</div>
+            <div class="name"><a href="https://tensorhane.com">tensorhane.com</a></div>
+            <div class="what">Learn machine learning by writing it, in Turkish</div>
+            <p class="item-desc">Short lessons and coding problems in Python, with interactive demos of gradient descent, BPE tokenization, attention and the KV cache. ML foundations are open now; LLM internals and writing an LLM from scratch are next.</p>
+            <div class="chips"><span>Python</span><span>NumPy</span><span>Triton</span><span>Türkçe</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md" tabindex="-1" aria-hidden="true"><img src="assets/projects/sdlc-agent-pipeline.webp" width="880" height="550" loading="lazy" decoding="async" alt="Architecture diagram: GitHub Actions, sandboxes and Agent Runtime on Google Cloud, with observability and a cost hard stop"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a></div>
-          <div class="what">Load testing vllm-metal on an M1 Pro</div>
-          <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
-          <div class="chips"><span>vllm-metal</span><span>AIPerf</span><span>Gemma</span><span>Qwen</span><span>Apple Silicon</span></div>
+            <div class="label">Featured</div>
+            <div class="name"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a></div>
+            <div class="what">Agents that turn a GitHub issue into a tested pull request</div>
+            <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
+            <div class="chips"><span>Python</span><span>Google ADK</span><span>Agent Runtime</span><span>Vertex AI</span><span>Terraform</span><span>GitHub Actions</span></div>
           </div>
+        </article>
+      </div>
+      <div class="grid4">
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/vllm-metal-bench" tabindex="-1" aria-hidden="true"><img src="assets/projects/vllm-metal-bench.webp" width="880" height="550" loading="lazy" decoding="async" alt="Chart: p99 time to first token versus concurrent requests for four 4-bit models on an M1 Pro"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a></div>
-          <div class="what">Your first model on Triton Inference Server</div>
-          <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
-          <div class="chips"><span>NVIDIA Triton</span><span>ONNX</span><span>Docker</span><span>GKE</span></div>
+            <div class="name"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a></div>
+            <div class="what">Load testing vllm-metal on an M1 Pro</div>
+            <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
+            <div class="chips"><span>vllm-metal</span><span>AIPerf</span><span>Gemma</span><span>Qwen</span><span>Apple Silicon</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/triton-beginner-demo" tabindex="-1" aria-hidden="true"><img src="assets/projects/triton-beginner-demo.webp" width="880" height="550" loading="lazy" decoding="async" alt="Triton config.pbtxt for ResNet-18 with dynamic batching and two model instances"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/augury">augury</a></div>
-          <div class="what">A terminal-native AI research digest</div>
-          <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
-          <div class="chips"><span>Python</span><span>Google ADK</span><span>pre-alpha</span><span>Apache-2.0</span></div>
+            <div class="name"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a></div>
+            <div class="what">Your first model on Triton Inference Server</div>
+            <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
+            <div class="chips"><span>NVIDIA Triton</span><span>ONNX</span><span>Docker</span><span>GKE</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/augury" tabindex="-1" aria-hidden="true"><img src="assets/projects/augury.webp" width="880" height="550" loading="lazy" decoding="async" alt="augury terminal UI: ranked list of AI papers with a reader pane"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a></div>
-          <div class="what">Turkish meme reactions for Claude Code</div>
-          <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
-          <div class="chips"><span>Claude Code plugin</span><span>hooks</span><span>bash</span></div>
+            <div class="name"><a href="https://github.com/omarcevi/augury">augury</a></div>
+            <div class="what">A terminal-native AI research digest</div>
+            <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
+            <div class="chips"><span>Python</span><span>Google ADK</span><span>pre-alpha</span><span>Apache-2.0</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/claude-caps" tabindex="-1" aria-hidden="true"><img src="assets/projects/claude-caps.webp" width="880" height="550" loading="lazy" decoding="async" alt="Claude Code terminal answering a task with "Başımla beraber abi!""></a>
+          <div class="card-body">
+            <div class="name"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a></div>
+            <div class="what">Turkish meme reactions for Claude Code</div>
+            <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
+            <div class="chips"><span>Claude Code plugin</span><span>hooks</span><span>bash</span></div>
+          </div>
         </article>
       </div>
     </section>
 
     <section id="writing">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">writing.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Writing</h2>
-      <ul class="list">
+      <h2>Writing &amp; Open Source</h2>
+      <div class="two">
+        <div class="sub">
+          <h3>Writing</h3>
+          <ul class="list">
 <!-- MEDIUM:START -->
       <li>
         <div class="item-title"><a href="https://levelup.gitconnected.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">One Framework to Deploy Them All! Meet NVIDIA Triton Inference Server</a></div>
@@ -815,34 +956,43 @@
         <div class="item-meta">Medium · August 2025</div>
       </li>
 <!-- MEDIUM:END -->
-      </ul>
-      <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
-    </section>
-
-    <section id="oss">
-      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">oss.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Open Source</h2>
-      <ul class="list">
-        <li>
-          <div class="item-title"><a href="https://github.com/google/adk-python/pull/3037">adk-python #3037</a> — fix for third-party CrewAI tool integration</div>
-          <div class="item-meta">google/adk-python</div>
-        </li>
-        <li>
-          <div class="item-title"><a href="https://github.com/google/adk-web/pull/272">adk-web #272</a> — light theme for the ADK web UI</div>
-          <div class="item-meta">google/adk-web</div>
-        </li>
-      </ul>
+          </ul>
+          <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
+        </div>
+        <div class="sub">
+          <h3>Open source</h3>
+          <ul class="list">
+            <li>
+              <div class="item-title"><a href="https://github.com/google/adk-python/pull/3037">adk-python #3037</a> — fix for third-party CrewAI tool integration</div>
+              <div class="item-meta">google/adk-python</div>
+            </li>
+            <li>
+              <div class="item-title"><a href="https://github.com/google/adk-web/pull/272">adk-web #272</a> — light theme for the ADK web UI</div>
+              <div class="item-meta">google/adk-web</div>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section id="contact" class="contact">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">contact.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Elsewhere</h2>
-      <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Or just write to compare notes on inference at scale.</p>
-      <div class="links">
-        <a class="primary" href="mailto:hi@omarcevi.dev" rel="me">hi@omarcevi.dev</a>
-        <a href="https://www.linkedin.com/in/omarcevi/" rel="me">LinkedIn</a>
-        <a href="https://github.com/omarcevi" rel="me">GitHub</a>
-        <a href="https://omarcevi.medium.com" rel="me">Medium</a>
+      <h2>Book a call</h2>
+      <div class="two">
+        <div>
+          <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Pick a slot, or just write to compare notes on inference at scale.</p>
+          <div class="links">
+            <a class="primary" href="mailto:hi@omarcevi.dev" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>hi@omarcevi.dev</a>
+            <a href="https://www.linkedin.com/in/omarcevi/" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-li"/></svg>LinkedIn</a>
+            <a href="https://github.com/omarcevi" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
+            <a href="https://omarcevi.medium.com" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-md"/></svg>Medium</a>
+          </div>
+        </div>
+        <div class="booking">
+          <!-- Google Calendar appointment schedule, inline booking page. To change the booking page, replace the URL here and in the link below. -->
+          <div class="booking-box"><iframe class="booking-frame" src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" title="Book a 30-minute call with Omar" loading="lazy" style="border:0" width="100%" height="600"></iframe></div>
+          <a class="booking-link" href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" target="_blank" rel="noopener">Open the booking page ↗</a>
+        </div>
       </div>
     </section>
 
@@ -1646,5 +1796,6 @@
     })();
   })();
   </script>
+  <script src="assets/speaking.js" defer></script>
 </body>
 </html>
