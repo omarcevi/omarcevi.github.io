@@ -404,6 +404,32 @@
     .span.reading .sp-time { color: var(--accent); }
     .span.reading .sp-name { color: var(--text); }
 
+    /* ---------- next-talk strip (full bleed) + upcoming card ---------- */
+    html, body { overflow-x: clip; } /* the strip spans 100vw, which includes a classic scrollbar */
+    .strip { margin: 2.5rem calc(50% - 50vw) 0; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .strip-in {
+      max-width: 1120px; margin: 0 auto; padding: 0.8rem 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 0.4rem 1rem; flex-wrap: wrap;
+      font-family: var(--mono); font-size: 0.8rem; color: var(--muted); min-height: 1.6rem;
+    }
+    .strip-in b { color: var(--text); font-weight: 500; }
+    .strip-in a { color: var(--accent); text-decoration: none; }
+    .strip-in a:hover { text-decoration: underline; }
+    #strip-count b { font-family: var(--sans); font-size: 1.05rem; font-weight: 600; margin-right: 0.3rem; }
+    .soon { display: inline-block; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 0.05rem 0.55rem; margin-left: 0.2rem; }
+    .up-card {
+      display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) auto; gap: 1.2rem; align-items: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 2rem;
+    }
+    .up-card[hidden] { display: none; }
+    .up-cal { text-align: center; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: var(--mono); }
+    .up-cal b { display: block; background: var(--accent); color: var(--bg); font-size: 0.72rem; font-weight: 500; padding: 0.1rem 0; }
+    .up-cal span { display: block; font-size: 1.3rem; padding: 0.15rem 0; }
+    .up-go { font-family: var(--mono); font-size: 0.8rem; text-decoration: none; color: var(--accent); white-space: nowrap; }
+    .mats { margin-top: 0.15rem; }
+    .mats .tag { margin: 0.35rem 0.35rem 0 0; }
+    .anchor { display: block; position: relative; top: -3.25rem; }
+    #speaking .sub + .sub { margin-top: 0; }
+
     h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1.3rem; }
     .prose p { max-width: 38em; }
 
@@ -602,6 +628,13 @@
         </figure>
       </div>
 
+      <div class="strip" id="strip">
+        <div class="strip-in">
+          <span id="strip-next" hidden></span>
+          <span id="strip-count"></span>
+        </div>
+      </div>
+
       <div class="panel js-only" id="simbox">
         <div class="p-head">
           <div class="p-title"><span class="live"></span>inference.sim <span class="note">· one H100, 3 MIG slices · clock slowed 10×</span></div>
@@ -676,88 +709,96 @@
       </ul>
     </section>
 
-    <section id="talks">
-      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">talks.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Talks &amp; Workshops</h2>
-      <div class="sub">
-        <h3>Selected talks</h3>
-        <ul class="rows">
-          <li>
-            <span class="date">Sep 2026</span>
-            <div>
-              <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
-              <div class="item-meta">Google Developer Day Istanbul</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Apr 2026</span>
-            <div>
-              <div class="item-title">Build with AI: Gemini SDK &amp; Cloud Run</div>
-              <div class="item-meta">42 Türkiye</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Apr 2026</span>
-            <div>
-              <div class="item-title">Build with AI: Google Antigravity</div>
-              <div class="item-meta">42 Türkiye</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Nov 2025</span>
-            <div>
-              <div class="item-title">Architecture of High Performance ML Solutions</div>
-              <div class="item-meta">GDG Baku</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">2023</span>
-            <div>
-              <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8" aria-label="Watch the recording">▶ video</a></div>
-              <div class="item-meta">DevFest Istanbul</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">2023</span>
-            <div>
-              <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
-              <div class="item-meta">DevFest Trabzon</div>
-            </div>
-          </li>
-        </ul>
-      </div>
-      <div class="sub">
-        <h3>Workshops</h3>
-        <ul class="rows">
-          <li>
-            <span class="date">Oct 2026</span>
-            <div>
-              <div class="item-title"><a href="/workshops/cloud-agents-workshop/">Deploying your agents on Google Cloud Agent Platform</a><a class="tag" href="/workshops/cloud-agents-workshop/" aria-label="Open the workshop guide">guide</a></div>
-              <div class="item-meta">Google Cloud Day Türkiye – Builder Connect</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Oct 2026</span>
-            <div>
-              <div class="item-title"><a href="/workshops/adk-multi-agent-workshop/">Architecting Multi-Agent Systems with Google ADK</a><a class="tag" href="/workshops/adk-multi-agent-workshop/" aria-label="Open the workshop guide">guide</a></div>
-              <div class="item-meta">Google Developer Day Istanbul</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">Aug 2026</span>
-            <div>
-              <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
-              <div class="item-meta">Google Developer Experts</div>
-            </div>
-          </li>
-          <li>
-            <span class="date">May 2026</span>
-            <div>
-              <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
-              <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
-            </div>
-          </li>
-        </ul>
+    <section id="speaking">
+      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">speaking.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
+      <a id="talks" class="anchor" aria-hidden="true" tabindex="-1"></a>
+      <h2>Speaking</h2>
+      <div class="up-card" id="up-card" hidden></div>
+      <div class="two">
+        <div class="sub">
+          <h3>Talks</h3>
+          <ul class="rows" id="talk-list">
+            <li data-date="2026-09">
+              <span class="date">Sep 2026</span>
+              <div>
+                <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
+                <div class="item-meta">Google Developer Day Istanbul</div>
+              </div>
+            </li>
+            <li data-date="2026-04">
+              <span class="date">Apr 2026</span>
+              <div>
+                <div class="item-title">Build with AI: Gemini SDK &amp; Cloud Run</div>
+                <div class="item-meta">42 Türkiye</div>
+              </div>
+            </li>
+            <li data-date="2026-04">
+              <span class="date">Apr 2026</span>
+              <div>
+                <div class="item-title">Build with AI: Google Antigravity</div>
+                <div class="item-meta">42 Türkiye</div>
+              </div>
+            </li>
+            <li data-date="2025-11">
+              <span class="date">Nov 2025</span>
+              <div>
+                <div class="item-title">Architecture of High Performance ML Solutions</div>
+                <div class="item-meta">GDG Baku</div>
+              </div>
+            </li>
+            <li data-date="2023">
+              <span class="date">2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a></div>
+                <div class="item-meta">DevFest Istanbul</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <li data-date="2023">
+              <span class="date">2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
+                <div class="item-meta">DevFest Trabzon</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/CzMdVHatqDF/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="sub">
+          <h3>Workshops</h3>
+          <ul class="rows" id="workshop-list">
+            <li data-date="2026-10-27" data-event="Google Cloud Day Türkiye – Builder Connect" data-place="Istanbul, Wyndham Grand Levent" data-format="in person" data-lang="EN" data-url="https://cloudonair.withgoogle.com/events/cloud-day-tr">
+              <span class="date">Oct 2026</span>
+              <div>
+                <div class="item-title"><a href="/workshops/cloud-agents-workshop/">Deploying your agents on Google Cloud Agent Platform</a></div>
+                <div class="item-meta">Google Cloud Day Türkiye – Builder Connect</div>
+                <div class="mats"><a class="tag" href="/workshops/cloud-agents-workshop/" aria-label="Open the workshop guide">guide</a><a class="tag" href="https://github.com/omarcevi/cloud-agents-workshop" aria-label="Workshop repository on GitHub">repo</a></div>
+              </div>
+            </li>
+            <li data-date="2026-10-09">
+              <span class="date">Oct 2026</span>
+              <div>
+                <div class="item-title"><a href="/workshops/adk-multi-agent-workshop/">Architecting Multi-Agent Systems with Google ADK</a></div>
+                <div class="item-meta">Google Developer Day Istanbul</div>
+                <div class="mats"><a class="tag" href="/workshops/adk-multi-agent-workshop/" aria-label="Open the workshop guide">guide</a><a class="tag" href="https://github.com/omarcevi/adk-multi-agent-workshop" aria-label="Workshop repository on GitHub">repo</a></div>
+              </div>
+            </li>
+            <li data-date="2026-08">
+              <span class="date">Aug 2026</span>
+              <div>
+                <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
+                <div class="item-meta">Google Developer Experts</div>
+              </div>
+            </li>
+            <li data-date="2026-05">
+              <span class="date">May 2026</span>
+              <div>
+                <div class="item-title">Agentverse: Multi-Agent Systems with ADK, MCP and A2A</div>
+                <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
     </section>
 

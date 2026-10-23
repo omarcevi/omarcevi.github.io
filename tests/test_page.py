@@ -103,5 +103,59 @@ class Hero(unittest.TestCase):
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
 
 
+DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
+FULL_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class Speaking(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+        found = find_all(cls.doc, "section", id="speaking")
+        cls.sec = found[0] if found else None
+
+    def items(self, list_id):
+        lists = find_all(self.doc, "ul", id=list_id)
+        self.assertEqual(len(lists), 1, list_id)
+        return [c for c in lists[0].elements() if c.tag == "li"]
+
+    def test_speaking_section(self):
+        self.assertIsNotNone(self.sec)
+        span = [c for c in self.sec.elements() if "span" in c.classes][0]
+        self.assertEqual(find_all(span, cls="sp-name")[0].text().strip(), "speaking.md")
+        self.assertTrue(find_all(self.sec, id="talks"))
+        self.assertFalse(find_all(self.doc, "section", id="talks"))
+
+    def test_item_dates(self):
+        talks, shops = self.items("talk-list"), self.items("workshop-list")
+        self.assertEqual((len(talks), len(shops)), (6, 4))
+        for li in talks + shops:
+            self.assertRegex(li.attrs.get("data-date", ""), DATE_RE)
+
+    def test_upcoming_needs_full_date(self):
+        for li in self.items("talk-list") + self.items("workshop-list"):
+            d = li.attrs.get("data-date", "")
+            if FULL_DATE_RE.match(d) and d >= "2026-10-23":
+                for key in ("data-event", "data-place", "data-format", "data-lang", "data-url"):
+                    self.assertTrue(li.attrs.get(key), f"{d} missing {key}")
+
+    def test_no_js_fallback(self):
+        card = find_all(self.doc, id="up-card")
+        self.assertEqual(len(card), 1)
+        self.assertIn("hidden", card[0].attrs)
+        self.assertFalse(card[0].elements())
+        self.assertIn("hidden", find_all(self.doc, id="strip-next")[0].attrs)
+        dated = [li.attrs.get("data-date") for li in self.items("workshop-list")]
+        self.assertIn("2026-10-27", dated)
+
+    def test_tags_are_links(self):
+        self.assertIsNotNone(self.sec)
+        tags = find_all(self.sec, cls="tag")
+        self.assertTrue(tags)
+        for t in tags:
+            self.assertEqual(t.tag, "a")
+            self.assertTrue(t.attrs.get("href"))
+
+
 if __name__ == "__main__":
     unittest.main()
