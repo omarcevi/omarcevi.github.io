@@ -51,6 +51,11 @@ class SpeakingRender(unittest.TestCase):
         first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
         self.assertIn(TITLE, first.text())
 
+    def test_booking_rendered(self):
+        html = dump_dom("?today=2026-10-23")
+        src = "calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT"
+        self.assertTrue(src in html, "booking iframe src missing from the rendered page")
+
 
 if __name__ == "__main__":
     unittest.main()

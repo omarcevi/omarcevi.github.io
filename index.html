@@ -537,6 +537,10 @@
     .more a { text-decoration: none; color: var(--accent); }
     .more a:hover { text-decoration: underline; }
 
+    .booking-box { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; } /* Google's booking page is light in both themes */
+    .booking-frame { display: block; width: 100%; height: 600px; }
+    .booking-link { display: inline-block; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.8rem; color: var(--accent); text-decoration: none; }
+    .booking-link:hover { text-decoration: underline; }
     .contact p { font-size: 1.15rem; line-height: 1.5; max-width: 30em; letter-spacing: -0.01em; }
     .links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
     .links a {
@@ -968,13 +972,22 @@
 
     <section id="contact" class="contact">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">contact.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Elsewhere</h2>
-      <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Or just write to compare notes on inference at scale.</p>
-      <div class="links">
-        <a class="primary" href="mailto:hi@omarcevi.dev" rel="me">hi@omarcevi.dev</a>
-        <a href="https://www.linkedin.com/in/omarcevi/" rel="me">LinkedIn</a>
-        <a href="https://github.com/omarcevi" rel="me">GitHub</a>
-        <a href="https://omarcevi.medium.com" rel="me">Medium</a>
+      <h2>Book a call</h2>
+      <div class="two">
+        <div>
+          <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Pick a slot, or just write to compare notes on inference at scale.</p>
+          <div class="links">
+            <a class="primary" href="mailto:hi@omarcevi.dev" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>hi@omarcevi.dev</a>
+            <a href="https://www.linkedin.com/in/omarcevi/" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-li"/></svg>LinkedIn</a>
+            <a href="https://github.com/omarcevi" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
+            <a href="https://omarcevi.medium.com" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-md"/></svg>Medium</a>
+          </div>
+        </div>
+        <div class="booking">
+          <!-- Google Calendar appointment schedule, inline booking page. To change the booking page, replace the URL here and in the link below. -->
+          <div class="booking-box"><iframe class="booking-frame" src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" title="Book a 30-minute call with Omar" loading="lazy" style="border:0" width="100%" height="600"></iframe></div>
+          <a class="booking-link" href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" target="_blank" rel="noopener">Open the booking page ↗</a>
+        </div>
       </div>
     </section>
 

@@ -245,5 +245,51 @@ class ProjectsWriting(unittest.TestCase):
         self.assertEqual(names, ["about.md", "experience.md", "speaking.md", "projects.md", "writing.md", "contact.md"])
 
 
+BOOKING_URL = ("https://calendar.google.com/calendar/appointments/schedules/"
+               "AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true")
+
+
+class Booking(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+
+    def test_iframe(self):
+        frames = find_all(self.doc, "iframe", cls="booking-frame")
+        self.assertEqual(len(frames), 1)
+        f = frames[0]
+        self.assertEqual(f.attrs.get("src"), BOOKING_URL)
+        self.assertTrue(f.attrs.get("title"))
+        self.assertEqual(f.attrs.get("loading"), "lazy")
+
+    def test_fallback_link(self):
+        links = find_all(self.doc, "a", cls="booking-link")
+        self.assertEqual(len(links), 1)
+        a = links[0]
+        self.assertEqual(a.attrs.get("href"), BOOKING_URL)
+        self.assertEqual(a.text().strip(), "Open the booking page ↗")
+        node = a.parent
+        while node is not None:
+            self.assertNotEqual(node.tag, "iframe")
+            node = node.parent
+
+    def test_book_a_call_targets(self):
+        booking = [a for a in find_all(self.doc, "a") if a.text().strip() == "Book a call"]
+        self.assertGreaterEqual(len(booking), 2)
+        for a in booking:
+            self.assertEqual(a.attrs.get("href"), "#contact")
+        contact = find_all(self.doc, "section", id="contact")[0]
+        self.assertEqual(find_all(contact, "h2")[0].text().strip(), "Book a call")
+
+    def test_contact_links_have_icons(self):
+        contact = find_all(self.doc, "section", id="contact")[0]
+        links = find_all(find_all(contact, cls="links")[0], "a")
+        self.assertEqual([a.attrs.get("href") for a in links], [
+            "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            "https://github.com/omarcevi", "https://omarcevi.medium.com"])
+        for a in links:
+            self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
+
+
 if __name__ == "__main__":
     unittest.main()
