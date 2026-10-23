@@ -92,6 +92,14 @@ class Hero(unittest.TestCase):
         self.assertIn("cta", cta.classes)
         self.assertEqual(cta.text().strip(), "Book a call")
 
+    def test_topbar_cta_compact_on_phones(self):
+        cta = [a for a in find_all(find_all(self.doc, cls="topbar")[0], "a") if "cta" in a.classes][0]
+        self.assertEqual(cta.attrs.get("aria-label"), "Book a call")
+        self.assertTrue(find_all(cta, "svg", cls="ic"))
+        self.assertEqual(find_all(cta, cls="cta-label")[0].text().strip(), "Book a call")
+        phone = re.search(r"@media \(max-width: 640px\) \{(.*?)\n    \}", self.html, re.S)
+        self.assertIn(".topbar .cta-label { display: none; }", phone.group(1))
+
     def test_hero_links_have_icons(self):
         header = find_all(self.doc, "header")[0]
         row = find_all(header, cls="links")[0]
@@ -147,6 +155,11 @@ class Speaking(unittest.TestCase):
         self.assertIn("hidden", find_all(self.doc, id="strip-next")[0].attrs)
         dated = [li.attrs.get("data-date") for li in self.items("workshop-list")]
         self.assertIn("2026-10-27", dated)
+
+    def test_strip_hidden_without_js(self):
+        strip = find_all(self.doc, id="strip")
+        self.assertEqual(len(strip), 1)
+        self.assertIn("js-only", strip[0].classes)
 
     def test_tags_are_links(self):
         self.assertIsNotNone(self.sec)

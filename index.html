@@ -210,7 +210,8 @@
     .topbar nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
     .topbar nav a:hover, .topbar nav a[aria-current] { color: var(--accent); }
     .topbar .cta {
-      flex-shrink: 0; white-space: nowrap; text-decoration: none; padding: 0.3rem 0.8rem; border-radius: 999px;
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.4rem;
+      white-space: nowrap; text-decoration: none; padding: 0.3rem 0.8rem; border-radius: 999px;
       background: var(--text); color: var(--bg); transition: background 0.15s, color 0.15s;
     }
     .topbar .cta:hover { background: var(--accent); color: var(--bg); }
@@ -565,6 +566,8 @@
     }
 
     @media (max-width: 640px) {
+      .topbar .cta { padding: 0.35rem; }
+      .topbar .cta-label { display: none; } /* the hero has the full button; keep room for the section nav */
       body { font-size: 16px; }
       .page { padding: 0.5rem 1rem 3rem; }
       header { padding: 3rem 0 2rem; }
@@ -610,7 +613,7 @@
         <a href="#projects">Projects</a>
         <a href="#writing">Writing</a>
       </nav>
-      <a class="cta" href="#contact">Book a call</a>
+      <a class="cta" href="#contact" aria-label="Book a call"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg><span class="cta-label">Book a call</span></a>
       <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
         <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
         <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
@@ -641,7 +644,7 @@
         </figure>
       </div>
 
-      <div class="strip" id="strip">
+      <div class="strip js-only" id="strip">
         <div class="strip-in">
           <span id="strip-next" hidden></span>
           <span id="strip-count"></span>
