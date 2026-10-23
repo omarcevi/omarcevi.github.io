@@ -203,6 +203,7 @@
 
     /* Long names in running text break instead of pushing the page wider on a phone; <pre> blocks still scroll. */
     code { overflow-wrap: anywhere; }
+    code.flag { white-space: nowrap; }   /* a command-line flag never splits between its hyphens */
     /* Reading measure: prose stops near 75 characters; code and tables keep the full column. */
     section p, ul.plain li, ol.plain li, .see li { max-width: 37em; }
 
@@ -321,7 +322,7 @@
           </div>
           <div class="step">
             <span class="step-n">2</span>
-            <p>Follow the page to accept the credits. This creates a billing account that uses them. <!-- VERIFY with Omar: does it ask for a card? What is the billing account called? --></p>
+            <p>Follow the page to accept the credits. This creates a billing account that uses them.</p>
           </div>
           <div class="step">
             <span class="step-n">3</span>
@@ -367,7 +368,8 @@
             <p>Get the code and run the setup script:</p>
             <div class="code"><pre>git clone https://github.com/omarcevi/devfest-samsun-assistant.git
 cd devfest-samsun-assistant
-./lab/setup.sh</pre></div>
+./lab/setup.sh
+source ~/.profile</pre></div>
             <p>The script:</p>
             <ul class="plain">
               <li>checks that billing is linked to your project</li>
@@ -375,7 +377,7 @@ cd devfest-samsun-assistant
               <li>installs the agent's Python packages and the Agents CLI</li>
               <li>writes a <code>.env</code> file so the agent uses Gemini in your project</li>
             </ul>
-            <p>It takes about 2 minutes. <!-- VERIFY: real time on a fresh project --></p>
+            <p>It takes 1–2 minutes. The last line, <code>source ~/.profile</code>, makes your shell use the Agents CLI version the script just installed (Cloud Shell ships an older one).</p>
           </div>
         </div>
         <div class="see"><span class="lbl">✅ Check</span>The script ends with <code>✅ Ready</code>. If it stops with an error, the message says what to fix. See also <a href="#troubleshooting"><strong>Troubleshooting</strong></a> at the end.</div>
@@ -392,7 +394,8 @@ cd devfest-samsun-assistant
           <div class="step">
             <span class="step-n">1</span>
             <p>Start the ADK dev UI:</p>
-            <div class="code"><pre>uv run adk web --port 8080</pre></div>
+            <div class="code"><pre>uv run adk web --port 8080 --allow_origins "*"</pre></div>
+            <p><code class="flag">--allow_origins "*"</code> lets the Cloud Shell Web Preview page talk to the dev UI. Without it the page stays blank.</p>
           </div>
           <div class="step">
             <span class="step-n">2</span>
@@ -400,7 +403,7 @@ cd devfest-samsun-assistant
           </div>
           <div class="step">
             <span class="step-n">3</span>
-            <p>In the top-left dropdown, pick the agent <strong><code>app</code></strong>. <!-- VERIFY: the name shown in the dropdown --></p>
+            <p>In the top-left dropdown, check that the agent <strong><code>app</code></strong> is selected.</p>
           </div>
           <div class="step">
             <span class="step-n">4</span>
@@ -410,17 +413,18 @@ cd devfest-samsun-assistant
               <li><q>What's on Kat 2 tomorrow?</q></li>
               <li><q lang="tr">Yarın Flutter ile ilgili hangi konuşmalar var?</q></li>
             </ul>
+            <p>The first answer can take 20–40 seconds.</p>
           </div>
           <div class="step">
             <span class="step-n">5</span>
-            <p>Click a reply's events to see <strong>which tool the agent called</strong> and what it got back. That's the agent loop: the model picks a tool, reads the result, then answers. <!-- VERIFY: where events show in the current adk web UI --></p>
+            <p>Above each answer you'll see small chips: ⚡ <code>search_sessions</code> is a tool call, ✓ <code>search_sessions</code> is its result. Click one to see the arguments and the result in the left panel. That's the agent loop: the model picks a tool, reads the result, then answers.</p>
           </div>
           <div class="step">
             <span class="step-n">6</span>
             <p>Go back to Cloud Shell and press <strong>Ctrl+C</strong> to stop the dev UI.</p>
           </div>
         </div>
-        <div class="tryit"><span class="lbl">💡 Optional</span>See the whole agent with <code>cloudshell edit app/agent.py</code>. It's about 15 lines.</div>
+        <div class="tryit"><span class="lbl">💡 Optional</span>See the whole agent with <code>cloudshell edit app/agent.py</code>. It's under 30 lines.</div>
         <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-2">← Step 2</a><a class="next" href="#step-4">Step 4: Deploy →</a></nav>
       </section>
 
@@ -431,15 +435,16 @@ cd devfest-samsun-assistant
           <span class="mod-meta"><span>2 min to start, 5–10 min to finish</span><label class="done-toggle"><input type="checkbox" data-done="step-4">done</label></span>
         </div>
         <p>Run:</p>
-        <div class="code"><pre>agents-cli deploy --agent-identity</pre></div>
+        <div class="code"><pre>agents-cli deploy --agent-identity -i</pre></div>
         <ul class="plain" style="margin-top:1rem">
-          <li>If it asks you to confirm the project, check that it's yours and press <strong>Enter</strong>. <!-- VERIFY: prompts shown on a fresh project --></li>
+          <li>It asks <code>Deploying to Google Cloud project 'YOUR_PROJECT_ID'. Proceed? [Y/n]</code>. Check that it's yours and press <strong>Enter</strong>. (<code class="flag">-i</code> turns this prompt on; without it, the command stops and asks you to name the project.)</li>
+          <li>You can ignore the warning about <code>npx</code>.</li>
           <li>It packages your code, uploads it and creates a managed agent that scales on its own.</li>
-          <li><code>--agent-identity</code> gives your agent <strong>its own identity</strong> in IAM, instead of a shared service account.</li>
-          <li>It takes <strong>5–10 minutes</strong>. Leave it running and watch the demo on stage while you wait.</li>
+          <li><code class="flag">--agent-identity</code> gives your agent <strong>its own identity</strong> in IAM, instead of a shared service account.</li>
+          <li>It takes <strong>about 5 minutes</strong>. Leave it running and watch the demo on stage while you wait.</li>
         </ul>
-        <div class="see"><span class="lbl">✅ Check</span>The output ends with <!-- VERIFY: exact success line -->.</div>
-        <p style="margin-top:1.2rem">If Cloud Shell disconnects, click <strong>Reconnect</strong>, run <code>cd devfest-samsun-assistant</code>, then check progress with:</p>
+        <div class="see"><span class="lbl">✅ Check</span>The output shows <code>✅ Deployment successful!</code>, followed by your agent's ID and its Agent Identity.</div>
+        <p style="margin-top:1.2rem">The deploy keeps running on Google Cloud even if Cloud Shell disconnects. Click <strong>Reconnect</strong>, run <code>cd devfest-samsun-assistant</code>, then check progress with:</p>
         <div class="code"><pre>agents-cli deploy --status</pre></div>
         <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-3">← Step 3</a><a class="next" href="#step-5">Step 5: Agent Platform →</a></nav>
       </section>
@@ -453,11 +458,11 @@ cd devfest-samsun-assistant
         <div class="steps">
           <div class="step">
             <span class="step-n">1</span>
-            <p>In the console's search bar, type <strong>Agent Platform</strong> and open it. Then open <strong>Deployments</strong>. <!-- VERIFY: menu path --></p>
+            <p>In the console's search bar, type <strong>Agent Platform</strong> and open it. In the left menu, click <strong>Agents</strong>, then <strong>Deployments</strong> (under <em>Scale</em>).</p>
           </div>
           <div class="step">
             <span class="step-n">2</span>
-            <p>Click your agent. <!-- VERIFY: the name it gets --></p>
+            <p>Click your agent: <strong>devfest-samsun-assistant</strong>. If a pop-up says an API isn't enabled, click <strong>Close</strong>.</p>
           </div>
           <div class="step">
             <span class="step-n">3</span>
@@ -465,22 +470,26 @@ cd devfest-samsun-assistant
             <ul class="prompts">
               <li><q>Hi! I'm into ML and Flutter. What should I see tomorrow?</q></li>
             </ul>
-            <p class="memory-check">Then click <strong>New session</strong> and ask <code>What should I see tomorrow?</code> again. Does it remember what you like? That's <strong>Memory Bank</strong>. Saving a memory can take up to a minute. <!-- VERIFY: memory works across Playground sessions; drop this bullet if not --></p>
+            <ul class="plain">
+              <li>Wait about 30 seconds, click <strong>New Session</strong> and ask <code>What should I see tomorrow?</code>. Does it remember what you like? That's <strong>Memory Bank</strong>.</li>
+              <li>The first answer can take up to a minute while your agent wakes up.</li>
+              <li>In the Playground, click a ⚡ chip to see the tool call, and <strong>State</strong> on the left to see what the agent kept in its session.</li>
+            </ul>
           </div>
           <div class="step">
             <span class="step-n">4</span>
-            <p><strong>Sessions:</strong> every conversation you just had, stored by Agent Runtime.</p>
+            <p><strong>Sessions</strong> tab: every conversation you just had, stored by Agent Runtime.</p>
           </div>
           <div class="step">
             <span class="step-n">5</span>
-            <p><strong>Trace:</strong> open one conversation. You'll see the timeline of model calls and tool calls, the same view Omar showed on stage.</p>
+            <p><strong>Memories</strong> tab: the facts Memory Bank kept about you, such as your interest in ML and Flutter.</p>
           </div>
           <div class="step">
             <span class="step-n">6</span>
-            <p><strong>Event</strong> and <strong>State:</strong> a graph of what was called, and what the agent kept in its session.</p>
+            <p><strong>Traces:</strong> in the console's search bar, type <strong>Trace explorer</strong> and open it. Each row is one step of your agent: <code>invoke_agent</code>, <code>generate_content</code> (a Gemini call) and <code>execute_tool</code> (a tool call). Click one to see the timeline, the same view Omar showed on stage. Traces show up a minute or two after you chat.</p>
           </div>
         </div>
-        <p style="margin-top:.6rem">You've now seen the same five questions from the talk on your own agent:</p>
+        <p style="margin-top:.6rem">You've now seen the questions from the talk answered on your own agent:</p>
         <ul class="five">
           <li><span class="q">where it runs</span><span>Agent Runtime</span></li>
           <li><span class="q">what it remembers</span><span>Sessions and Memory Bank</span></li>
@@ -520,10 +529,14 @@ cd devfest-samsun-assistant
           <div><code>PERMISSION_DENIED</code> or "API not enabled" right after setup</div><div>New APIs can take a minute to turn on. Wait, then try again.</div>
           <div><code>429</code> or <code>RESOURCE_EXHAUSTED</code></div><div>You hit a Gemini rate limit. Wait 30 seconds and try again.</div>
           <div>Web preview shows an error page</div><div>Check that <code>adk web</code> is still running in Cloud Shell and that you used port 8080.</div>
+          <div>Web preview shows a blank page</div><div>Stop <code>adk web</code> with Ctrl+C and start it again with <code class="flag">--allow_origins "*"</code>, as in <a href="#step-3">Step 3</a>.</div>
           <div>Cloud Shell says the session ended</div><div>Click <strong>Reconnect</strong>, then run <code>cd devfest-samsun-assistant</code>.</div>
+          <div><code>agents-cli: confirmation required</code></div><div>Add <code class="flag">-i</code> to the deploy command, as shown in <a href="#step-4">Step 4</a>.</div>
+          <div><code>agents-cli --version</code> doesn't say <code>1.11.0</code></div><div>Run <code>source ~/.profile</code>. Cloud Shell has an older Agents CLI built in; this switches to the one <code>setup.sh</code> installed.</div>
+          <div>A warning that <code>npx</code> isn't installed</div><div>Ignore it.</div>
+          <div>A pop-up says <code>apphub.googleapis.com</code> isn't enabled</div><div>Click <strong>Close</strong>. It doesn't affect the lab.</div>
           <div>The deploy fails</div><div>Copy the last lines of the error and raise your hand.</div>
         </div>
-        <!-- VERIFY: add any other error you hit while testing on a fresh project -->
       </section>
 
       <!-- ============================================================ LEARN MORE -->
