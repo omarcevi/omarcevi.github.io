@@ -291,5 +291,59 @@ class Booking(unittest.TestCase):
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
 
 
+def _lum(hex_color):
+    rgb = [int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def contrast(a, b):
+    hi, lo = sorted((_lum(a), _lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+class Meta(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.llms = (ROOT / "llms.txt").read_text(encoding="utf-8")
+
+    def blocks(self):
+        """The three token blocks: light :root, the OS-dark :root, and :root[data-theme="dark"]."""
+        heads = [r"    :root \{\n", r':root:not\(\[data-theme="light"\]\) \{\n', r':root\[data-theme="dark"\] \{\n']
+        out = []
+        for h in heads:
+            m = re.search(h + r"(.*?)\}", self.html, re.S)
+            self.assertIsNotNone(m, h)
+            out.append(dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6});", m.group(1))))
+        return out
+
+    def test_llms_txt(self):
+        self.assertIn("Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, October 2026", self.llms)
+        self.assertIn("Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye, October 2026", self.llms)
+        self.assertIn("Book a call: " + BOOKING_URL, self.llms)
+
+    def test_faint_contrast(self):
+        light, os_dark, dark = self.blocks()
+        self.assertEqual(os_dark.get("faint"), dark.get("faint"))
+        for block, bg in ((light, light["bg"]), (dark, dark["bg"])):
+            self.assertGreaterEqual(contrast(block["faint"], bg), 4.5, block["faint"])
+        # keep the hierarchy: faint stays fainter than muted
+        self.assertLess(contrast(light["faint"], light["bg"]), contrast(light["muted"], light["bg"]))
+        self.assertLess(contrast(dark["faint"], dark["bg"]), contrast(dark["muted"], dark["bg"]))
+
+    def test_primary_hover_readable_in_dark(self):
+        # white on the dark theme's light accent (#7aa2ff) is 2.5:1; the page ground colour reads in both themes
+        for sel in (r"\.topbar \.cta:hover", r"\.links a\.primary:hover"):
+            rule = re.search(sel + r" \{([^}]*)\}", self.html)
+            self.assertIsNotNone(rule, sel)
+            self.assertIn("color: var(--bg)", rule.group(1), sel)
+            self.assertNotIn("#fff", rule.group(1), sel)
+
+    def test_date_modified(self):
+        m = re.search(r'"dateModified": "(\d{4}-\d{2}-\d{2})"', self.html)
+        self.assertGreaterEqual(m.group(1), "2026-10-23")
+
+
 if __name__ == "__main__":
     unittest.main()

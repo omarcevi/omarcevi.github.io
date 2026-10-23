@@ -17,6 +17,7 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 
 ## Projects
 
+- [tensorhane.com](https://tensorhane.com): a Turkish platform for learning machine learning by writing and running Python code, with interactive demos of gradient descent, BPE tokenization, attention and the KV cache.
 - [sdlc-agent-pipeline](https://github.com/omarcevi/sdlc-agent-pipeline): planner, coder and reviewer agents in a Google ADK graph that turn a GitHub issue into a tested pull request, with sandboxed tools, cost caps and human approval. [Recorded runs](https://omarcevi.dev/sdlc-agent-pipeline/)
 - [vllm-metal-bench](https://github.com/omarcevi/vllm-metal-bench): load testing vllm-metal on an Apple M1 Pro with AIPerf; bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate.
 - [triton-beginner-demo](https://github.com/omarcevi/triton-beginner-demo): first model on NVIDIA Triton Inference Server, with dynamic batching, perf_analyzer and GKE deployment.
@@ -26,7 +27,8 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 ## Talks and workshops
 
 - Managing Agentic Systems on Google Cloud: From Deployment to Monitoring — Google Developer Day, September 2026
-- Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, September 2026
+- Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye, October 2026 · Istanbul, 27 October 2026 · [guide](https://omarcevi.dev/workshops/cloud-agents-workshop/) · [repo](https://github.com/omarcevi/cloud-agents-workshop)
+- Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, October 2026 · [guide](https://omarcevi.dev/workshops/adk-multi-agent-workshop/) · [repo](https://github.com/omarcevi/adk-multi-agent-workshop)
 - Gemma Train-the-Trainer: Running AI Models (workshop) — Google Developer Experts, August 2026
 - Agentverse: Multi-Agent Systems with ADK, MCP and A2A (workshop) — May 2026
 - Build with AI: Gemini SDK & Cloud Run; Build with AI: Google Antigravity — 42 Türkiye, April 2026
@@ -51,6 +53,7 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 - Open to collaborations: conference talks and workshops (Turkish or English), open-source work, and advising teams on serving models and AI agents in production.
 - Yeni rollere ve iş birliklerine açık: ML inference / ML platform mühendisliği (uzaktan veya İstanbul), konuşmalar, atölyeler ve açık kaynak.
 - Best way to reach him: hi@omarcevi.dev
+- Book a call: https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true
 
 ## Contact
 

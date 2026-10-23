@@ -39,7 +39,7 @@
     "@type": "ProfilePage",
     "url": "https://omarcevi.dev/",
     "name": "Omar Elcircevi — ML Inference Engineer · Istanbul, Turkey",
-    "dateModified": "2026-10-04",
+    "dateModified": "2026-10-23",
     "inLanguage": "en",
     "mainEntity": {
       "@type": "Person",
@@ -101,7 +101,7 @@
       --surface: #ffffff;
       --text: #18181b;
       --muted: #5f6168;
-      --faint: #9a9ca3;
+      --faint: #6f7178;
       --accent: #2a5bd7;
       --accent-rgb: 42, 91, 215;
       --accent-soft: #e6ecfb;
@@ -131,7 +131,7 @@
         --surface: #171a20;
         --text: #e8e9ec;
         --muted: #a0a4ad;
-        --faint: #6b7079;
+        --faint: #80858e;
         --accent: #7aa2ff;
         --accent-rgb: 122, 162, 255;
         --accent-soft: #1d2740;
@@ -148,7 +148,7 @@
       --surface: #171a20;
       --text: #e8e9ec;
       --muted: #a0a4ad;
-      --faint: #6b7079;
+      --faint: #80858e;
       --accent: #7aa2ff;
       --accent-rgb: 122, 162, 255;
       --accent-soft: #1d2740;
@@ -213,7 +213,7 @@
       flex-shrink: 0; white-space: nowrap; text-decoration: none; padding: 0.3rem 0.8rem; border-radius: 999px;
       background: var(--text); color: var(--bg); transition: background 0.15s, color 0.15s;
     }
-    .topbar .cta:hover { background: var(--accent); color: #fff; }
+    .topbar .cta:hover { background: var(--accent); color: var(--bg); }
     .theme-toggle {
       flex-shrink: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -0.25rem -0.4rem -0.25rem 0;
       border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer;
@@ -550,7 +550,7 @@
     }
     .links a:hover { border-color: var(--accent); color: var(--accent); }
     .links a.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-    .links a.primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .links a.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 
     footer {
       margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--faint);
@@ -578,6 +578,8 @@
       .rows > li { grid-template-columns: 1fr; gap: 0.15rem; }
       .rows .date { padding-top: 0; }
       .grid4 { grid-template-columns: minmax(0, 1fr); }
+      .up-card { grid-template-columns: 3.8rem minmax(0, 1fr); gap: 0.6rem 1rem; align-items: start; }
+      .up-go { grid-column: 2; }
       .cand { min-width: 13rem; }
       .ag-body { grid-template-columns: 1fr; }
       .ag-graph { border-right: 0; border-bottom: 1px solid var(--p-line2); }
