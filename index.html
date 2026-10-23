@@ -428,7 +428,7 @@
     .mats { margin-top: 0.15rem; }
     .mats .tag { margin: 0.35rem 0.35rem 0 0; }
     .anchor { display: block; position: relative; top: -3.25rem; }
-    #speaking .sub + .sub { margin-top: 0; }
+    .two > .sub + .sub { margin-top: 0; }
 
     h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 1.3rem; }
     .prose p { max-width: 38em; }
@@ -513,9 +513,15 @@
       transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .card:hover { transform: translateY(-2px); border-color: rgba(var(--accent-rgb), 0.45); }
-    .card.has-thumb { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 1.2rem; align-items: start; }
-    .thumb { display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); text-decoration: none; }
-    .thumb img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.3s ease; }
+    .feat2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .feat2 .card, .grid4 .card { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .card-body { display: flex; flex-direction: column; flex: 1; padding: 1rem 1.1rem 1.1rem; }
+    .card-body .chips { margin-top: auto; padding-top: 0.85rem; }
+    .feat2 .what { font-size: 1.15rem; }
+    .grid4 .item-desc { font-size: 0.88rem; }
+    .thumb { display: block; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--bg); text-decoration: none; }
+    .card img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.3s ease; }
     .card:hover .thumb img { transform: scale(1.03); }
     .card .name { font-family: var(--mono); font-weight: 500; font-size: 0.95rem; }
     .card .name a { text-decoration: none; }
@@ -548,7 +554,8 @@
     }
 
     @media (max-width: 860px) {
-      .two, .two.wide-left, .hero { grid-template-columns: minmax(0, 1fr); }
+      .two, .two.wide-left, .hero, .feat2 { grid-template-columns: minmax(0, 1fr); }
+      .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .hero { align-items: start; }
       .hero-photo { max-width: 340px; }
     }
@@ -566,9 +573,7 @@
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
       .rows > li { grid-template-columns: 1fr; gap: 0.15rem; }
       .rows .date { padding-top: 0; }
-      .card { padding: 1.05rem; }
-      .card.has-thumb { grid-template-columns: 1fr; }
-      .card.has-thumb .thumb { order: -1; }
+      .grid4 { grid-template-columns: minmax(0, 1fr); }
       .cand { min-width: 13rem; }
       .ag-body { grid-template-columns: 1fr; }
       .ag-graph { border-right: 0; border-bottom: 1px solid var(--p-line2); }
@@ -855,60 +860,75 @@
       </div>
       <p class="cap js-only projects-cap" id="ag-cap"><span id="ag-cap-text">A recorded run of my issue-to-PR agents, replayed with its real timestamps, tokens and cost.</span> <a href="https://omarcevi.dev/sdlc-agent-pipeline/">All recorded runs →</a></p>
 
-      <div class="cards">
-        <article class="card has-thumb">
+      <div class="feat2">
+        <article class="card">
+          <a class="thumb" href="https://tensorhane.com" tabindex="-1" aria-hidden="true"><img src="assets/projects/tensorhane.jpg" width="880" height="550" loading="lazy" decoding="async" alt="tensorhane.com home page: a Turkish machine learning course with an interactive gradient descent demo"></a>
           <div class="card-body">
-          <div class="label">Featured</div>
-          <div class="name"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a></div>
-          <div class="what">Agents that turn a GitHub issue into a tested pull request</div>
-          <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
-          <div class="chips"><span>Python</span><span>Google ADK</span><span>Agent Runtime</span><span>Vertex AI</span><span>Terraform</span><span>GitHub Actions</span></div>
+            <div class="label">Live · rising</div>
+            <div class="name"><a href="https://tensorhane.com">tensorhane.com</a></div>
+            <div class="what">Learn machine learning by writing it, in Turkish</div>
+            <p class="item-desc">Short lessons and coding problems in Python, with interactive demos of gradient descent, BPE tokenization, attention and the KV cache. ML foundations are open now; LLM internals and writing an LLM from scratch are next.</p>
+            <div class="chips"><span>Python</span><span>NumPy</span><span>Triton</span><span>Türkçe</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md" tabindex="-1" aria-hidden="true"><img src="assets/projects/sdlc-agent-pipeline.webp" width="880" height="550" loading="lazy" decoding="async" alt="Architecture diagram: GitHub Actions, sandboxes and Agent Runtime on Google Cloud, with observability and a cost hard stop"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a></div>
-          <div class="what">Load testing vllm-metal on an M1 Pro</div>
-          <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
-          <div class="chips"><span>vllm-metal</span><span>AIPerf</span><span>Gemma</span><span>Qwen</span><span>Apple Silicon</span></div>
+            <div class="label">Featured</div>
+            <div class="name"><a href="https://github.com/omarcevi/sdlc-agent-pipeline">sdlc-agent-pipeline</a></div>
+            <div class="what">Agents that turn a GitHub issue into a tested pull request</div>
+            <p class="item-desc">Planner, coder and reviewer agents in an ADK graph, routed by real diffs and test results instead of model claims. Commands run in sandboxes with no credentials or network, every run is cost-capped, and a human approves before a pull request opens. Deployed on Agent Runtime with keyless CI/CD. <a href="https://omarcevi.dev/sdlc-agent-pipeline/">Watch recorded runs</a> · <a href="https://github.com/omarcevi/sdlc-agent-pipeline/blob/main/docs/architecture.md">architecture</a></p>
+            <div class="chips"><span>Python</span><span>Google ADK</span><span>Agent Runtime</span><span>Vertex AI</span><span>Terraform</span><span>GitHub Actions</span></div>
           </div>
+        </article>
+      </div>
+      <div class="grid4">
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/vllm-metal-bench" tabindex="-1" aria-hidden="true"><img src="assets/projects/vllm-metal-bench.webp" width="880" height="550" loading="lazy" decoding="async" alt="Chart: p99 time to first token versus concurrent requests for four 4-bit models on an M1 Pro"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a></div>
-          <div class="what">Your first model on Triton Inference Server</div>
-          <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
-          <div class="chips"><span>NVIDIA Triton</span><span>ONNX</span><span>Docker</span><span>GKE</span></div>
+            <div class="name"><a href="https://github.com/omarcevi/vllm-metal-bench">vllm-metal-bench</a></div>
+            <div class="what">Load testing vllm-metal on an M1 Pro</div>
+            <p class="item-desc">Four 4-bit models under AIPerf at 1 to 16 concurrent users. Bursty traffic made time-to-first-token about 5x worse than steady traffic at the same average rate, and the p99 knee came early. Scripts and raw per-request data included.</p>
+            <div class="chips"><span>vllm-metal</span><span>AIPerf</span><span>Gemma</span><span>Qwen</span><span>Apple Silicon</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/triton-beginner-demo" tabindex="-1" aria-hidden="true"><img src="assets/projects/triton-beginner-demo.webp" width="880" height="550" loading="lazy" decoding="async" alt="Triton config.pbtxt for ResNet-18 with dynamic batching and two model instances"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/augury">augury</a></div>
-          <div class="what">A terminal-native AI research digest</div>
-          <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
-          <div class="chips"><span>Python</span><span>Google ADK</span><span>pre-alpha</span><span>Apache-2.0</span></div>
+            <div class="name"><a href="https://github.com/omarcevi/triton-beginner-demo">triton-beginner-demo</a></div>
+            <div class="what">Your first model on Triton Inference Server</div>
+            <p class="item-desc">Serve a ResNet-18 with dynamic batching and two model instances, load test it with perf_analyzer, and deploy it to GKE. Runs on a laptop CPU. Companion code for <a href="https://omarcevi.medium.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">my intro article</a>.</p>
+            <div class="chips"><span>NVIDIA Triton</span><span>ONNX</span><span>Docker</span><span>GKE</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/augury" tabindex="-1" aria-hidden="true"><img src="assets/projects/augury.webp" width="880" height="550" loading="lazy" decoding="async" alt="augury terminal UI: ranked list of AI papers with a reader pane"></a>
-        </article>
-        <article class="card has-thumb">
           <div class="card-body">
-          <div class="name"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a></div>
-          <div class="what">Turkish meme reactions for Claude Code</div>
-          <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
-          <div class="chips"><span>Claude Code plugin</span><span>hooks</span><span>bash</span></div>
+            <div class="name"><a href="https://github.com/omarcevi/augury">augury</a></div>
+            <div class="what">A terminal-native AI research digest</div>
+            <p class="item-desc">Collects new AI papers and posts every day, ranks them by what you like (with or without an LLM), and lets you read full papers without leaving the terminal. Includes hybrid search and Q&amp;A over everything you've read.</p>
+            <div class="chips"><span>Python</span><span>Google ADK</span><span>pre-alpha</span><span>Apache-2.0</span></div>
           </div>
+        </article>
+        <article class="card">
           <a class="thumb" href="https://github.com/omarcevi/claude-caps" tabindex="-1" aria-hidden="true"><img src="assets/projects/claude-caps.webp" width="880" height="550" loading="lazy" decoding="async" alt="Claude Code terminal answering a task with "Başımla beraber abi!""></a>
+          <div class="card-body">
+            <div class="name"><a href="https://github.com/omarcevi/claude-caps">claude-caps</a></div>
+            <div class="what">Turkish meme reactions for Claude Code</div>
+            <p class="item-desc">A Claude Code plugin (goygoy): hand Claude a task and it answers "Başımla beraber abi! 🫡" — out loud, or in its own reply.</p>
+            <div class="chips"><span>Claude Code plugin</span><span>hooks</span><span>bash</span></div>
+          </div>
         </article>
       </div>
     </section>
 
     <section id="writing">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">writing.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Writing</h2>
-      <ul class="list">
+      <h2>Writing &amp; Open Source</h2>
+      <div class="two">
+        <div class="sub">
+          <h3>Writing</h3>
+          <ul class="list">
 <!-- MEDIUM:START -->
       <li>
         <div class="item-title"><a href="https://levelup.gitconnected.com/your-model-works-in-a-notebook-now-what-a-friendly-intro-to-nvidia-triton-inference-server-6a3887b0dd2b">One Framework to Deploy Them All! Meet NVIDIA Triton Inference Server</a></div>
@@ -927,23 +947,23 @@
         <div class="item-meta">Medium · August 2025</div>
       </li>
 <!-- MEDIUM:END -->
-      </ul>
-      <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
-    </section>
-
-    <section id="oss">
-      <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">oss.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
-      <h2>Open Source</h2>
-      <ul class="list">
-        <li>
-          <div class="item-title"><a href="https://github.com/google/adk-python/pull/3037">adk-python #3037</a> — fix for third-party CrewAI tool integration</div>
-          <div class="item-meta">google/adk-python</div>
-        </li>
-        <li>
-          <div class="item-title"><a href="https://github.com/google/adk-web/pull/272">adk-web #272</a> — light theme for the ADK web UI</div>
-          <div class="item-meta">google/adk-web</div>
-        </li>
-      </ul>
+          </ul>
+          <p class="more"><a href="https://omarcevi.medium.com">All posts on Medium →</a></p>
+        </div>
+        <div class="sub">
+          <h3>Open source</h3>
+          <ul class="list">
+            <li>
+              <div class="item-title"><a href="https://github.com/google/adk-python/pull/3037">adk-python #3037</a> — fix for third-party CrewAI tool integration</div>
+              <div class="item-meta">google/adk-python</div>
+            </li>
+            <li>
+              <div class="item-title"><a href="https://github.com/google/adk-web/pull/272">adk-web #272</a> — light theme for the ADK web UI</div>
+              <div class="item-meta">google/adk-web</div>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section id="contact" class="contact">

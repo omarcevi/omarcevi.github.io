@@ -192,5 +192,58 @@ class AboutExperience(unittest.TestCase):
         self.assertFalse([h for h in find_all(exp, "h3") if "Education" in h.text()])
 
 
+class ProjectsWriting(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.html = (ROOT / "index.html").read_text(encoding="utf-8")
+        cls.doc = parse(cls.html)
+
+    def cards(self, cls_name):
+        box = find_all(self.doc, cls=cls_name)
+        self.assertEqual(len(box), 1, cls_name)
+        return [c for c in box[0].elements() if c.tag == "article" and "card" in c.classes]
+
+    def test_featured_pair(self):
+        cards = self.cards("feat2")
+        self.assertEqual([find_all(c, cls="name")[0].text().strip() for c in cards], ["tensorhane.com", "sdlc-agent-pipeline"])
+        th = cards[0]
+        self.assertEqual(find_all(th, cls="label")[0].text().strip(), "Live · rising")
+        self.assertEqual(find_all(th, cls="what")[0].text().strip(), "Learn machine learning by writing it, in Turkish")
+        self.assertEqual([s.text().strip() for s in find_all(find_all(th, cls="chips")[0], "span")], ["Python", "NumPy", "Triton", "Türkçe"])
+        img = find_all(th, "img")[0]
+        self.assertEqual((img.attrs.get("src"), img.attrs.get("width"), img.attrs.get("height")), ("assets/projects/tensorhane.jpg", "880", "550"))
+        self.assertEqual(find_all(find_all(th, cls="name")[0], "a")[0].attrs.get("href"), "https://tensorhane.com")
+
+    def test_grid_of_four(self):
+        cards = self.cards("grid4")
+        self.assertEqual([find_all(c, cls="name")[0].text().strip() for c in cards],
+                         ["vllm-metal-bench", "triton-beginner-demo", "augury", "claude-caps"])
+        for c in cards:
+            kids = c.elements()
+            first_img = next(i for i, k in enumerate(kids) if find_all(k, "img") or k.tag == "img")
+            first_text = next(i for i, k in enumerate(kids) if find_all(k, cls="name"))
+            self.assertLess(first_img, first_text)
+
+    def test_card_img_css(self):
+        rule = re.search(r"\.card img \{([^}]*)\}", self.html)
+        self.assertIsNotNone(rule)
+        self.assertIn("height: auto", rule.group(1))
+        self.assertIn("aspect-ratio: 16 / 10", rule.group(1))
+
+    def test_writing_oss_merged(self):
+        sec = find_all(self.doc, "section", id="writing")
+        self.assertEqual(len(sec), 1)
+        self.assertEqual(find_all(sec[0], "h2")[0].text().strip(), "Writing & Open Source")
+        self.assertTrue([n for n in sec[0].iter() if n.tag == "#comment" and n.data.strip() == "MEDIUM:START"])
+        hrefs = [a.attrs.get("href") for a in find_all(sec[0], "a")]
+        self.assertIn("https://github.com/google/adk-python/pull/3037", hrefs)
+        self.assertIn("https://github.com/google/adk-web/pull/272", hrefs)
+        self.assertFalse(find_all(self.doc, "section", id="oss"))
+
+    def test_span_names_final(self):
+        names = [find_all(s, cls="sp-name")[0].text().strip() for s in find_all(self.doc, cls="span")]
+        self.assertEqual(names, ["about.md", "experience.md", "speaking.md", "projects.md", "writing.md", "contact.md"])
+
+
 if __name__ == "__main__":
     unittest.main()
