@@ -112,6 +112,12 @@
     .btn.primary:hover { color: var(--on-accent); filter: brightness(1.08); }
     .btn:hover { border-color: var(--accent); }
 
+    /* diagrams, as in the other guides: white frame in both themes, scrolls sideways on a phone, tap opens full size */
+    figure.arch { margin: .9rem 0 1.4rem; }
+    .arch-frame { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: .6rem; overflow-x: auto; }
+    .arch-frame img { display: block; width: 100%; min-width: 640px; height: auto; }
+    figcaption { font-size: .8rem; color: var(--muted); font-family: var(--mono); margin-top: .6rem; max-width: 37em; }
+
     section { padding: 2.5rem 0; border-top: 1px solid var(--border); }
     h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -.03em; line-height: 1.2; margin-bottom: 1rem; }
     h3 { font-size: .74rem; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: .07em;
@@ -277,8 +283,9 @@
         <p class="part-of">Part of <em>The Google Cloud Stack for Production AI Agents</em> by Omar Elcircevi</p>
         <p class="tagline">You'll take a ready-made agent, the <strong>DevFest Samsun Assistant</strong>, and run it in Cloud Shell. Then you'll deploy it to <strong>Agent Runtime</strong> on Google Cloud and explore it in <strong>Agent Platform</strong>. You don't write any code, and you don't install anything on your laptop.</p>
         <div class="actions">
-          <a class="btn primary" href="#step-1">Start with step 1 →</a>
+          <a class="btn primary" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/devfest-samsun-assistant.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Google Cloud Shell →</a>
           <a class="btn" href="https://github.com/omarcevi/devfest-samsun-assistant">Code on GitHub</a>
+          <a class="btn" href="#step-1">Start with step 1</a>
           <a class="btn" href="/demos/devfest-samsun-agent/">No laptop? Chat on your phone</a>
         </div>
       </header>
@@ -295,6 +302,10 @@
       <section id="agent">
         <h2>The agent</h2>
         <p>The DevFest Samsun Assistant answers questions about this event's real schedule: which talks are on, when, and on which floor. It's built with Google's <strong>Agent Development Kit (ADK)</strong>. It has one Gemini model, one instruction and a few Python functions it can call as tools.</p>
+        <figure class="arch" id="architecture">
+          <div class="arch-frame"><a href="/workshops/devfest-samsun-agent/diagrams/architecture.svg" title="Open full size"><img src="/workshops/devfest-samsun-agent/diagrams/architecture.svg" loading="lazy" alt="DevFest Samsun Assistant lab architecture. (1) The participant opens Cloud Shell in the browser, clones the devfest-samsun-assistant repo and runs ./lab/setup.sh, which enables the APIs, installs the packages with uv and writes .env. (2) adk web on port 8080 opens the ADK dev UI through Web Preview. (3) Locally, the ADK agent samsun_assistant calls gemini-3.6-flash on Agent Platform, location global, and its Python tools search_sessions, get_session, submit_feedback and get_current_time, which read data/agenda.json. (4) agents-cli deploy --agent-identity -i deploys the same code to Agent Runtime in us-central1 as devfest-samsun-assistant, with Sessions, Memory Bank and its own Agent Identity. The deployed agent also calls Gemini. (5) The participant opens it in the Agent Platform console under Agents, Deployments: Playground, Sessions and Memories. (6) Spans go to Cloud Trace, where Trace explorer shows invoke_agent, generate_content and execute_tool." width="1280" height="820"></a></div>
+          <figcaption>What each participant runs and deploys in their own project. Click or tap the diagram to see it at full size.</figcaption>
+        </figure>
       </section>
 
       <section id="steps">
@@ -353,6 +364,11 @@
           <h2>Step 2: Open Cloud Shell and get the code</h2>
           <span class="mod-meta"><span>3 min</span><label class="done-toggle"><input type="checkbox" data-done="step-2">done</label></span>
         </div>
+        <p class="lead"><a class="btn primary" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/devfest-samsun-assistant.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Google Cloud Shell →</a></p>
+        <p class="lead">Open in Cloud Shell: it clones the repo and opens a step-by-step tutorial next to the terminal.</p>
+        <p class="lead">In the <em>Open in Cloud Shell</em> dialog, tick <strong>Trust repo</strong> and click <strong>Confirm</strong>. If you do not select Trust repo, Cloud Shell runs in ephemeral mode and deletes your files when the session ends. Cloud Shell clones the repo to <code>~/cloudshell_open/devfest-samsun-assistant</code>, opens the terminal in that folder and the tutorial panel on the right. If asked, click <strong>Authorize</strong>.</p>
+        <p class="lead">With the button you skip <code>git clone</code> and <code>cd</code>: follow the tutorial panel. Its first step runs <code>gcloud config set project</code>, <code>./lab/setup.sh</code> and <code>source ~/.profile</code>.</p>
+        <h3>Or do it by hand</h3>
         <div class="steps">
           <div class="step">
             <span class="step-n">1</span>
@@ -390,6 +406,10 @@ source ~/.profile</pre></div>
           <h2>Step 3: Talk to your agent locally</h2>
           <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-3">done</label></span>
         </div>
+        <figure class="arch">
+          <div class="arch-frame"><a href="/workshops/devfest-samsun-agent/diagrams/step-3-local.svg" title="Open full size"><img src="/workshops/devfest-samsun-agent/diagrams/step-3-local.svg" loading="lazy" alt="The agent loop in the ADK dev UI. (1) You ask: Which talks are about AI agents? The question goes to samsun_assistant, which runs in Cloud Shell, where gemini-3.6-flash reads it together with the tool list. (2) The model calls the tool search_sessions. The dev UI shows this as a ⚡ search_sessions chip. The Python function reads agenda.json. (3) The result goes back to the model. The dev UI shows it as a ✓ search_sessions chip. (4) The model answers with the talk, speaker, day, time and floor, for example: The Google Cloud Stack for Production AI Agents, Omar Elcircevi, Saturday, 10:30, Kat 1. The instruction makes it call get_current_time first and recommend at most 3 sessions that the tools return." width="1180" height="470"></a></div>
+          <figcaption>The agent loop: each ⚡ / ✓ pair of chips in the dev UI is one tool call and its result.</figcaption>
+        </figure>
         <div class="steps">
           <div class="step">
             <span class="step-n">1</span>
@@ -434,6 +454,10 @@ source ~/.profile</pre></div>
           <h2>Step 4: Deploy it to Agent Runtime</h2>
           <span class="mod-meta"><span>2 min to start, 5–10 min to finish</span><label class="done-toggle"><input type="checkbox" data-done="step-4">done</label></span>
         </div>
+        <figure class="arch">
+          <div class="arch-frame"><a href="/workshops/devfest-samsun-agent/diagrams/step-4-deploy.svg" title="Open full size"><img src="/workshops/devfest-samsun-agent/diagrams/step-4-deploy.svg" loading="lazy" alt="What agents-cli deploy --agent-identity -i does. In Cloud Shell, agents-cli asks Proceed? [Y/n] and packages the project folder: app/, Dockerfile and .env. (1) It uploads the code. (2) A container build runs in a Google-managed project. (3) It creates the Agent Runtime instance devfest-samsun-assistant in us-central1: a container with ADK and FastAPI that scales to zero when idle, Sessions and Memory Bank managed by Agent Runtime, and its own Agent Identity, principal://agents.global.proj-PROJECT_NUMBER.system.id.goog/…. (4) The identity gets IAM roles on your project, such as Agent Platform user, Logging writer and Monitoring writer. (5) After about 5 minutes, Cloud Shell shows Deployment successful! with the agent ID and its Agent Identity." width="1180" height="470"></a></div>
+          <figcaption>What one deploy command creates. It takes about 5 minutes and keeps running if Cloud Shell disconnects.</figcaption>
+        </figure>
         <p>Run:</p>
         <div class="code"><pre>agents-cli deploy --agent-identity -i</pre></div>
         <ul class="plain" style="margin-top:1rem">
@@ -455,6 +479,10 @@ source ~/.profile</pre></div>
           <h2>Step 5: Meet your agent in Agent Platform</h2>
           <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-5">done</label></span>
         </div>
+        <figure class="arch">
+          <div class="arch-frame"><a href="/workshops/devfest-samsun-agent/diagrams/step-5-console.svg" title="Open full size"><img src="/workshops/devfest-samsun-agent/diagrams/step-5-console.svg" loading="lazy" alt="Memory across sessions, and the trace of one turn. (1) In Playground session 1 you say: Hi! I'm into ML and Flutter. What should I see tomorrow? After the answer, the after_agent_callback save_to_memory sends the session to Memory Bank, which extracts the fact that the user is into ML and Flutter, in about 30 seconds. (2) In a New Session you ask: What should I see tomorrow? PreloadMemoryTool adds the fact before the model call, and the agent picks ML and Flutter talks without asking again. Below, Trace explorer shows one turn: an invoke_agent samsun_assistant span that contains retrieve_memories, three generate_content gemini-3.6-flash calls, execute_tool get_current_time, execute_tool search_sessions and save_memories. Timings are illustrative." width="1180" height="600"></a></div>
+          <figcaption>Memory Bank across Playground sessions, and the spans you find in Trace explorer.</figcaption>
+        </figure>
         <div class="steps">
           <div class="step">
             <span class="step-n">1</span>
