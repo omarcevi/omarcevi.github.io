@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deploy your first AI agent to Google Cloud — DevFest Samsun 2026 lab · Omar Elcircevi</title>
+  <meta name="description" content="Hands-on lab from DevFest Samsun 2026: run the DevFest Samsun Assistant, an ADK agent, in Cloud Shell, deploy it to Agent Runtime and explore its sessions, memory and traces in Agent Platform. About 20 minutes, no code, nothing to install.">
+  <link rel="canonical" href="https://omarcevi.dev/workshops/devfest-samsun-agent/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Deploy your first AI agent to Google Cloud — DevFest Samsun 2026 lab">
+  <meta property="og:description" content="Run an ADK agent in Cloud Shell, deploy it to Agent Runtime and meet it in Agent Platform: sessions, Memory Bank, Agent Identity and traces. About 20 minutes, no code.">
+  <meta property="og:url" content="https://omarcevi.dev/workshops/devfest-samsun-agent/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- fonts load without blocking the first paint: the page must read well on slow conference Wi-Fi -->
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <style>
+    /* Same tokens and components as the other workshop guides (workshops/cloud-agents-workshop/guide.css, kept in sync by hand) */
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --text: #18181b; --muted: #5f6168; --faint: #6e7178;
+      --accent: #2a5bd7; --accent-rgb: 42, 91, 215; --accent-soft: #e6ecfb; --on-accent: #fff; --ok: #15803d; --bad: #d93025;
+      --warn: #b45309; --warn-soft: #fdf3e3; --border: #e4e4e7;
+      --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --p-bg: #0f1115; --p-line: #232830; --p-text: #e5e7eb; --p-muted: #8b919c; --p-accent: #7aa2ff;
+      --only-light: block; --only-dark: none;   /* display values for elements shown in one theme only */
+      color-scheme: light dark;
+    }
+    /* dark follows the OS unless the top-bar toggle set data-theme on <html>; keep both blocks in sync */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #8a8f99;
+        --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --on-accent: #111318; --ok: #4ade80; --bad: #f87171;
+        --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31; --p-bg: #0c0e12; --p-line: #22262e;
+        --only-light: none; --only-dark: block;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #8a8f99;
+      --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --on-accent: #111318; --ok: #4ade80; --bad: #f87171;
+      --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31; --p-bg: #0c0e12; --p-line: #22262e;
+      --only-light: none; --only-dark: block;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16.5px;
+           -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    a { color: inherit; text-decoration: underline; text-decoration-color: rgba(var(--accent-rgb), .4);
+        text-decoration-thickness: 1px; text-underline-offset: 3px; transition: color .15s, text-decoration-color .15s; }
+    a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+    code { font-family: var(--mono); font-size: .86em; background: var(--accent-soft); padding: .08em .35em; border-radius: 5px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+    .page { max-width: 1120px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+    .topbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+              font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 1rem 0;
+              border-bottom: 1px solid var(--border); background: var(--bg); }
+    .crumbs a { text-decoration: none; } .crumbs a:hover { color: var(--accent); }
+    .crumbs .here { white-space: nowrap; }   /* wrap at " / ", never inside the hyphenated slug */
+    .topbar nav { display: flex; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
+    .topbar nav::-webkit-scrollbar { display: none; }
+    .topbar nav a { text-decoration: none; white-space: nowrap; } .topbar nav a:hover { color: var(--accent); }
+    .theme-toggle { flex-shrink: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -.25rem -.4rem -.25rem 0;
+                    border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+    .theme-toggle:hover { color: var(--accent); }
+    .theme-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+    .theme-toggle .i-moon { display: var(--only-light); } .theme-toggle .i-sun { display: var(--only-dark); } /* icon = theme a click switches to */
+    html:not(.js) .theme-toggle { display: none; }
+
+    .layout { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr); gap: 3rem; }
+    .toc { position: sticky; top: 4.2rem; align-self: start; padding-top: 2.5rem; font-family: var(--mono); font-size: .76rem; }
+    .toc ol { list-style: none; border-left: 1px solid var(--border); }
+    .toc li a { display: flex; justify-content: space-between; gap: .5rem; padding: .28rem 0 .28rem .9rem; margin-left: -1px;
+                border-left: 1px solid transparent; color: var(--muted); text-decoration: none; }
+    .toc li a:hover { color: var(--text); }
+    .toc li a.active { color: var(--accent); border-left-color: var(--accent); }
+    .toc .t { color: var(--faint); } .toc li a.done .n::after { content: " ✓"; color: var(--ok); }
+    .toc .label { color: var(--faint); margin: 0 0 .6rem; text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; }
+    .toc .group { color: var(--faint); margin: 1rem 0 .4rem .9rem; text-transform: uppercase; letter-spacing: .06em; font-size: .68rem; }
+    main { min-width: 0; max-width: 780px; }
+
+    .hero { padding: 3rem 0 2rem; }
+    .kicker { font-family: var(--mono); font-size: .78rem; color: var(--muted); margin-bottom: 1.1rem; }
+    h1 { font-weight: 600; font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.06; letter-spacing: -.04em; margin-bottom: 1.1rem; }
+    .part-of { font-family: var(--mono); font-size: .8rem; color: var(--muted); margin-bottom: 1rem; }
+    .part-of em { font-style: normal; color: var(--text); }
+    .tagline { font-size: clamp(1.05rem, 2.2vw, 1.22rem); line-height: 1.5; color: var(--muted); max-width: 38em; letter-spacing: -.01em; }
+    .tagline strong { color: var(--text); font-weight: 600; }
+    .actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
+    .btn { display: inline-flex; align-items: center; gap: .5rem; font-family: var(--mono); font-size: .82rem; font-weight: 500;
+           padding: .6rem .95rem; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); text-decoration: none; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .btn.primary:hover { color: var(--on-accent); filter: brightness(1.08); }
+    .btn:hover { border-color: var(--accent); }
+
+    section { padding: 2.5rem 0; border-top: 1px solid var(--border); }
+    h2 { font-weight: 600; font-size: 1.55rem; letter-spacing: -.03em; line-height: 1.2; margin-bottom: 1rem; }
+    h3 { font-size: .74rem; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: .07em;
+         color: var(--faint); margin: 1.6rem 0 .6rem; }
+    p + p { margin-top: .8rem; }
+    .lead { color: var(--muted); }
+    ul.plain, ol.plain { padding-left: 1.2rem; } ul.plain li + li, ol.plain li + li { margin-top: .35rem; }
+
+    .mod-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: .4rem; }
+    .mod-head h2 { margin: 0; }
+    .mod-head + p { margin-top: 1.1rem; }
+    .mod-meta { font-family: var(--mono); font-size: .76rem; color: var(--muted); display: flex; align-items: center; gap: .9rem; }
+    .done-toggle { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; user-select: none; }
+    .done-toggle input { accent-color: var(--ok); width: 1rem; height: 1rem; cursor: pointer; }
+
+    /* numbered steps inside a lab step */
+    .steps { margin-top: 1.4rem; }
+    .step { position: relative; padding: 0 0 1.5rem 2.7rem; }
+    .step::before { content: ""; position: absolute; left: .86rem; top: 2.1rem; bottom: .3rem; width: 2px; background: var(--border); }
+    .step:last-child { padding-bottom: .4rem; }
+    .step:last-child::before { display: none; }
+    .step-n { position: absolute; left: 0; top: 0; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--accent);
+              color: var(--bg); display: grid; place-items: center; font-family: var(--mono); font-size: .82rem; font-weight: 600; }
+    .step-n + p { padding-top: .1rem; }
+    .step > p { margin: .45rem 0; } .step > p:first-of-type { margin-top: 0; }
+    .step ol.plain, .step ul.plain { margin: .5rem 0; }
+    .step .code { margin: .6rem 0 .8rem; }
+
+    .see { border: 1px solid var(--border); border-left: 3px solid var(--ok); border-radius: 10px; padding: .8rem 1.1rem; margin: 1rem 0 .2rem;
+           background: var(--surface); }
+    .see .lbl, .tryit .lbl { display: block; font-family: var(--mono); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase;
+           color: var(--ok); margin-bottom: .3rem; }
+    .tryit { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 9px;
+             padding: .8rem 1rem; margin: 1rem 0 .2rem; }
+    .tryit .lbl { color: var(--accent); }
+    .five { list-style: none; display: grid; gap: .4rem; margin: .7rem 0 0; }
+    .five li { display: grid; grid-template-columns: minmax(0, 11rem) 1fr; gap: .8rem; padding: .45rem .8rem; background: var(--surface);
+               border: 1px solid var(--border); border-radius: 9px; }
+    .five .q { font-family: var(--mono); font-size: .82rem; color: var(--muted); padding-top: .1rem; }
+
+    .code { position: relative; background: var(--p-bg); color: var(--p-text); border: 1px solid var(--p-line); border-radius: 10px;
+            font-family: var(--mono); font-size: .82rem; line-height: 1.7; margin: .2rem 0; }
+    .code pre { padding: .85rem 3.6rem .85rem 1rem; overflow-x: auto; white-space: pre; }
+    .code .c { color: var(--p-muted); }
+    /* Many people read this on a phone and type on a laptop: long commands wrap, and the continuation is indented
+       so it never looks like a second command. guide script splits each <pre> into one .ln per command line. */
+    .code pre.lines { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .code .ln { display: block; padding-left: 1.6em; text-indent: -1.6em; }
+    .copy { position: absolute; top: .5rem; right: .5rem; font-family: var(--mono); font-size: .7rem; color: var(--p-muted);
+            background: transparent; border: 1px solid var(--p-line); border-radius: 6px; padding: .2rem .5rem; cursor: pointer; }
+    .copy:hover { color: var(--p-text); border-color: var(--p-muted); }
+    .copy.ok { color: #4ade80; border-color: #4ade80; }
+
+    .prompts { list-style: none; display: grid; gap: .5rem; margin: .5rem 0 .3rem; }
+    .prompts li { display: flex; gap: .6rem; align-items: flex-start; background: var(--surface); border: 1px solid var(--border);
+                  border-radius: 9px; padding: .55rem .7rem; }
+    .prompts q { quotes: none; flex: 1; font-size: .95rem; min-width: 0; overflow-wrap: anywhere; }
+    .prompts .copy { position: static; color: var(--muted); border-color: var(--border); }
+    .prompts .copy:hover { color: var(--accent); border-color: var(--accent); }
+    .prompts .copy.ok { color: var(--ok); border-color: var(--ok); }
+
+    /* a value Omar still has to fill in before the lab */
+    .todo { font-family: var(--mono); font-size: .9em; font-weight: 600; color: var(--warn); background: var(--warn-soft);
+            border: 1px dashed var(--warn); border-radius: 5px; padding: .05em .4em; }
+
+    .fix { display: grid; grid-template-columns: 1fr 1.3fr; gap: .4rem 1rem; font-size: .95rem; }
+    .fix div { padding: .45rem 0; border-bottom: 1px dashed var(--border); }
+    .fix div:nth-child(odd) { color: var(--muted); }
+    .fix .h { font-family: var(--mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--faint) !important;
+              border-bottom: 1px solid var(--border); }
+
+    .steps-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin: 1rem 0; list-style: none; }
+    .steps-grid li a { display: block; height: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+                       padding: .9rem 1rem; text-decoration: none; }
+    .steps-grid li a:hover { border-color: var(--accent); }
+    .steps-grid .num { font-family: var(--mono); font-size: .74rem; color: var(--accent); }
+    .steps-grid b { display: block; font-size: 1.02rem; font-weight: 600; margin: .1rem 0 0; }
+
+    .nolaptop { background: var(--accent-soft); border-radius: 12px; padding: 1.1rem 1.2rem; }
+    .nolaptop h2 { margin-bottom: .4rem; }
+
+    .pager { display: flex; justify-content: space-between; gap: 1rem; margin: 1.8rem 0 0; padding-top: 1rem; border-top: 1px dashed var(--border);
+             font-family: var(--mono); font-size: .8rem; }
+    .pager a { text-decoration: none; color: var(--muted); padding: .3rem 0; } .pager a:hover { color: var(--accent); }
+    .pager .next { margin-left: auto; text-align: right; }
+
+    footer { margin-top: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--faint); font-size: .76rem;
+             font-family: var(--mono); display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+
+    /* Long names in running text break instead of pushing the page wider on a phone; <pre> blocks still scroll. */
+    code { overflow-wrap: anywhere; }
+    /* Reading measure: prose stops near 75 characters; code and tables keep the full column. */
+    section p, ul.plain li, ol.plain li, .see li { max-width: 37em; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; gap: 0; }
+      .toc { display: none; }
+      /* the bar takes two rows: path and theme toggle, then every link, none cut off */
+      html { scroll-padding-top: 6rem; }
+      .topbar { flex-wrap: wrap; row-gap: .45rem; padding: .8rem 0; }
+      .crumbs { flex: 1 1 0; min-width: 0; }
+      .theme-toggle { order: 1; }
+      .topbar nav { order: 2; flex: 1 0 100%; margin-left: 0; overflow: visible; flex-wrap: wrap; row-gap: .3rem; }
+    }
+    @media (max-width: 760px) { .steps-grid { grid-template-columns: 1fr; } .step { padding-left: 2.3rem; } }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .page { padding: 0 1rem 3rem; }
+      .crumbs .ws { display: none; }
+      .topbar nav { column-gap: .95rem; }
+      .hero { padding: 2rem 0 1.6rem; }
+      .fix { grid-template-columns: 1fr; gap: .1rem; }
+      .fix .h { display: none; }
+      .fix div:nth-child(odd) { border-bottom: 0; padding-bottom: 0; font-weight: 500; color: var(--text); }
+      .five li { grid-template-columns: 1fr; gap: .1rem; }
+      .code { font-size: .78rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/devfest-samsun-agent/">devfest-samsun-agent</a></span>
+    <nav aria-label="Lab sections">
+      <a href="#step-1">Steps</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="/demos/devfest-samsun-agent/">No laptop?</a>
+      <a href="https://github.com/omarcevi/devfest-samsun-assistant">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <div class="layout">
+    <aside class="toc" aria-label="On this page">
+      <p class="label">Follow along</p>
+      <ol>
+        <li><a href="#overview"><span class="n">Overview</span></a></li>
+        <li><a href="#need"><span class="n">What you need</span></a></li>
+        <li><a href="#steps"><span class="n">The steps</span></a></li>
+        <li class="group">Lab</li>
+        <li><a href="#step-1" data-mod="step-1"><span class="n">1 · Credits</span><span class="t">5 min</span></a></li>
+        <li><a href="#step-2" data-mod="step-2"><span class="n">2 · Cloud Shell</span><span class="t">3 min</span></a></li>
+        <li><a href="#step-3" data-mod="step-3"><span class="n">3 · Run locally</span><span class="t">5 min</span></a></li>
+        <li><a href="#step-4" data-mod="step-4"><span class="n">4 · Deploy</span><span class="t">5–10 min</span></a></li>
+        <li><a href="#step-5" data-mod="step-5"><span class="n">5 · Agent Platform</span><span class="t">5 min</span></a></li>
+        <li><a href="#step-6" data-mod="step-6"><span class="n">6 · Clean up</span><span class="t">1 min</span></a></li>
+        <li class="group">Help</li>
+        <li><a href="#no-laptop"><span class="n">No laptop?</span></a></li>
+        <li><a href="#troubleshooting"><span class="n">Troubleshooting</span></a></li>
+        <li><a href="#learn-more"><span class="n">Learn more</span></a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <!-- ============================================================ HERO -->
+      <header class="hero" id="overview">
+        <p class="kicker">DevFest Samsun 2026 · Hands-on lab · about 20 minutes</p>
+        <h1>Deploy your first AI agent to Google Cloud</h1>
+        <p class="part-of">Part of <em>The Google Cloud Stack for Production AI Agents</em> by Omar Elcircevi</p>
+        <p class="tagline">You'll take a ready-made agent, the <strong>DevFest Samsun Assistant</strong>, and run it in Cloud Shell. Then you'll deploy it to <strong>Agent Runtime</strong> on Google Cloud and explore it in <strong>Agent Platform</strong>. You don't write any code, and you don't install anything on your laptop.</p>
+        <div class="actions">
+          <a class="btn primary" href="#step-1">Start with step 1 →</a>
+          <a class="btn" href="https://github.com/omarcevi/devfest-samsun-assistant">Code on GitHub</a>
+          <a class="btn" href="/demos/devfest-samsun-agent/">No laptop? Chat on your phone</a>
+        </div>
+      </header>
+
+      <section id="need">
+        <h2>What you need</h2>
+        <ul class="plain">
+          <li>A laptop with a browser. Chrome works best.</li>
+          <li>A <strong>personal</strong> Google account (Gmail). Work and school accounts often block Cloud Shell or credits.</li>
+          <li>The credit link in <a href="#step-1">Step 1</a>.</li>
+        </ul>
+      </section>
+
+      <section id="agent">
+        <h2>The agent</h2>
+        <p>The DevFest Samsun Assistant answers questions about this event's real schedule: which talks are on, when, and on which floor. It's built with Google's <strong>Agent Development Kit (ADK)</strong>. It has one Gemini model, one instruction and a few Python functions it can call as tools.</p>
+      </section>
+
+      <section id="steps">
+        <h2>The steps</h2>
+        <ul class="steps-grid">
+          <li><a href="#step-1"><span class="num">STEP 1 · 5 MIN</span><b>Get your credits and a project</b></a></li>
+          <li><a href="#step-2"><span class="num">STEP 2 · 3 MIN</span><b>Open Cloud Shell and get the code</b></a></li>
+          <li><a href="#step-3"><span class="num">STEP 3 · 5 MIN</span><b>Talk to your agent locally</b></a></li>
+          <li><a href="#step-4"><span class="num">STEP 4 · 2 MIN TO START, 5–10 MIN TO FINISH</span><b>Deploy it to Agent Runtime</b></a></li>
+          <li><a href="#step-5"><span class="num">STEP 5 · 5 MIN</span><b>Meet your agent in Agent Platform</b></a></li>
+          <li><a href="#step-6"><span class="num">STEP 6 · 1 MIN</span><b>Clean up</b></a></li>
+        </ul>
+      </section>
+
+      <!-- ============================================================ STEP 1 -->
+      <section id="step-1" data-mod="step-1">
+        <div class="mod-head">
+          <h2>Step 1: Get your credits and a project</h2>
+          <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-1">done</label></span>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-n">1</span>
+            <p>Open the credit link while signed in with your personal Google account: <!-- TODO: replace the placeholder with the real credit link --><mark class="todo">[CREDIT_LINK]</mark></p>
+          </div>
+          <div class="step">
+            <span class="step-n">2</span>
+            <p>Follow the page to accept the credits. This creates a billing account that uses them. <!-- VERIFY with Omar: does it ask for a card? What is the billing account called? --></p>
+          </div>
+          <div class="step">
+            <span class="step-n">3</span>
+            <p>Open the Google Cloud console: <a href="https://console.cloud.google.com">https://console.cloud.google.com</a></p>
+          </div>
+          <div class="step">
+            <span class="step-n">4</span>
+            <p>Create a project:</p>
+            <ol class="plain">
+              <li>Click the project picker at the top of the page, then <strong>New project</strong>.</li>
+              <li><strong>Project name:</strong> <code>devfest-samsun-agent</code></li>
+              <li><strong>Billing account:</strong> pick the one with your credits.</li>
+              <li>Click <strong>Create</strong>.</li>
+            </ol>
+          </div>
+          <div class="step">
+            <span class="step-n">5</span>
+            <p>Note your <strong>Project ID</strong>. It's shown under the name and may have numbers added, for example <code>devfest-samsun-agent-482913</code>.</p>
+          </div>
+        </div>
+        <div class="see"><span class="lbl">✅ Check</span>The top bar of the console shows your new project.</div>
+        <nav class="pager" aria-label="Next step"><a class="next" href="#step-2">Step 2: Cloud Shell →</a></nav>
+      </section>
+
+      <!-- ============================================================ STEP 2 -->
+      <section id="step-2" data-mod="step-2">
+        <div class="mod-head">
+          <h2>Step 2: Open Cloud Shell and get the code</h2>
+          <span class="mod-meta"><span>3 min</span><label class="done-toggle"><input type="checkbox" data-done="step-2">done</label></span>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-n">1</span>
+            <p>Click <strong>Activate Cloud Shell</strong> (the <code>&gt;_</code> icon) at the top right of the console. If asked, click <strong>Continue</strong> and then <strong>Authorize</strong>.</p>
+          </div>
+          <div class="step">
+            <span class="step-n">2</span>
+            <p>Point Cloud Shell at your project. Replace <code>YOUR_PROJECT_ID</code> with your Project ID:</p>
+            <div class="code"><pre>gcloud config set project YOUR_PROJECT_ID</pre></div>
+          </div>
+          <div class="step">
+            <span class="step-n">3</span>
+            <p>Get the code and run the setup script:</p>
+            <div class="code"><pre>git clone https://github.com/omarcevi/devfest-samsun-assistant.git
+cd devfest-samsun-assistant
+./lab/setup.sh</pre></div>
+            <p>The script:</p>
+            <ul class="plain">
+              <li>checks that billing is linked to your project</li>
+              <li>turns on the Google Cloud APIs this lab needs</li>
+              <li>installs the agent's Python packages and the Agents CLI</li>
+              <li>writes a <code>.env</code> file so the agent uses Gemini in your project</li>
+            </ul>
+            <p>It takes about 2 minutes. <!-- VERIFY: real time on a fresh project --></p>
+          </div>
+        </div>
+        <div class="see"><span class="lbl">✅ Check</span>The script ends with <code>✅ Ready</code>. If it stops with an error, the message says what to fix. See also <a href="#troubleshooting"><strong>Troubleshooting</strong></a> at the end.</div>
+        <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-1">← Step 1</a><a class="next" href="#step-3">Step 3: Run locally →</a></nav>
+      </section>
+
+      <!-- ============================================================ STEP 3 -->
+      <section id="step-3" data-mod="step-3">
+        <div class="mod-head">
+          <h2>Step 3: Talk to your agent locally</h2>
+          <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-3">done</label></span>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-n">1</span>
+            <p>Start the ADK dev UI:</p>
+            <div class="code"><pre>uv run adk web --port 8080</pre></div>
+          </div>
+          <div class="step">
+            <span class="step-n">2</span>
+            <p>At the top of Cloud Shell, click <strong>Web preview</strong> (the eye icon), then <strong>Preview on port 8080</strong>. A new tab opens.</p>
+          </div>
+          <div class="step">
+            <span class="step-n">3</span>
+            <p>In the top-left dropdown, pick the agent <strong><code>app</code></strong>. <!-- VERIFY: the name shown in the dropdown --></p>
+          </div>
+          <div class="step">
+            <span class="step-n">4</span>
+            <p>Ask it something:</p>
+            <ul class="prompts">
+              <li><q>Which talks are about AI agents?</q></li>
+              <li><q>What's on Kat 2 tomorrow?</q></li>
+              <li><q lang="tr">Yarın Flutter ile ilgili hangi konuşmalar var?</q></li>
+            </ul>
+          </div>
+          <div class="step">
+            <span class="step-n">5</span>
+            <p>Click a reply's events to see <strong>which tool the agent called</strong> and what it got back. That's the agent loop: the model picks a tool, reads the result, then answers. <!-- VERIFY: where events show in the current adk web UI --></p>
+          </div>
+          <div class="step">
+            <span class="step-n">6</span>
+            <p>Go back to Cloud Shell and press <strong>Ctrl+C</strong> to stop the dev UI.</p>
+          </div>
+        </div>
+        <div class="tryit"><span class="lbl">💡 Optional</span>See the whole agent with <code>cloudshell edit app/agent.py</code>. It's about 15 lines.</div>
+        <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-2">← Step 2</a><a class="next" href="#step-4">Step 4: Deploy →</a></nav>
+      </section>
+
+      <!-- ============================================================ STEP 4 -->
+      <section id="step-4" data-mod="step-4">
+        <div class="mod-head">
+          <h2>Step 4: Deploy it to Agent Runtime</h2>
+          <span class="mod-meta"><span>2 min to start, 5–10 min to finish</span><label class="done-toggle"><input type="checkbox" data-done="step-4">done</label></span>
+        </div>
+        <p>Run:</p>
+        <div class="code"><pre>agents-cli deploy --agent-identity</pre></div>
+        <ul class="plain" style="margin-top:1rem">
+          <li>If it asks you to confirm the project, check that it's yours and press <strong>Enter</strong>. <!-- VERIFY: prompts shown on a fresh project --></li>
+          <li>It packages your code, uploads it and creates a managed agent that scales on its own.</li>
+          <li><code>--agent-identity</code> gives your agent <strong>its own identity</strong> in IAM, instead of a shared service account.</li>
+          <li>It takes <strong>5–10 minutes</strong>. Leave it running and watch the demo on stage while you wait.</li>
+        </ul>
+        <div class="see"><span class="lbl">✅ Check</span>The output ends with <!-- VERIFY: exact success line -->.</div>
+        <p style="margin-top:1.2rem">If Cloud Shell disconnects, click <strong>Reconnect</strong>, run <code>cd devfest-samsun-assistant</code>, then check progress with:</p>
+        <div class="code"><pre>agents-cli deploy --status</pre></div>
+        <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-3">← Step 3</a><a class="next" href="#step-5">Step 5: Agent Platform →</a></nav>
+      </section>
+
+      <!-- ============================================================ STEP 5 -->
+      <section id="step-5" data-mod="step-5">
+        <div class="mod-head">
+          <h2>Step 5: Meet your agent in Agent Platform</h2>
+          <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-5">done</label></span>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <span class="step-n">1</span>
+            <p>In the console's search bar, type <strong>Agent Platform</strong> and open it. Then open <strong>Deployments</strong>. <!-- VERIFY: menu path --></p>
+          </div>
+          <div class="step">
+            <span class="step-n">2</span>
+            <p>Click your agent. <!-- VERIFY: the name it gets --></p>
+          </div>
+          <div class="step">
+            <span class="step-n">3</span>
+            <p><strong>Playground:</strong> chat with your <em>deployed</em> agent. Try:</p>
+            <ul class="prompts">
+              <li><q>Hi! I'm into ML and Flutter. What should I see tomorrow?</q></li>
+            </ul>
+            <p class="memory-check">Then click <strong>New session</strong> and ask <code>What should I see tomorrow?</code> again. Does it remember what you like? That's <strong>Memory Bank</strong>. Saving a memory can take up to a minute. <!-- VERIFY: memory works across Playground sessions; drop this bullet if not --></p>
+          </div>
+          <div class="step">
+            <span class="step-n">4</span>
+            <p><strong>Sessions:</strong> every conversation you just had, stored by Agent Runtime.</p>
+          </div>
+          <div class="step">
+            <span class="step-n">5</span>
+            <p><strong>Trace:</strong> open one conversation. You'll see the timeline of model calls and tool calls, the same view Omar showed on stage.</p>
+          </div>
+          <div class="step">
+            <span class="step-n">6</span>
+            <p><strong>Event</strong> and <strong>State:</strong> a graph of what was called, and what the agent kept in its session.</p>
+          </div>
+        </div>
+        <p style="margin-top:.6rem">You've now seen the same five questions from the talk on your own agent:</p>
+        <ul class="five">
+          <li><span class="q">where it runs</span><span>Agent Runtime</span></li>
+          <li><span class="q">what it remembers</span><span>Sessions and Memory Bank</span></li>
+          <li><span class="q">who it acts as</span><span>its Agent Identity</span></li>
+          <li><span class="q">what it's doing</span><span>Trace</span></li>
+        </ul>
+        <nav class="pager" aria-label="Previous and next step"><a class="prev" href="#step-4">← Step 4</a><a class="next" href="#step-6">Step 6: Clean up →</a></nav>
+      </section>
+
+      <!-- ============================================================ STEP 6 -->
+      <section id="step-6" data-mod="step-6">
+        <div class="mod-head">
+          <h2>Step 6: Clean up</h2>
+          <span class="mod-meta"><span>1 min</span><label class="done-toggle"><input type="checkbox" data-done="step-6">done</label></span>
+        </div>
+        <p>Your credits are limited. When you're done, delete the agent:</p>
+        <div class="code"><pre>./lab/cleanup.sh</pre></div>
+        <p style="margin-top:1.1rem">You can also shut down the whole project: in the console, go to <strong>IAM &amp; Admin › Settings › Shut down</strong>.</p>
+        <p>You can keep the agent until the end of DevFest on Sunday if you want to play with it more.</p>
+        <nav class="pager" aria-label="Previous step"><a class="prev" href="#step-5">← Step 5</a><a class="next" href="#troubleshooting">Troubleshooting →</a></nav>
+      </section>
+
+      <!-- ============================================================ NO LAPTOP -->
+      <section id="no-laptop">
+        <div class="nolaptop">
+          <h2>No laptop?</h2>
+          <p>Use the shared assistant on your phone: <a href="/demos/devfest-samsun-agent/"><strong>omarcevi.dev/demos/devfest-samsun-agent</strong></a></p>
+        </div>
+      </section>
+
+      <!-- ============================================================ TROUBLESHOOTING -->
+      <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <div class="fix">
+          <div class="h">What you see</div><div class="h">What to do</div>
+          <div>The setup script says billing isn't linked</div><div>In the console, go to <strong>Billing › Link a billing account</strong>, pick your credits account, then run <code>./lab/setup.sh</code> again.</div>
+          <div><code>PERMISSION_DENIED</code> or "API not enabled" right after setup</div><div>New APIs can take a minute to turn on. Wait, then try again.</div>
+          <div><code>429</code> or <code>RESOURCE_EXHAUSTED</code></div><div>You hit a Gemini rate limit. Wait 30 seconds and try again.</div>
+          <div>Web preview shows an error page</div><div>Check that <code>adk web</code> is still running in Cloud Shell and that you used port 8080.</div>
+          <div>Cloud Shell says the session ended</div><div>Click <strong>Reconnect</strong>, then run <code>cd devfest-samsun-assistant</code>.</div>
+          <div>The deploy fails</div><div>Copy the last lines of the error and raise your hand.</div>
+        </div>
+        <!-- VERIFY: add any other error you hit while testing on a fresh project -->
+      </section>
+
+      <!-- ============================================================ LEARN MORE -->
+      <section id="learn-more">
+        <h2>Learn more</h2>
+        <ul class="plain">
+          <li>Agent Development Kit (ADK): <a href="https://google.github.io/adk-docs">https://google.github.io/adk-docs</a></li>
+          <li>Agent Runtime and Agent Platform: <a href="https://docs.cloud.google.com/gemini-enterprise-agent-platform">https://docs.cloud.google.com/gemini-enterprise-agent-platform</a></li>
+          <li>Agents CLI: <a href="https://pypi.org/project/google-agents-cli/">https://pypi.org/project/google-agents-cli/</a></li>
+          <li>This lab's code: <a href="https://github.com/omarcevi/devfest-samsun-assistant">https://github.com/omarcevi/devfest-samsun-assistant</a></li>
+        </ul>
+      </section>
+
+      <footer>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/devfest-samsun-assistant">source</a> · <a href="/demos/devfest-samsun-agent/">phone demo</a></p>
+        <p>DevFest Samsun · 24 October 2026</p>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Copy buttons on code blocks and prompts
+  const fallbackCopy = text => {
+    const t = document.createElement('textarea');
+    t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    t.remove(); return ok;
+  };
+  const copy = (btn, text) => {
+    const done = () => { btn.textContent = 'copied'; btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('ok'); }, 1400); };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, () => { if (fallbackCopy(text)) done(); });
+    else if (fallbackCopy(text)) done();
+  };
+  document.querySelectorAll('.code').forEach(block => {
+    const pre = block.querySelector('pre');
+    if (!pre.children.length) {   // plain commands: one block per line, so a long line wraps with a hanging indent
+      const lines = pre.textContent.split('\n');
+      pre.textContent = '';
+      lines.forEach(l => { const s = document.createElement('span'); s.className = 'ln'; s.textContent = l; pre.appendChild(s); });
+      pre.classList.add('lines');
+    }
+    const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
+    b.setAttribute('aria-label', 'Copy command');
+    b.addEventListener('click', () => {
+      const clone = pre.cloneNode(true);
+      clone.querySelectorAll('.c').forEach(c => c.remove());           // drop comments
+      const raw = clone.classList.contains('lines') ? [...clone.querySelectorAll('.ln')].map(s => s.textContent) : clone.textContent.split('\n');
+      const text = raw.map(l => l.replace(/\s+$/, '')).filter(l => l).join('\n');
+      copy(b, text);
+    });
+    block.appendChild(b);
+  });
+  document.querySelectorAll('.prompts li').forEach(li => {
+    const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
+    b.setAttribute('aria-label', 'Copy prompt');
+    b.addEventListener('click', () => copy(b, li.querySelector('q').textContent));
+    li.appendChild(b);
+  });
+
+  // "done" checkboxes, remembered in this browser only
+  const KEY = 'devfest-samsun-agent-done';
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
+  const mark = () => document.querySelectorAll('.toc a[data-mod]').forEach(a =>
+    a.classList.toggle('done', !!state[a.dataset.mod]));
+  document.querySelectorAll('input[data-done]').forEach(cb => {
+    cb.checked = !!state[cb.dataset.done];
+    cb.addEventListener('change', () => {
+      state[cb.dataset.done] = cb.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      mark();
+    });
+  });
+  mark();
+
+  // Highlight the section you're reading in the side index
+  const links = [...document.querySelectorAll('.toc a')];
+  const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const targets = [...byId.keys()].map(id => document.getElementById(id)).filter(Boolean);
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) {
+        links.forEach(a => a.classList.remove('active'));
+        const a = byId.get(e.target.id); if (a) a.classList.add('active');
+      }});
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    targets.forEach(t => io.observe(t));
+  }
+
+  // Theme toggle: flips light/dark and remembers it (applyTheme and the saved choice are read in <head>)
+  const btn = document.getElementById('theme-toggle'), root = document.documentElement;
+  const os = window.matchMedia && matchMedia('(prefers-color-scheme: dark)');
+  const current = () => root.getAttribute('data-theme') || (os && os.matches ? 'dark' : 'light');
+  const label = () => {
+    const l = `Switch to ${current() === 'dark' ? 'light' : 'dark'} theme`;
+    btn.setAttribute('aria-label', l); btn.title = l;
+  };
+  btn.addEventListener('click', () => {
+    const t = current() === 'dark' ? 'light' : 'dark';
+    applyTheme(t);
+    try { localStorage.setItem('theme', t); } catch (e) {}
+    label();
+  });
+  if (os && os.addEventListener) os.addEventListener('change', label);
+  label();
+})();
+</script>
+</body>
+</html>

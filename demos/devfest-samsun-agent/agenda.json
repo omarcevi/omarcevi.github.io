@@ -1,0 +1,256 @@
+{
+  "event": "DevFest Samsun 2026",
+  "source": "https://kommunity.com/gdg-samsun/events/devfest-samsun-2026-1057d7ef",
+  "read_on": "2026-10-23",
+  "timezone": "Europe/Istanbul",
+  "days": {
+    "2026-10-24": "Saturday",
+    "2026-10-25": "Sunday"
+  },
+  "venue": "Colombia Coffee Samsun Ömürevleri, Cumhuriyet Mahallesi Adnan Menderes Bulvarı 1. Kısım No:343, 55200 Atakum/Samsun. Two floors: Kat 1 and Kat 2.",
+  "sessions": [
+    {
+      "id": "sat-0930-kat1",
+      "title": "Devfest & Ideathon ve Hackathon Açılışı",
+      "speaker": "",
+      "day": "2026-10-24",
+      "start": "09:30",
+      "end": "10:10",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "community",
+        "hackathon"
+      ]
+    },
+    {
+      "id": "sat-1030-kat1",
+      "title": "The Google Cloud Stack for Production AI Agents",
+      "speaker": "Omar Elcircevi",
+      "day": "2026-10-24",
+      "start": "10:30",
+      "end": "11:10",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "agents",
+        "cloud"
+      ]
+    },
+    {
+      "id": "sat-1130-kat1",
+      "title": "AI Kod Yazıyor, Peki Kuralları Kim Koyuyor? Çok Modüllü Android Projelerinde Ajan Disiplini",
+      "speaker": "Kaan Enes Kapıcı",
+      "day": "2026-10-24",
+      "start": "11:30",
+      "end": "12:10",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "agents",
+        "android"
+      ]
+    },
+    {
+      "id": "sat-1315-kat1",
+      "title": "Git push Toplum 5.0",
+      "speaker": "Mehmet Durak Akkaya",
+      "day": "2026-10-24",
+      "start": "13:15",
+      "end": "13:55",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "community"
+      ]
+    },
+    {
+      "id": "sat-1415-kat1",
+      "title": "İlham Veren Deneyim İçin Denemek Lazım!",
+      "speaker": "Seyfettin Boğazlı",
+      "day": "2026-10-24",
+      "start": "14:15",
+      "end": "14:55",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "ux"
+      ]
+    },
+    {
+      "id": "sat-1530-kat1",
+      "title": "Firebase ile Gerçek Zamanlı Sürdürülebilirlik veya Atıktan Değere Giden Veri Akışı",
+      "speaker": "Semih Özdaş",
+      "day": "2026-10-24",
+      "start": "15:30",
+      "end": "16:10",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "firebase",
+        "data",
+        "sustainability"
+      ]
+    },
+    {
+      "id": "sat-1630-kat1",
+      "title": "Gün Kapanışı",
+      "speaker": "",
+      "day": "2026-10-24",
+      "start": "16:30",
+      "end": "17:10",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "community"
+      ]
+    },
+    {
+      "id": "sun-0930-kat1",
+      "title": "Açılış Konuşması",
+      "speaker": "",
+      "day": "2026-10-25",
+      "start": "09:30",
+      "end": "10:15",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "community"
+      ]
+    },
+    {
+      "id": "sun-1030-kat1",
+      "title": "From Model to Cluster: Large-Scale AI/ML Workloads on GKE",
+      "speaker": "Enes Turan",
+      "day": "2026-10-25",
+      "start": "10:30",
+      "end": "11:15",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "ml",
+        "gke",
+        "cloud"
+      ]
+    },
+    {
+      "id": "sun-1130-kat1",
+      "title": "[Çevrimiçi] F1 Telemetry: Time Series Databases and Data Visualizations",
+      "speaker": "Toprak Koç",
+      "day": "2026-10-25",
+      "start": "11:30",
+      "end": "12:15",
+      "floor": "Kat 1",
+      "format": "online",
+      "tags": [
+        "data"
+      ]
+    },
+    {
+      "id": "sun-1315-kat1",
+      "title": "[Workshop] Stranger Shaders: Turning the App Upside Down",
+      "speaker": "Max Kachinkin",
+      "day": "2026-10-25",
+      "start": "13:15",
+      "end": "14:00",
+      "floor": "Kat 1",
+      "format": "workshop",
+      "tags": [
+        "graphics",
+        "mobile"
+      ]
+    },
+    {
+      "id": "sun-1415-kat1",
+      "title": "Not Risky Anymore: Enforcing Native IAM Boundaries for Production AI Agents",
+      "speaker": "Alper SARI",
+      "day": "2026-10-25",
+      "start": "14:15",
+      "end": "15:00",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "agents",
+        "security",
+        "cloud"
+      ]
+    },
+    {
+      "id": "sun-1530-kat1",
+      "title": "No GPU Left Behind: Hybrid Ultralytics YOLO Training and Fast Execution",
+      "speaker": "Onuralp Sezer",
+      "day": "2026-10-25",
+      "start": "15:30",
+      "end": "16:15",
+      "floor": "Kat 1",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "ml",
+        "computer-vision"
+      ]
+    },
+    {
+      "id": "sun-1030-kat2",
+      "title": "Bir LLM'e Önerdirmek Kolay. İyi Bir Recommendation System Kurmak Neden Zor?",
+      "speaker": "Selcan ATAK",
+      "day": "2026-10-25",
+      "start": "10:30",
+      "end": "11:15",
+      "floor": "Kat 2",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "ml",
+        "llm"
+      ]
+    },
+    {
+      "id": "sun-1130-kat2",
+      "title": "Your Bug Is Repetition",
+      "speaker": "Elif İrem Külcü",
+      "day": "2026-10-25",
+      "start": "11:30",
+      "end": "12:15",
+      "floor": "Kat 2",
+      "format": "talk",
+      "tags": [
+        "software"
+      ]
+    },
+    {
+      "id": "sun-1315-kat2",
+      "title": "SDLC Out, ADLC In",
+      "speaker": "Semih Kışlar",
+      "day": "2026-10-25",
+      "start": "13:15",
+      "end": "14:00",
+      "floor": "Kat 2",
+      "format": "talk",
+      "tags": [
+        "ai",
+        "agents",
+        "software"
+      ]
+    },
+    {
+      "id": "sun-1415-kat2",
+      "title": "Bağlantıyı Kurmak: Modern Flutter & Firebase Sistemleri",
+      "speaker": "Kadriye Macit",
+      "day": "2026-10-25",
+      "start": "14:15",
+      "end": "15:00",
+      "floor": "Kat 2",
+      "format": "talk",
+      "tags": [
+        "flutter",
+        "firebase",
+        "mobile"
+      ]
+    }
+  ]
+}

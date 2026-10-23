@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevFest Samsun 2026 Assistant · Live demo · Omar Elcircevi</title>
+  <meta name="description" content="Ask the DevFest Samsun 2026 Assistant about the real event schedule: talks, times and floors, in English or Turkish. A live demo of an ADK agent running on Agent Runtime.">
+  <link rel="canonical" href="https://omarcevi.dev/demos/devfest-samsun-agent/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="DevFest Samsun 2026 Assistant · Live demo">
+  <meta property="og:description" content="Ask about the real DevFest Samsun 2026 schedule: talks, times and floors, in English or Turkish. Built with ADK, deployed on Agent Runtime.">
+  <meta property="og:url" content="https://omarcevi.dev/demos/devfest-samsun-agent/">
+  <meta property="og:image" content="https://omarcevi.dev/og-image.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- fonts load without blocking the first paint: the page must work on slow conference Wi-Fi -->
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+  <script>
+  // a theme picked with the top-bar toggle (shared with omarcevi.dev) overrides the OS setting; applied before first paint
+  (d => {
+    d.classList.add('js');
+    window.applyTheme = t => {
+      d.setAttribute('data-theme', t);
+      document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.content = t === 'dark' ? '#111318' : '#f7f7f5'; });
+    };
+    try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') applyTheme(t); } catch (e) {}
+  })(document.documentElement);
+  </script>
+  <style>
+    /* Same tokens as omarcevi.dev and the workshop guides */
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --text: #18181b; --muted: #5f6168; --faint: #6e7178;
+      --accent: #2a5bd7; --accent-rgb: 42, 91, 215; --accent-soft: #e6ecfb; --on-accent: #fff; --ok: #15803d; --bad: #d93025;
+      --warn: #b45309; --warn-soft: #fdf3e3; --border: #e4e4e7;
+      --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --only-light: block; --only-dark: none;
+      color-scheme: light dark;
+    }
+    /* dark follows the OS unless the top-bar toggle set data-theme on <html>; keep both blocks in sync */
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #8a8f99;
+        --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --on-accent: #111318; --ok: #4ade80; --bad: #f87171;
+        --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31;
+        --only-light: none; --only-dark: block;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #111318; --surface: #171a20; --text: #e8e9ec; --muted: #a0a4ad; --faint: #8a8f99;
+      --accent: #7aa2ff; --accent-rgb: 122, 162, 255; --accent-soft: #1d2740; --on-accent: #111318; --ok: #4ade80; --bad: #f87171;
+      --warn: #fbbf24; --warn-soft: #2a2213; --border: #262a31;
+      --only-light: none; --only-dark: block;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; font-size: 16px;
+           -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    a { color: inherit; text-decoration: underline; text-decoration-color: rgba(var(--accent-rgb), .45);
+        text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+    .page { max-width: 760px; margin: 0 auto; padding: 0 1.5rem 2.5rem; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+              font-family: var(--mono); font-size: .78rem; color: var(--muted); padding: 1rem 0;
+              border-bottom: 1px solid var(--border); }
+    .crumbs { min-width: 0; }
+    .crumbs a { text-decoration: none; } .crumbs a:hover { color: var(--accent); }
+    .crumbs .here { white-space: nowrap; }
+    .topbar nav { display: flex; gap: 1.1rem; margin-left: auto; }
+    .topbar nav a { text-decoration: none; white-space: nowrap; } .topbar nav a:hover { color: var(--accent); }
+    .theme-toggle { flex-shrink: 0; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; margin: -.25rem -.4rem -.25rem 0;
+                    border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+    .theme-toggle:hover { color: var(--accent); }
+    .theme-toggle svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+    .theme-toggle .i-moon { display: var(--only-light); } .theme-toggle .i-sun { display: var(--only-dark); }
+    html:not(.js) .theme-toggle { display: none; }
+
+    .intro { padding: 1.8rem 0 1.1rem; }
+    .kicker { font-family: var(--mono); font-size: .76rem; color: var(--muted); margin-bottom: .7rem; }
+    h1 { font-weight: 600; font-size: clamp(1.75rem, 6.4vw, 2.6rem); line-height: 1.08; letter-spacing: -.035em; margin-bottom: .6rem; }
+    .tagline { color: var(--muted); font-size: 1.02rem; line-height: 1.5; max-width: 36em; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.5rem; font-family: var(--mono);
+           font-size: .8rem; font-weight: 500; padding: .45rem .85rem; border-radius: 9px; border: 1px solid var(--border);
+           background: var(--surface); color: var(--text); text-decoration: none; cursor: pointer; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: .55; cursor: default; }
+    .btn:disabled:hover { border-color: var(--border); color: var(--text); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .btn.primary:hover { color: var(--on-accent); filter: brightness(1.08); }
+    .btn.small { min-height: 2.1rem; padding: .3rem .7rem; font-size: .75rem; }
+    .btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+    .notice { font-family: var(--mono); font-size: .78rem; margin-top: .7rem; color: var(--ok); }
+    .notice.info { color: var(--muted); } .notice.error { color: var(--bad); }
+    .notice:empty { display: none; }
+
+    /* demo ended */
+    .ended { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px;
+             padding: 1.1rem 1.2rem; margin: .4rem 0 2rem; font-size: 1.05rem; }
+    .ended p + p { margin-top: .9rem; }
+    .ended .btn { font-size: .78rem; overflow-wrap: anywhere; }
+
+    /* agenda */
+    .agenda-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: .9rem 1.1rem 1rem; margin: 0 0 1.2rem; }
+    .agenda-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .agenda-panel h2 { font-size: 1.15rem; font-weight: 600; letter-spacing: -.02em; }
+    .agenda-panel h3 { font-family: var(--mono); font-size: .72rem; font-weight: 500; text-transform: uppercase; letter-spacing: .07em;
+                       color: var(--faint); margin: 1.1rem 0 .2rem; }
+    .agenda-panel h3 .today { color: var(--ok); }
+    .agenda-list { list-style: none; }
+    .agenda-list li { display: grid; grid-template-columns: 5.9rem minmax(0, 1fr); gap: .8rem; padding: .55rem 0; border-bottom: 1px dashed var(--border); }
+    .agenda-list li:last-child { border-bottom: 0; }
+    .agenda-list .time { font-family: var(--mono); font-size: .78rem; color: var(--muted); padding-top: .12rem; white-space: nowrap; }
+    .agenda-list .title { font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+    .agenda-list .meta { font-size: .86rem; color: var(--muted); margin-top: .15rem; display: flex; flex-wrap: wrap; gap: .2rem .5rem; align-items: center; }
+    .floor { font-family: var(--mono); font-size: .7rem; border: 1px solid var(--border); border-radius: 999px; padding: 0 .5rem; white-space: nowrap; color: var(--text); }
+    .agenda-note { font-size: .8rem; color: var(--muted); margin-top: .8rem; }
+
+    /* chat */
+    .chat { border-top: 1px solid var(--border); padding-top: 1rem; }
+    .alert { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; margin-bottom: 1rem;
+             background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--bad); border-radius: 10px;
+             padding: .7rem .9rem; font-size: .93rem; }
+    .log { display: flex; flex-direction: column; gap: .75rem; padding-bottom: 1rem; }
+    .msg { max-width: 88%; padding: .6rem .9rem; border-radius: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+    .msg.user { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; white-space: pre-wrap; }
+    .msg.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg.bot .body > * + * { margin-top: .5rem; }
+    .msg.bot ul, .msg.bot ol { padding-left: 1.3rem; }
+    .msg.bot li + li { margin-top: .2rem; }
+    .msg.bot strong { font-weight: 600; }
+    .msg.error { border-left: 3px solid var(--bad); }
+    .msg .tool { display: flex; align-items: center; gap: .45rem; font-family: var(--mono); font-size: .74rem; color: var(--muted); }
+    .msg .body:not(:empty) + .tool { margin-top: .45rem; }
+    .msg .tool::before { content: ""; flex-shrink: 0; width: .45rem; height: .45rem; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+    .msg .note { font-family: var(--mono); font-size: .74rem; color: var(--muted); margin-top: .45rem; }
+    .msg .actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+    .dots { display: flex; gap: .3rem; padding: .45rem 0; }
+    .dots i { width: .45rem; height: .45rem; border-radius: 50%; background: var(--muted); animation: blink 1.2s ease-in-out infinite; }
+    .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+    @keyframes pulse { 50% { opacity: .3; } }
+    @media (prefers-reduced-motion: reduce) { .dots i, .msg .tool::before { animation: none; opacity: .7; } }
+
+    .chips { display: flex; flex-wrap: wrap; gap: .45rem; padding-bottom: 1rem; }
+    .chips.compact { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .chips.compact::-webkit-scrollbar { display: none; }
+    .chip { font-family: var(--sans); font-size: .9rem; line-height: 1.3; text-align: left; min-height: 2.5rem; padding: .45rem .85rem;
+            border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .chips.compact .chip { white-space: nowrap; flex-shrink: 0; }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip:disabled { opacity: .55; cursor: default; }
+    .chip:disabled:hover { border-color: var(--border); color: var(--text); }
+
+    .composer { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--border);
+                padding: .6rem 0 calc(.75rem + env(safe-area-inset-bottom, 0px)); }
+    .privacy { font-size: .78rem; line-height: 1.45; color: var(--muted); margin-bottom: .55rem; }
+    .input-row { display: flex; gap: .5rem; align-items: flex-end; }
+    .input-row textarea { flex: 1; min-width: 0; resize: none; font-family: var(--sans); font-size: 16px; /* 16px stops iOS zooming in */
+                line-height: 1.4; padding: .6rem .8rem; min-height: 2.75rem; max-height: 9rem; border: 1px solid var(--border);
+                border-radius: 12px; background: var(--surface); color: var(--text); }
+    .input-row textarea::placeholder { color: var(--faint); }
+    .input-row textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .25); }
+    .send { flex-shrink: 0; min-height: 2.75rem; padding: 0 1.05rem; border-radius: 12px; border: 1px solid var(--accent); background: var(--accent);
+            color: var(--on-accent); font-family: var(--mono); font-size: .85rem; font-weight: 600; cursor: pointer; }
+    .send:hover { filter: brightness(1.08); }
+    .send:disabled { opacity: .45; cursor: default; filter: none; }
+    .counter { font-family: var(--mono); font-size: .72rem; color: var(--muted); text-align: right; margin-top: .3rem; }
+    .counter.full { color: var(--bad); }
+
+    footer { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid var(--border); color: var(--faint); font-size: .76rem;
+             font-family: var(--mono); display: grid; gap: .4rem; }
+    footer p { color: var(--muted); }
+
+    @media (max-width: 640px) {
+      .page { padding: 0 1rem 2rem; }
+      .topbar { flex-wrap: wrap; row-gap: .45rem; padding: .8rem 0; }
+      .crumbs { flex: 1 1 0; }
+      .crumbs .ws { display: none; }
+      .theme-toggle { order: 1; }
+      .topbar nav { order: 2; flex: 1 0 100%; margin-left: 0; column-gap: .95rem; }
+      .intro { padding: 1.3rem 0 .9rem; }
+      .msg { max-width: 92%; }
+      .agenda-list li { grid-template-columns: 5.3rem minmax(0, 1fr); gap: .6rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / demos</span> / <a class="here" href="/demos/devfest-samsun-agent/">devfest-samsun-agent</a></span>
+    <nav aria-label="Related pages">
+      <a href="/workshops/devfest-samsun-agent/">Lab guide</a>
+      <a href="https://github.com/omarcevi/devfest-samsun-assistant">GitHub</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
+      <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
+      <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
+    </button>
+  </div>
+
+  <main>
+    <header class="intro">
+      <p class="kicker">Live demo · DevFest Samsun 2026 · 24–25 October</p>
+      <h1>DevFest Samsun 2026 Assistant</h1>
+      <p class="tagline" data-live>Answers questions about the real DevFest Samsun 2026 schedule: talks, times and floors. Ask in English or Turkish.</p>
+      <div class="toolbar" data-live>
+        <button type="button" class="btn" id="new-chat">New chat</button>
+        <button type="button" class="btn" id="forget">Forget me</button>
+        <button type="button" class="btn" id="agenda-toggle" aria-expanded="false" aria-controls="agenda">Today's agenda</button>
+      </div>
+      <p class="notice" id="notice" role="status" aria-live="polite" data-live></p>
+    </header>
+
+    <section class="ended" id="ended" hidden>
+      <p>The DevFest Samsun demo has ended. The code is on GitHub.</p>
+      <p><a class="btn primary" id="ended-link" href="https://github.com/omarcevi/devfest-samsun-assistant">github.com/omarcevi/devfest-samsun-assistant</a></p>
+    </section>
+
+    <section class="agenda-panel" id="agenda" hidden aria-labelledby="agenda-title">
+      <div class="agenda-head">
+        <h2 id="agenda-title">Agenda</h2>
+        <button type="button" class="btn small" id="agenda-close">Hide</button>
+      </div>
+      <div id="agenda-body"></div>
+    </section>
+
+    <div class="chat" id="chat" data-live>
+      <div class="alert" id="offline" role="alert" hidden>
+        <span>The assistant is not reachable right now. Try again in a minute.</span>
+        <button type="button" class="btn small" id="recheck">Try again</button>
+      </div>
+      <div class="log" id="messages" role="log" aria-live="polite" aria-label="Conversation"></div>
+      <div class="chips" id="chips" role="group" aria-label="Suggested questions"></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <p class="privacy" id="privacy">Don't share personal information. Chats are processed by Google Cloud and may appear anonymized in the live demo traces. Memories are deleted after the event.</p>
+        <div class="input-row">
+          <label class="sr-only" for="input">Your question</label>
+          <textarea id="input" rows="1" maxlength="500" placeholder="Ask about talks, times or floors…" enterkeyhint="send" aria-describedby="privacy counter"></textarea>
+          <button type="submit" class="send" id="send" disabled>Send</button>
+        </div>
+        <p class="counter" id="counter" hidden></p>
+      </form>
+      <noscript><p class="alert">This chat needs JavaScript. The code is on <a href="https://github.com/omarcevi/devfest-samsun-assistant">GitHub</a>.</p></noscript>
+    </div>
+  </main>
+
+  <footer>
+    <p>Built with ADK, deployed on Agent Runtime. How it works: <a href="https://github.com/omarcevi/devfest-samsun-assistant">The Google Cloud Stack for Production AI Agents</a></p>
+    <p><a href="/">omarcevi.dev</a> · <a href="/workshops/devfest-samsun-agent/">lab guide</a></p>
+  </footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Settings: the proxy on Cloud Run and the suggested questions (change these for Sunday).
+// ---------------------------------------------------------------------------
+const PROXY_URL = "https://samsun-chat-proxy-666312056831.us-central1.run.app";
+const SUGGESTIONS = [
+  "Which talks are about AI agents?",
+  "What's on Kat 2 tomorrow?",
+  "Yarın Flutter ile ilgili hangi konuşmalar var?",
+  "What should I see next?",
+];
+const TOOL_LABELS = {
+  search_sessions: "Searching the agenda…",
+  get_session: "Reading session details…",
+  get_current_time: "Checking the time…",
+  submit_feedback: "Saving your rating…",
+  get_attendee_contacts: "Trying the attendee directory…",
+};
+const REPO_URL = "https://github.com/omarcevi/devfest-samsun-assistant";
+const AGENDA_URL = "/demos/devfest-samsun-agent/agenda.json";
+const MAX_CHARS = 500;
+
+(() => {
+  'use strict';
+  const UNREACHABLE = 'The assistant is not reachable right now. Try again in a minute.';
+  const USER_KEY = 'devfest-samsun-user-id';
+  const IDLE_MS = 90000;   // give up on a reply when the stream is silent this long
+  const $ = id => document.getElementById(id);
+  const log = $('messages'), chips = $('chips'), form = $('composer'), input = $('input'), sendBtn = $('send'),
+        counter = $('counter'), noticeEl = $('notice'), offline = $('offline'), forgetBtn = $('forget');
+  const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+
+  // ---- identity: a random id in this browser, so Memory Bank recognises the same person across chats
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+  const validId = id => typeof id === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(id);
+  function newId() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    try {
+      const b = crypto.getRandomValues(new Uint8Array(16));
+      b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+      const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    } catch (e) {}
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3) | 8).toString(16);
+    });
+  }
+  let userId = store.get(USER_KEY);
+  if (!validId(userId)) { userId = newId(); store.set(USER_KEY, userId); }
+  const setUser = id => { userId = validId(id) ? id : newId(); store.set(USER_KEY, userId); sessionId = null; };
+
+  let sessionId = null;   // created on the first message
+  let current = null;     // the request in flight
+  let ended = false;
+
+  // ---- talking to the proxy
+  async function call(path, body, { signal, timeout = 20000 } = {}) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeout);
+    const stop = () => ctrl.abort();
+    if (signal) signal.addEventListener('abort', stop);
+    try {
+      const opts = body === undefined ? { signal: ctrl.signal }
+        : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal };
+      const res = await fetch(PROXY_URL + path, opts);
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      if (res.ok) return { ok: true, data: data || {} };
+      return failure(res.status, data);
+    } catch (e) {
+      return { ok: false, code: signal && signal.aborted ? 'aborted' : 'network' };
+    } finally {
+      clearTimeout(timer);
+      if (signal) signal.removeEventListener('abort', stop);
+    }
+  }
+  const failure = (status, data) => ({
+    ok: false, status,
+    code: (data && typeof data.error === 'string') ? data.error : (status === 429 ? 'rate_limited' : 'upstream'),
+  });
+
+  function newRequest() {
+    const req = { ctrl: new AbortController(), timedOut: false, timer: 0 };
+    req.arm = () => {   // (re)start the silence watchdog
+      clearTimeout(req.timer);
+      req.timer = setTimeout(() => { req.timedOut = true; req.ctrl.abort(); }, IDLE_MS);
+    };
+    req.end = () => clearTimeout(req.timer);
+    return req;
+  }
+  function abortCurrent() {
+    if (current) {
+      current.ctrl.abort(); current.end();
+      if (current.bot) current.bot.finish('Stopped.');
+      current = null;
+    }
+    setBusy(false);
+  }
+
+  // Reads a text/event-stream body: blocks separated by a blank line, each with "data: {json}" lines.
+  async function readEvents(res, onEvent, onChunk) {
+    const handle = block => {
+      const data = block.split(/\r?\n/).filter(l => l.startsWith('data:'))
+        .map(l => l.slice(5).replace(/^ /, '')).join('\n');
+      if (!data) return;
+      let ev = null;
+      try { ev = JSON.parse(data); } catch (e) { return; }
+      onEvent(ev);
+    };
+    if (!res.body || !res.body.getReader) {   // very old browsers: no streaming, read it all at once
+      (await res.text()).split(/\r?\n\r?\n/).forEach(handle);
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      onChunk();
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split(/\r?\n\r?\n/);
+      buf = blocks.pop();
+      blocks.forEach(handle);
+    }
+    buf += decoder.decode();
+    if (buf.trim()) handle(buf);
+  }
+
+  // ---- sending a message
+  async function send(text, isRetry) {
+    text = (text || '').trim();
+    if (current || ended) return;
+    if (!text) return notice('Type a question first.', 'error');
+    if (text.length > MAX_CHARS) return notice(`Please keep it under ${MAX_CHARS} characters.`, 'error');
+    const req = newRequest();
+    current = req;
+    setBusy(true);
+    chips.classList.add('compact');
+    if (!isRetry) addUser(text);
+    const bot = req.bot = addBot();
+    follow(true);
+    try {
+      await ask(text, bot, req, false);
+    } finally {
+      req.end();
+      if (current === req) { current = null; setBusy(false); }
+    }
+  }
+
+  async function ask(text, bot, req, resent) {
+    if (!sessionId) {
+      const r = await call('/api/session', { user_id: userId }, { signal: req.ctrl.signal, timeout: 30000 });
+      if (current !== req) return;
+      if (!r.ok || !r.data.session_id) return fail(bot, r.ok ? { code: 'upstream' } : r, text);
+      sessionId = r.data.session_id;
+    }
+    req.arm();
+    let res;
+    try {
+      res = await fetch(PROXY_URL + '/api/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, session_id: sessionId, message: text }), signal: req.ctrl.signal,
+      });
+    } catch (e) {
+      if (current !== req) return;
+      return fail(bot, { code: 'network' }, text);
+    }
+    if (current !== req) return;
+    if (!res.ok) {
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      const err = failure(res.status, data);
+      if (err.code === 'session_expired' && !resent) {   // the proxy forgot the chat: open a new one and send again, once
+        sessionId = null;
+        return ask(text, bot, req, true);
+      }
+      return fail(bot, err, text);
+    }
+    offline.hidden = true;
+    let finished = false, streamError = null;
+    try {
+      await readEvents(res, ev => {
+        if (!ev || typeof ev !== 'object' || current !== req) return;
+        if (ev.type === 'text' && typeof ev.text === 'string') bot.text(ev.text);
+        else if (ev.type === 'tool') bot.tool(TOOL_LABELS[ev.name] || 'Working on it…');
+        else if (ev.type === 'done') finished = true;
+        else if (ev.type === 'error') streamError = ev.code === 'busy' ? 'busy' : 'upstream';
+      }, req.arm);
+    } catch (e) {
+      if (current !== req) return;   // stopped by New chat or Forget me
+      streamError = streamError || 'network';
+    }
+    if (current !== req) return;
+    if (streamError) return fail(bot, { code: streamError }, text);
+    if (!finished && !bot.hasText()) return fail(bot, { code: 'network' }, text);
+    bot.finish(finished ? '' : 'The connection dropped, so this reply may be cut short.');
+  }
+
+  function fail(bot, err, text) {
+    if (err.code === 'aborted') return;
+    if (err.code === 'ended') return showEnded();
+    let msg = UNREACHABLE, retry = true, fresh = false;
+    switch (err.code) {
+      case 'rate_limited': msg = 'Lots of questions right now! Wait a minute and try again.'; break;
+      case 'busy': msg = 'The assistant is busy right now. Wait a few seconds and try again.'; break;
+      case 'session_full': msg = 'This chat is full. Tap New chat to keep going: the assistant still remembers you.'; retry = false; fresh = true; break;
+      case 'session_expired': msg = 'This chat expired. Tap New chat to start a fresh one.'; retry = false; fresh = true; break;
+      case 'too_long': msg = `Please keep it under ${MAX_CHARS} characters.`; retry = false; break;
+      case 'empty': msg = 'Type a question first.'; retry = false; break;
+      case 'bad_user': setUser(newId()); msg = 'Your anonymous ID was not accepted, so this browser got a new one. Try again.'; break;
+    }
+    offline.hidden = true;   // the error bubble says it; no need for the banner too
+    bot.fail(msg, {
+      retry: retry ? () => { if (current || ended) return; bot.el.remove(); send(text, true); } : null,
+      fresh: fresh ? newChat : null,
+    });
+  }
+
+  // ---- the conversation view
+  function addUser(text) {
+    const el = document.createElement('div');
+    el.className = 'msg user';
+    el.textContent = text;
+    log.appendChild(el);
+  }
+
+  function addBot() {
+    const el = document.createElement('div');
+    el.className = 'msg bot';
+    el.setAttribute('aria-busy', 'true');
+    const dots = document.createElement('div');
+    dots.className = 'dots';
+    dots.setAttribute('role', 'img');
+    dots.setAttribute('aria-label', 'The assistant is typing');
+    for (let i = 0; i < 3; i++) dots.appendChild(document.createElement('i'));
+    const body = document.createElement('div');
+    body.className = 'body';
+    const tool = document.createElement('p');
+    tool.className = 'tool';
+    tool.hidden = true;
+    el.append(dots, body, tool);
+    log.appendChild(el);
+    let text = '', toolSince = false, frame = 0, settled = false;
+    const draw = () => { frame = 0; render(body, text); follow(); };
+    const settle = () => {
+      settled = true;
+      if (frame) { cancelAnimationFrame(frame); frame = 0; }
+      render(body, text); dots.remove(); tool.hidden = true; el.removeAttribute('aria-busy');
+    };
+    return {
+      el,
+      hasText: () => text.trim() !== '',
+      text(chunk) {
+        if (!chunk || settled) return;
+        if (toolSince && text && !/\s$/.test(text)) text += '\n\n';   // text before and after a tool call: new paragraph
+        toolSince = false;
+        text += chunk;
+        dots.remove();
+        tool.hidden = true;
+        if (!frame) frame = requestAnimationFrame(draw);
+      },
+      tool(label) {
+        if (settled) return;
+        toolSince = true;
+        tool.textContent = label;
+        tool.hidden = false;
+        follow();
+      },
+      finish(note) {
+        if (settled) return;
+        settle();
+        if (note) addNote(el, note);
+        follow();
+      },
+      fail(msg, { retry, fresh }) {
+        if (settled) return;
+        settle();
+        el.classList.add('error');
+        if (text.trim()) addNote(el, msg); else body.textContent = msg;
+        const row = document.createElement('div');
+        row.className = 'actions';
+        if (retry) row.appendChild(button('Try again', retry));
+        if (fresh) row.appendChild(button('New chat', fresh));
+        if (row.childNodes.length) el.appendChild(row);
+        follow();
+      },
+    };
+  }
+  const addNote = (el, msg) => { const p = document.createElement('p'); p.className = 'note'; p.textContent = msg; el.appendChild(p); };
+  function button(label, onClick) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn small'; b.textContent = label;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  // A tiny, safe Markdown subset: **bold**, line breaks, "-"/"*" and numbered list items, "#" headings as bold lines.
+  // Everything goes in through textContent and text nodes, never innerHTML, so HTML in a reply shows as plain text.
+  function render(el, text) {
+    const frag = document.createDocumentFragment();
+    let list = null, para = null;
+    for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
+      const line = raw.replace(/\s+$/, '');
+      const ul = /^\s*[-*•]\s+(.*)$/.exec(line);
+      const ol = /^\s*(\d{1,3})[.)]\s+(.*)$/.exec(line);
+      if (ul || ol) {
+        const tag = ul ? 'UL' : 'OL';
+        if (!list || list.tagName !== tag) {
+          list = document.createElement(tag);
+          if (ol && +ol[1] > 1) list.start = +ol[1];
+          frag.appendChild(list);
+        }
+        const li = document.createElement('li');
+        inline(li, ul ? ul[1] : ol[2]);
+        list.appendChild(li);
+        para = null;
+        continue;
+      }
+      if (!line.trim()) { list = null; para = null; continue; }
+      list = null;
+      const h = /^#{1,6}\s+(.*)$/.exec(line);
+      if (h) {
+        const p = document.createElement('p'), s = document.createElement('strong');
+        inline(s, h[1]); p.appendChild(s); frag.appendChild(p);
+        para = null;
+        continue;
+      }
+      if (para) para.appendChild(document.createElement('br'));
+      else { para = document.createElement('p'); frag.appendChild(para); }
+      inline(para, line.trim());
+    }
+    el.textContent = '';
+    el.appendChild(frag);
+  }
+  function inline(parent, text) {
+    const parts = text.split('**');
+    parts.forEach((part, i) => {
+      if (!part) return;
+      if (i % 2 === 1 && i < parts.length - 1) {
+        const b = document.createElement('strong'); b.textContent = part; parent.appendChild(b);
+      } else {
+        parent.appendChild(document.createTextNode(part));   // an unclosed ** (still streaming) shows as plain text
+      }
+    });
+  }
+
+  // Keep the newest message in view, unless the reader scrolled up to read something older.
+  let pinned = true;
+  const gapBelow = () => {
+    const last = log.lastElementChild;
+    return last ? last.getBoundingClientRect().bottom - (form.getBoundingClientRect().top - 12) : 0;
+  };
+  window.addEventListener('scroll', () => { pinned = gapBelow() < 80; }, { passive: true });
+  function follow(force) {
+    if (force) pinned = true;
+    if (!pinned) return;
+    const gap = gapBelow();
+    if (gap > 0) window.scrollBy(0, gap);
+  }
+
+  function welcome() {
+    log.textContent = '';
+    const el = document.createElement('div');
+    el.className = 'msg bot';
+    const p = document.createElement('p');
+    p.textContent = 'Merhaba! Ask me what’s on, when, and on which floor. Tap a question below or type your own.';
+    el.appendChild(p);
+    log.appendChild(el);
+    chips.classList.remove('compact');
+  }
+
+  function setBusy(on) {
+    form.classList.toggle('busy', on);
+    chips.querySelectorAll('button').forEach(b => { b.disabled = on; });
+    updateSend();
+  }
+
+  let noticeTimer = 0;
+  function notice(text, kind) {
+    clearTimeout(noticeTimer);
+    noticeEl.className = 'notice' + (kind ? ' ' + kind : '');
+    noticeEl.textContent = text;
+    if (kind !== 'error' && kind !== 'info') noticeTimer = setTimeout(() => { noticeEl.textContent = ''; }, 9000);
+  }
+
+  // ---- buttons
+  function newChat() {
+    abortCurrent();
+    sessionId = null;
+    welcome();
+    notice('New chat started. The assistant still remembers what you told it in earlier chats, until you tap Forget me.');
+  }
+
+  let forgetting = false;
+  async function forgetMe() {
+    if (forgetting || ended) return;
+    forgetting = true;
+    forgetBtn.disabled = true;
+    notice('Deleting your memories…', 'info');
+    const r = await call('/api/forget', { user_id: userId }, { timeout: 30000 });
+    forgetting = false;
+    forgetBtn.disabled = false;
+    if ((r.ok && r.data.forgotten) || r.code === 'bad_user') {
+      abortCurrent();
+      setUser(r.ok ? r.data.new_user_id : newId());
+      welcome();
+      notice('Done. Your memories are deleted, and this browser has a new anonymous ID.');
+    } else if (r.code === 'ended') {
+      showEnded();
+    } else {
+      notice(r.code === 'upstream' ? 'Could not delete your memories right now. Try again in a minute.' : UNREACHABLE, 'error');
+    }
+  }
+
+  function showEnded(repo) {
+    ended = true;
+    abortCurrent();
+    document.querySelectorAll('[data-live]').forEach(el => { el.hidden = true; });
+    $('agenda').hidden = true;
+    if (typeof repo === 'string' && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/.test(repo)) $('ended-link').href = repo;
+    $('ended').hidden = false;
+  }
+
+  async function checkStatus() {
+    const btn = $('recheck');
+    btn.disabled = true;
+    const r = await call('/api/status', undefined, { timeout: 12000 });
+    btn.disabled = false;
+    if (r.ok && r.data.enabled === false) return showEnded(r.data.repo);
+    offline.hidden = r.ok;
+  }
+
+  // ---- composer
+  function updateSend() { sendBtn.disabled = !!current || !input.value.trim(); }
+  function updateCounter() {
+    const n = input.value.length;
+    counter.hidden = n < MAX_CHARS - 100;
+    counter.textContent = `${n} / ${MAX_CHARS}`;
+    counter.classList.toggle('full', n >= MAX_CHARS);
+  }
+  function autosize() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight + 2, 144) + 'px'; }
+  function submit() {
+    const text = input.value;
+    if (!text.trim() || current) return;
+    input.value = '';
+    autosize(); updateCounter(); updateSend();
+    if (coarse) input.blur();   // on a phone, drop the keyboard so the reply is visible
+    send(text);
+  }
+  input.addEventListener('input', () => { autosize(); updateCounter(); updateSend(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); submit(); }
+  });
+  form.addEventListener('submit', e => { e.preventDefault(); submit(); });
+
+  SUGGESTIONS.forEach(q => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.textContent = q;
+    if (/[çğıöşüÇĞİÖŞÜ]/.test(q)) b.lang = 'tr';
+    b.addEventListener('click', () => send(q));
+    chips.appendChild(b);
+  });
+  $('new-chat').addEventListener('click', newChat);
+  forgetBtn.addEventListener('click', forgetMe);
+  $('recheck').addEventListener('click', checkStatus);
+
+  // ---- agenda (static file next to this page, loaded on first open)
+  const agenda = $('agenda'), agendaBody = $('agenda-body'), agendaToggle = $('agenda-toggle');
+  let agendaLoaded = false;
+  function toggleAgenda(open) {
+    agenda.hidden = !open;
+    agendaToggle.setAttribute('aria-expanded', String(open));
+    if (open) { loadAgenda(); agenda.scrollIntoView({ block: 'start' }); }
+  }
+  agendaToggle.addEventListener('click', () => toggleAgenda(agenda.hidden));
+  $('agenda-close').addEventListener('click', () => { toggleAgenda(false); agendaToggle.focus(); });
+  async function loadAgenda() {
+    if (agendaLoaded) return;
+    agendaBody.textContent = '';
+    const p = document.createElement('p'); p.className = 'agenda-note'; p.textContent = 'Loading the agenda…';
+    agendaBody.appendChild(p);
+    try {
+      const res = await fetch(AGENDA_URL);
+      if (!res.ok) throw new Error(res.status);
+      renderAgenda(await res.json());
+      agendaLoaded = true;
+    } catch (e) {
+      p.textContent = 'Could not load the agenda. Check your connection and try again. ';
+      p.appendChild(button('Try again', loadAgenda));
+    }
+  }
+  function istanbulToday() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch (e) { return ''; }
+  }
+  function renderAgenda(data) {
+    const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+    const today = istanbulToday();
+    let days = Object.keys(data.days || {}).sort();
+    if (days.includes(today)) days = [today].concat(days.filter(d => d !== today));
+    agendaBody.textContent = '';
+    days.forEach(day => {
+      const h = document.createElement('h3');
+      let label = day;
+      try { label = new Date(day + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }); } catch (e) {}
+      h.textContent = label;
+      if (day === today) { const t = document.createElement('span'); t.className = 'today'; t.textContent = ' · today'; h.appendChild(t); }
+      const ul = document.createElement('ul');
+      ul.className = 'agenda-list';
+      sessions.filter(s => s.day === day)
+        .sort((a, b) => (a.start || '').localeCompare(b.start || '') || (a.floor || '').localeCompare(b.floor || ''))
+        .forEach(s => {
+          const li = document.createElement('li');
+          const time = document.createElement('span'); time.className = 'time';
+          time.textContent = s.end ? `${s.start}–${s.end}` : (s.start || '');
+          const main = document.createElement('div');
+          const title = document.createElement('div'); title.className = 'title'; title.textContent = s.title || '';
+          const meta = document.createElement('div'); meta.className = 'meta';
+          if (s.speaker) { const sp = document.createElement('span'); sp.textContent = s.speaker; meta.appendChild(sp); }
+          if (s.floor) { const f = document.createElement('span'); f.className = 'floor'; f.textContent = s.floor; meta.appendChild(f); }
+          main.append(title, meta);
+          li.append(time, main);
+          ul.appendChild(li);
+        });
+      agendaBody.append(h, ul);
+    });
+    if (data.venue) { const v = document.createElement('p'); v.className = 'agenda-note'; v.textContent = data.venue; agendaBody.appendChild(v); }
+  }
+
+  // ---- theme toggle (same as the rest of omarcevi.dev)
+  const themeBtn = $('theme-toggle'), root = document.documentElement;
+  const os = window.matchMedia && matchMedia('(prefers-color-scheme: dark)');
+  const theme = () => root.getAttribute('data-theme') || (os && os.matches ? 'dark' : 'light');
+  const themeLabel = () => {
+    const l = `Switch to ${theme() === 'dark' ? 'light' : 'dark'} theme`;
+    themeBtn.setAttribute('aria-label', l); themeBtn.title = l;
+  };
+  themeBtn.addEventListener('click', () => {
+    const t = theme() === 'dark' ? 'light' : 'dark';
+    applyTheme(t);
+    try { localStorage.setItem('theme', t); } catch (e) {}
+    themeLabel();
+  });
+  if (os && os.addEventListener) os.addEventListener('change', themeLabel);
+  themeLabel();
+
+  $('ended-link').href = REPO_URL;
+  welcome();
+  updateSend();
+  checkStatus();
+})();
+</script>
+</body>
+</html>
