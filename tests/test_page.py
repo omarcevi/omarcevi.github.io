@@ -136,7 +136,7 @@ class Speaking(unittest.TestCase):
 
     def test_item_dates(self):
         talks, shops = self.items("talk-list"), self.items("workshop-list")
-        self.assertEqual((len(talks), len(shops)), (6, 4))
+        self.assertEqual((len(talks), len(shops)), (6, 5))
         for li in talks + shops:
             self.assertRegex(li.attrs.get("data-date", ""), DATE_RE)
 

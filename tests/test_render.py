@@ -20,8 +20,26 @@ class SpeakingRender(unittest.TestCase):
     def render(self, today):
         return parse(dump_dom(f"?today={today}"))
 
-    def test_before_workshop(self):
+    def test_before_devfest_samsun(self):
         doc = self.render("2026-10-23")
+        card = one(doc, id="up-card")
+        self.assertNotIn("hidden", card.attrs)
+        text = squash(card.text())
+        for piece in ("Deploy your first AI agent to Google Cloud", "OCT", "24",
+                      "DevFest Samsun 2026 · Samsun, Colombia Coffee Ömürevleri · in person · EN"):
+            self.assertIn(piece, text)
+        hrefs = [a.attrs.get("href") for a in find_all(card, "a")]
+        self.assertIn("https://kommunity.com/gdg-samsun/events/devfest-samsun-2026-1057d7ef", hrefs)
+        self.assertIn("/workshops/devfest-samsun-agent/", hrefs)
+        self.assertIn("https://github.com/omarcevi/devfest-samsun-assistant", hrefs)
+        self.assertEqual(squash(one(doc, id="strip-next").text()), "next talk · DevFest Samsun 2026 · 24 Oct 2026 · tomorrow")
+        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 3 workshops")
+        first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
+        self.assertIn(TITLE, first.text())   # the 27 Oct workshop waits in the list, marked upcoming
+        self.assertIn("upcoming", first.text())
+
+    def test_before_workshop(self):
+        doc = self.render("2026-10-25")
         card = one(doc, id="up-card")
         self.assertNotIn("hidden", card.attrs)
         text = squash(card.text())
@@ -33,8 +51,8 @@ class SpeakingRender(unittest.TestCase):
         self.assertIn("https://github.com/omarcevi/cloud-agents-workshop", hrefs)
         self.assertNotIn(TITLE, one(doc, id="workshop-list").text())
         self.assertEqual(squash(one(doc, id="strip-next").text()),
-                         "next talk · Google Cloud Day Türkiye – Builder Connect · 27 Oct 2026 · in 4 days")
-        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 3 workshops")
+                         "next talk · Google Cloud Day Türkiye – Builder Connect · 27 Oct 2026 · in 2 days")
+        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 4 workshops")
 
     def test_on_the_day(self):
         doc = self.render("2026-10-27")
@@ -47,7 +65,7 @@ class SpeakingRender(unittest.TestCase):
         self.assertIn("no talks scheduled", nxt.text())
         self.assertNotIn("NaN", nxt.text())
         self.assertIn("#contact", [a.attrs.get("href") for a in find_all(nxt, "a")])
-        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 4 workshops")
+        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 5 workshops")
         first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
         self.assertIn(TITLE, first.text())
 
