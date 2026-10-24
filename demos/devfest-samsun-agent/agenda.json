@@ -1,7 +1,7 @@
 {
   "event": "DevFest Samsun 2026",
   "source": "https://kommunity.com/gdg-samsun/events/devfest-samsun-2026-1057d7ef",
-  "read_on": "2026-10-23",
+  "read_on": "2026-10-24",
   "timezone": "Europe/Istanbul",
   "days": {
     "2026-10-24": "Saturday",
@@ -10,13 +10,13 @@
   "venue": "Colombia Coffee Samsun Ömürevleri, Cumhuriyet Mahallesi Adnan Menderes Bulvarı 1. Kısım No:343, 55200 Atakum/Samsun. Two floors: Kat 1 and Kat 2.",
   "sessions": [
     {
-      "id": "sat-0930-kat1",
+      "id": "sat-0930-kat2",
       "title": "Devfest & Ideathon ve Hackathon Açılışı",
       "speaker": "",
       "day": "2026-10-24",
       "start": "09:30",
       "end": "10:10",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "community",
@@ -24,13 +24,13 @@
       ]
     },
     {
-      "id": "sat-1030-kat1",
+      "id": "sat-1030-kat2",
       "title": "The Google Cloud Stack for Production AI Agents",
       "speaker": "Omar Elcircevi",
       "day": "2026-10-24",
       "start": "10:30",
       "end": "11:10",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "ai",
@@ -39,13 +39,13 @@
       ]
     },
     {
-      "id": "sat-1130-kat1",
+      "id": "sat-1130-kat2",
       "title": "AI Kod Yazıyor, Peki Kuralları Kim Koyuyor? Çok Modüllü Android Projelerinde Ajan Disiplini",
       "speaker": "Kaan Enes Kapıcı",
       "day": "2026-10-24",
       "start": "11:30",
       "end": "12:10",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "ai",
@@ -54,39 +54,39 @@
       ]
     },
     {
-      "id": "sat-1315-kat1",
+      "id": "sat-1315-kat2",
       "title": "Git push Toplum 5.0",
       "speaker": "Mehmet Durak Akkaya",
       "day": "2026-10-24",
       "start": "13:15",
       "end": "13:55",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "community"
       ]
     },
     {
-      "id": "sat-1415-kat1",
+      "id": "sat-1415-kat2",
       "title": "İlham Veren Deneyim İçin Denemek Lazım!",
       "speaker": "Seyfettin Boğazlı",
       "day": "2026-10-24",
       "start": "14:15",
       "end": "14:55",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "ux"
       ]
     },
     {
-      "id": "sat-1530-kat1",
+      "id": "sat-1530-kat2",
       "title": "Firebase ile Gerçek Zamanlı Sürdürülebilirlik veya Atıktan Değere Giden Veri Akışı",
       "speaker": "Semih Özdaş",
       "day": "2026-10-24",
       "start": "15:30",
       "end": "16:10",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "firebase",
@@ -95,13 +95,13 @@
       ]
     },
     {
-      "id": "sat-1630-kat1",
+      "id": "sat-1630-kat2",
       "title": "Gün Kapanışı",
       "speaker": "",
       "day": "2026-10-24",
       "start": "16:30",
       "end": "17:10",
-      "floor": "Kat 1",
+      "floor": "Kat 2",
       "format": "talk",
       "tags": [
         "community"
