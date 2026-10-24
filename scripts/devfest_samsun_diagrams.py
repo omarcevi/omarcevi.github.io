@@ -81,7 +81,7 @@ def local() -> Diagram:
     d.card("call", 40, 165, "⚡ search_sessions", "chip: the tool call and its arguments", w=380, h=52, accent=AMBER)
     d.card("res", 40, 240, "✓ search_sessions", "chip: what the tool returned", w=380, h=52, accent=GREEN)
     d.card("ans", 40, 330, "The answer", "The Google Cloud Stack for Production AI Agents", w=380, h=72,
-           accent=BLUE, sub2="Omar Elcircevi · Saturday · 10:30 · Kat 1")
+           accent=BLUE, sub2="Omar Elcircevi · Saturday · 10:30 · Kat 2")
 
     d.zone(480, 20, 420, 430, "samsun_assistant · ADK agent in Cloud Shell", "runtime", icon="agents")
     d.card("model", 500, 70, "gemini-3.6-flash", "reads the question and the tool list,", icon="vertexai_core",
