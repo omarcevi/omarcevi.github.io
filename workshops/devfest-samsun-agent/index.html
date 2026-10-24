@@ -262,7 +262,7 @@
         <li><a href="#need"><span class="n">What you need</span></a></li>
         <li><a href="#steps"><span class="n">The steps</span></a></li>
         <li class="group">Lab</li>
-        <li><a href="#step-1" data-mod="step-1"><span class="n">1 · Credits</span><span class="t">5 min</span></a></li>
+        <li><a href="#step-1" data-mod="step-1"><span class="n">1 · Project</span><span class="t">5 min</span></a></li>
         <li><a href="#step-2" data-mod="step-2"><span class="n">2 · Cloud Shell</span><span class="t">3 min</span></a></li>
         <li><a href="#step-3" data-mod="step-3"><span class="n">3 · Run locally</span><span class="t">5 min</span></a></li>
         <li><a href="#step-4" data-mod="step-4"><span class="n">4 · Deploy</span><span class="t">5–10 min</span></a></li>
@@ -294,8 +294,8 @@
         <h2>What you need</h2>
         <ul class="plain">
           <li>A laptop with a browser. Chrome works best.</li>
-          <li>A <strong>personal</strong> Google account (Gmail). Work and school accounts often block Cloud Shell or credits.</li>
-          <li>The credit link in <a href="#step-1">Step 1</a>.</li>
+          <li>A <strong>personal</strong> Google account (Gmail). Work and school accounts often block Cloud Shell or billing.</li>
+          <li>A Google Cloud billing account. New to Google Cloud? The free trial in <a href="#step-1">Step 1</a> gives you one.</li>
         </ul>
       </section>
 
@@ -311,7 +311,7 @@
       <section id="steps">
         <h2>The steps</h2>
         <ul class="steps-grid">
-          <li><a href="#step-1"><span class="num">STEP 1 · 5 MIN</span><b>Get your credits and a project</b></a></li>
+          <li><a href="#step-1"><span class="num">STEP 1 · 5 MIN</span><b>Get a project with billing</b></a></li>
           <li><a href="#step-2"><span class="num">STEP 2 · 3 MIN</span><b>Open Cloud Shell and get the code</b></a></li>
           <li><a href="#step-3"><span class="num">STEP 3 · 5 MIN</span><b>Talk to your agent locally</b></a></li>
           <li><a href="#step-4"><span class="num">STEP 4 · 2 MIN TO START, 5–10 MIN TO FINISH</span><b>Deploy it to Agent Runtime</b></a></li>
@@ -323,21 +323,21 @@
       <!-- ============================================================ STEP 1 -->
       <section id="step-1" data-mod="step-1">
         <div class="mod-head">
-          <h2>Step 1: Get your credits and a project</h2>
+          <h2>Step 1: Get a project with billing</h2>
           <span class="mod-meta"><span>5 min</span><label class="done-toggle"><input type="checkbox" data-done="step-1">done</label></span>
         </div>
         <div class="steps">
           <div class="step">
             <span class="step-n">1</span>
-            <p>Open the credit link while signed in with your personal Google account: <!-- TODO: replace the placeholder with the real credit link --><mark class="todo">[CREDIT_LINK]</mark></p>
+            <p>Open the Google Cloud console, signed in with your personal Google account: <a href="https://console.cloud.google.com">https://console.cloud.google.com</a></p>
           </div>
           <div class="step">
             <span class="step-n">2</span>
-            <p>Follow the page to accept the credits. This creates a billing account that uses them.</p>
+            <p>You need a billing account. If you already have one, use it: this lab costs a few cents if you clean up at the end. If you're new to Google Cloud, start the free trial at <a href="https://cloud.google.com/free">cloud.google.com/free</a>. It gives new accounts trial credit and asks for a card to verify your identity.</p>
           </div>
           <div class="step">
             <span class="step-n">3</span>
-            <p>Open the Google Cloud console: <a href="https://console.cloud.google.com">https://console.cloud.google.com</a></p>
+            <p>Already have a project with billing linked? You can use it and skip to Step 2.</p>
           </div>
           <div class="step">
             <span class="step-n">4</span>
@@ -345,7 +345,7 @@
             <ol class="plain">
               <li>Click the project picker at the top of the page, then <strong>New project</strong>.</li>
               <li><strong>Project name:</strong> <code>devfest-samsun-agent</code></li>
-              <li><strong>Billing account:</strong> pick the one with your credits.</li>
+              <li><strong>Billing account:</strong> pick your billing account or your free trial account.</li>
               <li>Click <strong>Create</strong>.</li>
             </ol>
           </div>
@@ -533,7 +533,7 @@ source ~/.profile</pre></div>
           <h2>Step 6: Clean up</h2>
           <span class="mod-meta"><span>1 min</span><label class="done-toggle"><input type="checkbox" data-done="step-6">done</label></span>
         </div>
-        <p>Your credits are limited. When you're done, delete the agent:</p>
+        <p>When you're done, delete the agent so nothing keeps running:</p>
         <div class="code"><pre>./lab/cleanup.sh</pre></div>
         <p style="margin-top:1.1rem">You can also shut down the whole project: in the console, go to <strong>IAM &amp; Admin › Settings › Shut down</strong>.</p>
         <p>You can keep the agent until the end of DevFest on Sunday if you want to play with it more.</p>
@@ -553,7 +553,7 @@ source ~/.profile</pre></div>
         <h2>Troubleshooting</h2>
         <div class="fix">
           <div class="h">What you see</div><div class="h">What to do</div>
-          <div>The setup script says billing isn't linked</div><div>In the console, go to <strong>Billing › Link a billing account</strong>, pick your credits account, then run <code>./lab/setup.sh</code> again.</div>
+          <div>The setup script says billing isn't linked</div><div>In the console, go to <strong>Billing › Link a billing account</strong>, pick your billing account, then run <code>./lab/setup.sh</code> again.</div>
           <div><code>PERMISSION_DENIED</code> or "API not enabled" right after setup</div><div>New APIs can take a minute to turn on. Wait, then try again.</div>
           <div><code>429</code> or <code>RESOURCE_EXHAUSTED</code></div><div>You hit a Gemini rate limit. Wait 30 seconds and try again.</div>
           <div>Web preview shows an error page</div><div>Check that <code>adk web</code> is still running in Cloud Shell and that you used port 8080.</div>
