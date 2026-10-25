@@ -377,3 +377,27 @@ test('a stream, burst or request naming something unknown throws a clear error',
   assert.throws(() => E.sendBurst(two(), 3, 2), /unknown stream: 2/);
   assert.equal(E.enqueue(two(), { prompt: 10, output: 1, model: 'llama-3.2-3b' }).state, 'rejected');   // known, but no instance: a 503
 });
+
+function kvRun(util, seed) {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.kvcache, { seed, config: { gpuMemUtil: util } }));
+  let peak = 0;
+  run(sim, 120000, s => { const i = s.instances[0]; peak = Math.max(peak, i.kvUsed / i.kvBudget); });
+  return { sim, peak };
+}
+test('tab 02: every slider position from 0.5 to 0.95 starts the server and fits the longest prompt', () => {
+  for (let u = 0.5; u <= 0.9501; u += 0.05) {
+    const inst = E.createSim(Object.assign({}, E.PRESETS.kvcache, { seed: 1, config: { gpuMemUtil: u } })).instances[0];
+    assert.ok(inst.fits, String(u));
+    assert.ok(inst.maxModelLen >= E.PRESETS.kvcache.traffic.lengths.prompt.max + 1024, String(u));
+  }
+});
+test('tab 02: at the default 0.9 the KV pool fills and the scheduler preempts', () => {
+  const r = kvRun(0.9, 3);
+  assert.ok(r.peak >= 0.9, String(r.peak));
+  assert.ok(r.sim.stats.preemptions > 0);
+});
+test('tab 02: less KV memory means more preemption and fewer requests served', () => {
+  const lo = kvRun(0.5, 3), hi = kvRun(0.95, 3);
+  assert.ok(lo.sim.stats.preemptions >= 3 * Math.max(1, hi.sim.stats.preemptions), `${lo.sim.stats.preemptions} vs ${hi.sim.stats.preemptions}`);
+  assert.ok(hi.sim.stats.finished > lo.sim.stats.finished);
+});

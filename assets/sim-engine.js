@@ -47,8 +47,15 @@
     queueCap: 128
   };
 
+  // Synthetic lengths for tab 02: long prompts and long replies, so the KV pool fills.
+  var LONG = {
+    prompt: { median: 1000, sigma: 0.5, min: 256, max: 6000 },
+    output: { median: 450, sigma: 0.4, min: 64, max: 1000 }
+  };
+
   var PRESETS = {
-    batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } }
+    batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
+    kvcache: { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 1, bursts: true, lengths: LONG } }
   };
 
   // Lognormal stand-ins for the Azure LLM conversation trace (Patel et al., Splitwise,
