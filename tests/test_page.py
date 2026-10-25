@@ -130,21 +130,45 @@ class Simulator(unittest.TestCase):
         self.assertNotIn("sim-batch", page)
 
     def test_footer_metrics(self):
-        for i in ("m-ttft50", "m-ttft99", "m-tpot", "m-thr", "m-kv", "m-cost", "m-503"):
+        for i in ("m-ttft50", "m-ttft99", "m-tpot", "m-thr", "m-kv", "m-gpus", "m-cost", "m-pre", "m-503"):
             self.assertEqual(len(find_all(self.box, id=i)), 1, i)
         self.assertIn("hidden", find_all(self.box, id="m-503-wrap")[0].attrs)
+        self.assertIn("hidden", find_all(self.box, id="m-pre-wrap")[0].attrs)
 
     def test_tab_shell(self):
         lists = find_all(self.box, role="tablist")
         self.assertEqual(len(lists), 1)
+        self.assertNotIn("hidden", lists[0].attrs)
         tabs = find_all(lists[0], "button", role="tab")
-        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching"])
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig"])
+        self.assertEqual([" ".join(t.text().split()) for t in tabs], ["01 batching", "02 kv cache", "03 mig layout"])
         for t in tabs:
             panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
             self.assertEqual(panel.attrs.get("role"), "tabpanel")
-        radios = find_all(self.box, "button", role="radio")
-        self.assertEqual([r.attrs.get("data-batching") for r in radios], ["request", "continuous"])
-        self.assertEqual([r.attrs.get("aria-checked") for r in radios], ["false", "true"])
+            self.assertEqual(panel.attrs.get("data-tab"), t.attrs.get("data-tab"))
+
+    def radios(self, panel_id):
+        return find_all(find_all(self.box, id=panel_id)[0], "button", role="radio")
+
+    def test_batching_switch(self):
+        r = self.radios("sim-tab-batching")
+        self.assertEqual([b.attrs.get("data-batching") for b in r], ["request", "continuous"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["false", "true"])
+
+    def test_kvcache_slider(self):
+        panel = find_all(self.box, id="sim-tab-kvcache")[0]
+        s = find_all(panel, "input", id="sim-kvmem")[0]
+        self.assertEqual([s.attrs.get(k) for k in ("type", "min", "max", "step", "value")], ["range", "0.5", "0.95", "0.05", "0.9"])
+        self.assertEqual(find_all(panel, "output", id="sim-kvmem-v")[0].text().strip(), "0.90")
+        self.assertIn("Synthetic traffic", panel.text())
+
+    def test_mig_switch(self):
+        r = self.radios("sim-tab-mig")
+        self.assertEqual([b.attrs.get("data-deploy") for b in r], ["gpu", "time", "mig"])
+        self.assertEqual([" ".join(b.text().split()) for b in r], ["GPU per model", "time-slicing", "MIG"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["false", "false", "true"])
+        self.assertEqual({b.parent.attrs.get("aria-label") for b in r}, {"Deployment"})
+        self.assertEqual(r[0].parent.attrs.get("role"), "radiogroup")
 
     def test_controls(self):
         for i in ("sim-play", "sim-burst"):

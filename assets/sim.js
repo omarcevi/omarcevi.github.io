@@ -1,9 +1,10 @@
 // Inference simulator, page side: draws the engine in assets/sim-engine.js (window.SimEngine)
 // on the #sim canvas and wires the panel's controls. Each tab is an engine preset, rebuilt and
-// warmed up when the tab opens. The canvas shows arrivals, each instance's queue lane, its
-// running sequences (one row each) and KV cache, the token stream, and a rolling TTFT p99 line
-// with a marker for each switch the visitor makes. Animations run on the page's frame clock;
-// the sim's own clock stops once it has drained.
+// warmed up when the tab opens; tab 02's memory slider and tab 03's deployment switch redeploy the
+// same way. The canvas shows arrivals, each instance's queue lane, its running sequences (one row
+// each) and KV cache, the token stream, and a rolling TTFT p99 line with a marker for each switch
+// the visitor makes. Animations run on the page's frame clock; the sim's own clock stops once it
+// has drained.
 (function () {
   'use strict';
   var E = window.SimEngine;
@@ -33,15 +34,46 @@
     draining: ['draining…', 'Draining in-flight requests. Play: start new requests again'],
     stopped: ['▶ play', 'Play: start new requests']
   };
+  // What each preset is called: the header note, the canvas's top label (narrow: 560px and under)
+  // and the canvas's aria-label
+  var VIEWS = {
+    batching: {
+      note: '· Llama 3 8B on one H100 · real time', label: 'H100 · Llama 3 8B', narrow: 'H100',
+      aria: 'Animated simulation: requests are routed to an LLM server on one H100 and batched step by step'
+    },
+    kvcache: {
+      note: '· Llama 3 8B on one 3g.40gb MIG slice · real time', label: 'MIG 3g.40gb · Llama 3 8B', narrow: '3g.40gb',
+      aria: 'Animated simulation: Llama 3 8B on one MIG slice; its KV cache fills up and the scheduler preempts requests'
+    },
+    'mig-gpu': {
+      note: '· three models on three H100s · real time', label: '3 × H100, one model each', narrow: '3 × H100',
+      aria: 'Animated simulation: three models, each on its own H100'
+    },
+    'mig-time': {
+      note: '· three models time-sharing one H100 · real time', label: 'one H100, time-sliced', narrow: 'H100',
+      aria: 'Animated simulation: three models sharing one H100 by time-slicing, with no isolation'
+    },
+    'mig-mig': {
+      note: '· three models on one H100 split 3g+2g+2g · real time', label: 'one H100 · MIG 3g+2g+2g', narrow: 'H100 · MIG',
+      aria: 'Animated simulation: three models on isolated MIG slices of one H100'
+    }
+  };
+  var KV_MEM = 0.9;   // tab 02's slider default, vLLM's --gpu-memory-utilization default
 
-  var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap');
-  var M = { p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'), cost: $('m-cost'), rej: $('m-503') };
+  var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap'), wrapPre = $('m-pre-wrap');
+  var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
+  var M = {
+    p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'),
+    gpus: $('m-gpus'), cost: $('m-cost'), pre: $('m-pre'), rej: $('m-503')
+  };
   var tabs = [].slice.call(box.querySelectorAll('[role=tablist] [role=tab]'));
   var panels = [].slice.call(box.querySelectorAll('[role=tabpanel]'));
-  var radios = [].slice.call(box.querySelectorAll('[role=radiogroup] [role=radio][data-batching]'));
+  // Each panel's radio group is its own roving-tabindex group
+  function group(panelId) { return [].slice.call($(panelId).querySelectorAll('[role=radiogroup] [role=radio]')); }
+  var batchRadios = group('sim-tab-batching'), deployRadios = group('sim-tab-mig');
   M.cost.parentNode.title = 'per 1M output tokens · H100 at $' + E.GPU_HOUR_USD.toFixed(2) + '/h · ' + E.GPU_HOUR_SOURCE;
 
-  var sim = null, V = null, L = null, frozen = REDUCE, shown = null;
+  var sim = null, preset = null, V = null, L = null, frozen = REDUCE, shown = null;
   var W = 0, H = 0, visible = false, raf = 0, last = 0;
 
   // ---- Drawing helpers ----
@@ -324,7 +356,7 @@
     ctx.font = '10px ' + FONT;
     text(10 + ctx.measureText('requests →').width + 6 > L.qx0 - 4 ? 'requests' : 'requests →', 10, 16, 10, COL.faint);
     text(narrow ? 'queue' : 'router · queue', L.qx0 - 4, 16, 10, COL.faint);
-    text(narrow ? 'H100' : 'H100 · ' + E.MODELS[sim.instances[0].model].label, L.gx0, 16, 10, COL.faint);
+    text(narrow ? VIEWS[preset].narrow : VIEWS[preset].label, L.gx0, 16, 10, COL.faint);
     if (W > 420) text('tokens →', L.gx1 + 10, 16, 10, COL.faint);
     sim.instances.forEach(function (inst, ii) { drawInstance(inst, L.boxes[ii], V.rows[ii]); });
     drawDots();
@@ -341,7 +373,10 @@
     M.tpot.textContent = f.ms(m.tpotMs);
     M.thr.textContent = f.tok(m.tokPerSec);
     M.kv.textContent = f.pct(m.kvFrac);
+    M.gpus.textContent = sim.gpuCount;
     M.cost.textContent = f.usd(m.costPer1M);
+    M.pre.textContent = sim.stats.preemptions.toLocaleString('en-US');
+    wrapPre.hidden = !(sim.stats.preemptions > 0);
     M.rej.textContent = m.rejected.toLocaleString('en-US');
     wrap503.hidden = !(m.rejected > 0);
     return m;
@@ -397,29 +432,33 @@
 
   // ---- Tabs and controls ----
 
-  function syncRadios() {
-    radios.forEach(function (b) {
-      var on = b.getAttribute('data-batching') === sim.batching;
+  // Checks the radio that matches, and makes it the one Tab stops on in its group
+  function check(list, attr, value) {
+    list.forEach(function (b) {
+      var on = b.getAttribute(attr) === value;
       b.setAttribute('aria-checked', on ? 'true' : 'false');
       b.tabIndex = on ? 0 : -1;
     });
   }
+  // Batching follows the sim; the deployment follows the preset, MIG while tab 03 isn't open
+  function syncRadios() {
+    check(batchRadios, 'data-batching', sim.batching);
+    check(deployRadios, 'data-deploy', preset.indexOf('mig-') === 0 ? preset.slice(4) : 'mig');
+  }
 
-  // Builds the tab's preset with a fresh seed and warms it up, so it opens mid-flow
-  function switchTab(id) {
-    sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: Math.floor(Math.random() * 2147483647) }));
+  // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow. Nothing of
+  // the old sim's view carries over, and frozen stays as it is (reduced motion opens every one frozen).
+  function deploy(id, config) {
+    preset = id;
+    sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: Math.floor(Math.random() * 2147483647), config: config }));
     V = freshView();
     for (var k = 0; k < WARMUP_TICKS; k++) {
       E.tick(sim, TICK_MS);
       if (sim.t >= V.nextSample) { V.nextSample += SAMPLE_MS; sample(E.metrics(sim)); }
     }
     V.rejected = sim.stats.rejected;
-    tabs.forEach(function (t) {
-      var on = t.getAttribute('data-tab') === id;
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-      t.tabIndex = on ? 0 : -1;
-    });
-    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab') !== id; });
+    note.textContent = VIEWS[id].note;
+    cv.setAttribute('aria-label', VIEWS[id].aria);
     syncRadios();
     shown = null;
     L = null;
@@ -430,10 +469,28 @@
     wake();
   }
 
+  // Opens a tab with its controls at their defaults: continuous batching, the slider at 0.9, MIG
+  function switchTab(id) {
+    tabs.forEach(function (t) {
+      var on = t.getAttribute('data-tab') === id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+    });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab') !== id; });
+    kvMem.value = String(KV_MEM);
+    kvMemOut.textContent = KV_MEM.toFixed(2);
+    if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
+    else deploy(id === 'mig' ? 'mig-mig' : 'batching');
+  }
+
   function setMode(b) {
     E.setBatching(sim, b.getAttribute('data-batching'));
     syncRadios();
     if (!raf) draw();   // frozen or stopped: show the new marker now
+  }
+  function setDeploy(b) {
+    var id = 'mig-' + b.getAttribute('data-deploy');
+    if (id !== preset) deploy(id);
   }
 
   // Arrow keys move along a tab list or radio group and pick what they land on (roving tabindex)
@@ -455,8 +512,18 @@
     });
   });
   arrows(tabs, { ArrowLeft: -1, ArrowRight: 1 }, function (t) { switchTab(t.getAttribute('data-tab')); });
-  radios.forEach(function (b) { b.addEventListener('click', function () { setMode(b); }); });
-  arrows(radios, { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }, setMode);
+  var RADIO_KEYS = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
+  batchRadios.forEach(function (b) { b.addEventListener('click', function () { setMode(b); }); });
+  arrows(batchRadios, RADIO_KEYS, setMode);
+  deployRadios.forEach(function (b) { b.addEventListener('click', function () { setDeploy(b); }); });
+  arrows(deployRadios, RADIO_KEYS, setDeploy);
+  // The output follows the slider as it moves; a redeploy waits for the change (release, or a key step),
+  // since --gpu-memory-utilization is a startup flag
+  kvMem.addEventListener('input', function () { kvMemOut.textContent = (+kvMem.value).toFixed(2); });
+  kvMem.addEventListener('change', function () {
+    kvMemOut.textContent = (+kvMem.value).toFixed(2);
+    deploy('kvcache', { gpuMemUtil: +kvMem.value });
+  });
 
   // Pause stops new arrivals and lets in-flight work drain; play (also from draining) restarts them
   playBtn.addEventListener('click', function () {
@@ -469,7 +536,7 @@
   // on from the warm-up, so they go off first: the button read "▶ play" and must keep meaning stopped.
   burstBtn.addEventListener('click', function () {
     if (frozen) { frozen = false; E.setArrivals(sim, false); }
-    E.sendBurst(sim, BURST);
+    E.sendBurst(sim, BURST, 0);   // stream 0: tab 03's 8B
     renderPlay();
     wake();
   });
