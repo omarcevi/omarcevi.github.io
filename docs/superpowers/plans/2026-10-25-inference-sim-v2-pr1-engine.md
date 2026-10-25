@@ -554,7 +554,12 @@ git commit -m "Sim v2: new panel with tab 01, LLM canvas, drain-aware play butto
 
 ## Next plans (written after this one merges)
 
-- **PR 2:** tab 02 (KV cache on one 3g.40gb instance, synthetic long prompts and replies, `gpuMemUtil` slider 0.5–0.95) and tab 03 (three models, `GPU per model | time-slicing | MIG`). Adds Llama 3.2 3B and 1B to `MODELS`, a time-slicing model and a GPU count above 1. Un-hides `.sim-tabs`.
+- **PR 2:** tab 02 (KV cache on one 3g.40gb instance, synthetic long prompts and replies, `gpuMemUtil` slider 0.5–0.95) and tab 03 (three models, `GPU per model | time-slicing | MIG`). Adds Llama 3.2 3B and 1B to `MODELS`, a time-slicing model and a GPU count above 1. Un-hides `.sim-tabs`. Carried over from PR 1's final review, fix these first:
+  - Harden `pick()` in `assets/sim-engine.js` against `null`/`NaN` config values (the slider will feed it). Throw a clear error on unknown profile or model keys.
+  - Add vLLM V1's rule that no waiting request is admitted in a step that preempted (tab 02 teaches preemption). Today a preempted sequence can be re-admitted in the same plan.
+  - Scope the batching radios' roving-tabindex group per tabpanel in `assets/sim.js`. They're collected across all panels today.
+  - Add an engine helper for the admission state the UI draws (`canAdmit`). The UI re-derives it today and reads engine internals (`inst.step`, `stepEnd`, `batch.steps`, `sim.cfg`, `r.prefillDone`).
+  - A prompt too long for every instance counts as a 503; vLLM answers 400. It can happen on tab 02's 3g.40gb at low `gpuMemUtil`, so consider a separate count.
 - **PR 3:** tab 04, a script in `scripts/` that cuts `assets/sim/azure-conv.json` from the Azure 2023 conversation trace, refitted length distributions, and the CC-BY credit.
 - **PR 4:** tab 05 (two H100 replicas, `kill a GPU`, autoscaler with a labelled cold start), follow a request (canvas click and a `follow a request` button), and the config drawer (vLLM flags or Triton `config.pbtxt`).
 - **PR 5:** sandbox (every knob, the MIG layout chips, round-robin routing), terminal prompt, SLO challenge, cost meter tooltip.
