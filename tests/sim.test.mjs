@@ -187,3 +187,66 @@ test('after a switch to request-level, running sequences finish as a legacy batc
   assert.ok(next.tAdmit >= long.tDone);
   assert.equal(sim.stats.finished, 2);
 });
+
+test('pause drains: in-flight work finishes and nothing new arrives', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 4 });
+  run(sim, 20000);
+  const arrived = sim.stats.arrived;
+  E.setArrivals(sim, false);
+  assert.equal(E.playState(sim, false), 'draining');
+  run(sim, 120000);
+  assert.equal(sim.stats.arrived, arrived);
+  assert.ok(E.isDrained(sim));
+  assert.equal(E.playState(sim, false), 'stopped');
+  assert.equal(sim.stats.arrived, sim.stats.finished + sim.stats.rejected);
+});
+test('a burst while paused is served without restarting the flow', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 4 });
+  E.setArrivals(sim, false); run(sim, 120000);
+  const before = sim.stats.arrived;
+  E.sendBurst(sim, 10); run(sim, 60000);
+  assert.equal(sim.stats.arrived, before + 10);
+  assert.ok(E.isDrained(sim));
+  assert.equal(sim.arrivalsOn, false);
+});
+test('play resumes arrivals', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 4 });
+  E.setArrivals(sim, false); run(sim, 120000);
+  const before = sim.stats.arrived;
+  E.setArrivals(sim, true); run(sim, 5000);
+  assert.ok(sim.stats.arrived > before);
+  assert.equal(E.playState(sim, false), 'running');
+});
+test('frozen (reduced motion) reports stopped', () => {
+  assert.equal(E.playState(E.createSim({ ...E.PRESETS.batching, seed: 4 }), true), 'stopped');
+});
+test('metrics are null before data and format as –', () => {
+  const m = E.metrics(E.createSim({ ...E.PRESETS.batching, seed: 5 }));
+  assert.equal(m.ttftP99, null);
+  assert.equal(E.fmt.ms(m.ttftP99), '–');
+  assert.equal(E.fmt.usd(m.costPer1M), '–');
+});
+test('formatting', () => {
+  assert.equal(E.fmt.ms(95.4), '95ms');
+  assert.equal(E.fmt.ms(1240), '1.24s');
+  assert.equal(E.fmt.tok(6812.3), '6,812 tok/s');
+  assert.equal(E.fmt.pct(0.614), '61%');
+  assert.equal(E.fmt.usd(0.1234), '$0.12 / 1M tok');
+});
+test('finished requests are pruned so memory stays bounded under burst spam', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 9 });
+  for (let k = 0; k < 20; k++) E.sendBurst(sim, 24);
+  run(sim, 180000);
+  assert.ok(sim.finished.length <= 500);
+  sim.instances.forEach(i => assert.ok(i.queue.length <= sim.cfg.queueCap));
+});
+test('metrics report latency, throughput, KV and cost once there is data', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 4 });
+  run(sim, 30000);
+  const m = E.metrics(sim);
+  for (const key of ['ttftP50', 'ttftP99', 'tpotMs', 'tokPerSec', 'kvFrac', 'costPer1M']) assert.ok(m[key] > 0, key);
+  assert.ok(m.ttftP50 <= m.ttftP99);
+  assert.equal(m.rejected, sim.stats.rejected);
+  near(m.costPer1M, E.GPU_HOUR_USD / 3600 / m.tokPerSec * 1e6, 1e-9);
+  assert.match(E.GPU_HOUR_SOURCE, /2026-10-25/);
+});

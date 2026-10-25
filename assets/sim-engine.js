@@ -53,6 +53,13 @@
   var TOKRATE_WINDOW_MS = 3000; // throughput is the tokens made over the last 3 s
   var TTFT_WINDOW_MS = 30000;   // TTFT percentiles cover first tokens from the last 30 s,
   var TTFT_SAMPLES = 200;       // and at most the last 200 of them
+  var FINISHED_KEEP = 500;      // sim.finished keeps only the latest requests, so memory stays bounded
+  var BURST_SPREAD_MS = 450;    // a manual burst arrives over this long
+
+  // Price of one H100 80GB for an hour, on demand, in USD. Lambda lists its 1x H100 SXM
+  // at $4.29 per GPU-hour on https://lambda.ai/pricing (checked 2026-10-25).
+  var GPU_HOUR_USD = 4.29;
+  var GPU_HOUR_SOURCE = 'Lambda on-demand 1x H100 SXM 80GB, https://lambda.ai/pricing, checked 2026-10-25';
 
   var nextId = 1;
 
@@ -353,6 +360,7 @@
         r.tDone = t;
         r.kvTokens = 0;
         sim.finished.push(r);
+        if (sim.finished.length > FINISHED_KEEP) sim.finished.shift();
         sim.stats.finished += 1;
         if (inst.batch) r.state = 'idle';
         else { r.state = 'done'; inst.running.splice(k, 1); }
@@ -451,6 +459,43 @@
     }
   }
 
+  // ---- Play state ----
+
+  // Off stops steady arrivals and drops the arrival times still pending; on schedules the next
+  // arrival and burst from now. Work already queued or running carries on.
+  function setArrivals(sim, on) {
+    if (on === sim.arrivalsOn) return;
+    sim.arrivalsOn = on;
+    if (on) {
+      sim.nextArrival = sim.t + poissonGap(sim);
+      sim.nextBurst = sim.t + burstGap(sim);
+    } else {
+      sim.pending = [];
+    }
+  }
+
+  // n arrival times over the next BURST_SPREAD_MS, whether or not arrivals are on
+  function sendBurst(sim, n) {
+    for (var k = 0; k < n; k++) sim.pending.push(sim.t + sim.rng() * BURST_SPREAD_MS);
+    sim.pending.sort(function (a, b) { return a - b; });
+  }
+
+  // Nothing more will happen: arrivals off, nothing pending, every queue and running list empty
+  // (an idle slot of a request-level batch still sits in running, so it counts as in flight)
+  function isDrained(sim) {
+    if (sim.arrivalsOn || sim.pending.length) return false;
+    for (var k = 0; k < sim.instances.length; k++) {
+      if (sim.instances[k].queue.length || sim.instances[k].running.length) return false;
+    }
+    return true;
+  }
+
+  function playState(sim, frozen) {
+    if (frozen) return 'stopped';
+    if (sim.arrivalsOn) return 'running';
+    return isDrained(sim) ? 'stopped' : 'draining';
+  }
+
   // ---- Metrics ----
 
   // Nearest-rank percentile (p in 0..1) of an ascending list
@@ -458,22 +503,55 @@
     return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
   }
 
-  // TTFT is tFirst - t0 over the recent first tokens (TTFT_WINDOW_MS, TTFT_SAMPLES), null without any.
-  // Throughput is the tokens made over the last TOKRATE_WINDOW_MS, per second.
+  // TTFT is tFirst - t0 over the recent first tokens (TTFT_WINDOW_MS, TTFT_SAMPLES). TPOT is the mean of
+  // (tDone - tFirst) / (generated - 1) over finished requests whose first token is in that window.
+  // Throughput is the tokens made over the last TOKRATE_WINDOW_MS, per second. Null means no data yet.
   function metrics(sim) {
-    var ttfts = [], tokens = 0, k;
+    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r;
     for (k = 0; k < sim.ttftLog.length; k++) {
       if (sim.ttftLog[k][0] >= sim.t - TTFT_WINDOW_MS) ttfts.push(sim.ttftLog[k][1]);
     }
     ttfts.sort(function (a, b) { return a - b; });
+    for (k = 0; k < sim.finished.length; k++) {
+      r = sim.finished[k];
+      if (r.tFirst >= sim.t - TTFT_WINDOW_MS && r.generated > 1) {
+        tpotSum += (r.tDone - r.tFirst) / (r.generated - 1);
+        tpotN += 1;
+      }
+    }
     for (k = 0; k < sim.tokLog.length; k++) {
       if (sim.tokLog[k][0] >= sim.t - TOKRATE_WINDOW_MS) tokens += sim.tokLog[k][1];
     }
+    for (k = 0; k < sim.instances.length; k++) {
+      used += sim.instances[k].kvUsed;
+      budget += sim.instances[k].kvBudget;
+    }
+    var tokPerSec = tokens / (TOKRATE_WINDOW_MS / 1000);
+    var gpuCount = 1;   // PR 1 simulates one GPU
     return {
+      ttftP50: ttfts.length ? nearestRank(ttfts, 0.5) : null,
       ttftP99: ttfts.length ? nearestRank(ttfts, 0.99) : null,
-      tokPerSec: tokens / (TOKRATE_WINDOW_MS / 1000)
+      tpotMs: tpotN ? tpotSum / tpotN : null,
+      tokPerSec: tokPerSec,
+      kvFrac: budget > 0 ? used / budget : null,
+      costPer1M: tokPerSec > 0 ? GPU_HOUR_USD * gpuCount / 3600 / tokPerSec * 1e6 : null,
+      rejected: sim.stats.rejected
     };
   }
+
+  // Display strings; null (no data yet) shows as a dash
+  var fmt = {
+    ms: function (v) {
+      if (v === null) return '\u2013';
+      return v < 1000 ? Math.round(v) + 'ms' : (v / 1000).toFixed(2) + 's';
+    },
+    tok: function (v) {
+      if (v === null) return '\u2013';
+      return String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ',') + ' tok/s';
+    },
+    pct: function (v) { return v === null ? '\u2013' : Math.round(v * 100) + '%'; },
+    usd: function (v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + ' / 1M tok'; }
+  };
 
   // opts = { seed, instances: [{ profile, model }], batching, traffic: { rate (req/s), bursts }, config? }
   function createSim(opts) {
@@ -514,7 +592,14 @@
     route: route,
     enqueue: enqueue,
     setBatching: setBatching,
-    metrics: metrics
+    setArrivals: setArrivals,
+    sendBurst: sendBurst,
+    isDrained: isDrained,
+    playState: playState,
+    metrics: metrics,
+    fmt: fmt,
+    GPU_HOUR_USD: GPU_HOUR_USD,
+    GPU_HOUR_SOURCE: GPU_HOUR_SOURCE
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
