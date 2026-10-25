@@ -538,10 +538,35 @@
     .more a { text-decoration: none; color: var(--accent); }
     .more a:hover { text-decoration: underline; }
 
-    .booking-box { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; } /* Google's booking page is light in both themes */
-    .booking-frame { display: block; width: 100%; height: 600px; }
-    .booking-link { display: inline-block; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.8rem; color: var(--accent); text-decoration: none; }
+    /* booking: a native <dialog>, so Esc, the focus trap and the backdrop come with it; wide enough that Google shows month and slots side by side */
+    .booking {
+      width: min(1040px, calc(100% - 2rem)); height: min(800px, calc(100% - 2rem)); max-width: none; max-height: none;
+      margin: auto; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      background: var(--surface); color: var(--text);
+    }
+    .booking[open] { display: flex; flex-direction: column; }
+    .booking::backdrop { background: rgba(12, 14, 18, 0.55); backdrop-filter: blur(3px); }
+    html:has(.booking[open]) { overflow: hidden; }
+    .booking-bar {
+      display: flex; align-items: center; gap: 1rem; padding: 0.55rem 0.6rem 0.55rem 1rem; border-bottom: 1px solid var(--border);
+      font-family: var(--mono); font-size: 0.8rem; color: var(--muted);
+    }
+    .booking-title { margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .booking-link { color: var(--accent); text-decoration: none; white-space: nowrap; }
     .booking-link:hover { text-decoration: underline; }
+    .booking-close {
+      font: inherit; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 999px;
+      padding: 0.25rem 0.75rem; cursor: pointer; white-space: nowrap; transition: color 0.15s, border-color 0.15s;
+    }
+    .booking-close:hover { color: var(--accent); border-color: var(--accent); }
+    /* Google's booking page is light in both themes; the note shows until the frame loads (JS adds .loaded) */
+    .booking-box { position: relative; flex: 1; min-height: 0; background: #fff; color-scheme: light; }
+    .booking-box::before {
+      content: 'loading calendar…'; position: absolute; inset: 0; display: grid; place-items: center;
+      font-family: var(--mono); font-size: 0.8rem; color: #5f6168;
+    }
+    .booking-box.loaded::before { content: none; } /* parts of Google's page are transparent */
+    .booking-frame { position: relative; display: block; width: 100%; height: 100%; }
     .contact p { font-size: 1.15rem; line-height: 1.5; max-width: 30em; letter-spacing: -0.01em; }
     .links { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.25rem; }
     .links a {
@@ -591,6 +616,9 @@
       .att-fig.ready { grid-template-columns: 1fr; }
       .tp-axisrow, .tp-row { grid-template-columns: 5.6rem 1fr 3.6rem; gap: 0.5rem; }
       .tp-note { display: none; }
+      .booking { width: 100%; height: 100%; border: 0; border-radius: 0; }
+      .booking-title { display: none; } /* still names the dialog through aria-labelledby */
+      .booking-link { margin-right: auto; }
     }
   </style>
 </head>
@@ -986,22 +1014,23 @@
     <section id="contact" class="contact">
       <div class="span" title="When and how long you read this section, on the same timeline as the trace at the bottom of the page"><span class="sp-kind">read</span><span class="sp-name">contact.md</span><span class="sp-track"></span><span class="sp-time">–</span></div>
       <h2>Book a call</h2>
-      <div class="two">
-        <div>
-          <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Pick a slot, or just write to compare notes on inference at scale.</p>
-          <div class="links">
-            <a class="primary" href="mailto:hi@omarcevi.dev" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>hi@omarcevi.dev</a>
-            <a href="https://www.linkedin.com/in/omarcevi/" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-li"/></svg>LinkedIn</a>
-            <a href="https://github.com/omarcevi" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
-            <a href="https://omarcevi.medium.com" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-md"/></svg>Medium</a>
-          </div>
-        </div>
-        <div class="booking">
-          <!-- Google Calendar appointment schedule, inline booking page. To change the booking page, replace the URL here and in the link below. -->
-          <div class="booking-box"><iframe class="booking-frame" src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" title="Book a 30-minute call with Omar" loading="lazy" style="border:0" width="100%" height="600"></iframe></div>
-          <a class="booking-link" href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" target="_blank" rel="noopener">Open the booking page ↗</a>
-        </div>
+      <p>I'm open to collaborations: talks and workshops, open-source work, and teams figuring out how to serve models or agents in production. Pick a slot, or just write to compare notes on inference at scale.</p>
+      <!-- Google Calendar appointment schedule. "Pick a time" opens it in the dialog below (a new tab without JS). To change the booking page, replace the URL in all three places. -->
+      <div class="links">
+        <a class="primary" id="booking-open" href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg>Pick a time</a>
+        <a href="mailto:hi@omarcevi.dev" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>hi@omarcevi.dev</a>
+        <a href="https://www.linkedin.com/in/omarcevi/" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-li"/></svg>LinkedIn</a>
+        <a href="https://github.com/omarcevi" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
+        <a href="https://omarcevi.medium.com" rel="me"><svg class="ic" aria-hidden="true"><use href="#i-md"/></svg>Medium</a>
       </div>
+      <dialog class="booking" id="booking" aria-labelledby="booking-title">
+        <div class="booking-bar">
+          <span class="booking-title" id="booking-title">Book a call · 30 min on Google Meet</span>
+          <a class="booking-link" href="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" target="_blank" rel="noopener">Open the booking page ↗</a>
+          <form method="dialog"><button class="booking-close" autofocus>Close <span aria-hidden="true">✕</span></button></form>
+        </div>
+        <div class="booking-box"><iframe class="booking-frame" src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true" title="Book a 30-minute call with Omar" loading="lazy" style="border:0"></iframe></div>
+      </dialog>
     </section>
 
     <div class="trace-panel" id="trace-panel" aria-hidden="true">
@@ -1801,6 +1830,23 @@
       });
       if (os && os.addEventListener) os.addEventListener('change', label);
       label();
+    })();
+
+    /* =====================================================================
+       7. Booking: "Pick a time" opens Google's booking page in the <dialog>;
+          modified clicks, or no <dialog> support, keep the new-tab link
+       ===================================================================== */
+    (function booking() {
+      var dlg = $('booking'), open = $('booking-open'), frame = dlg.querySelector('iframe');
+      if (typeof dlg.showModal !== 'function') return;
+      frame.addEventListener('load', function () { frame.parentNode.classList.add('loaded'); });
+      open.setAttribute('aria-haspopup', 'dialog');
+      open.addEventListener('click', function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        dlg.showModal();
+      });
+      dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); }); // a click on the backdrop
     })();
   })();
   </script>
