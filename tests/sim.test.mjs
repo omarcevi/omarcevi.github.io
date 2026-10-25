@@ -265,3 +265,38 @@ test('metrics report latency, throughput, KV and cost once there is data', () =>
   near(m.costPer1M, E.GPU_HOUR_USD / 3600 / m.tokPerSec * 1e6, 1e-9);
   assert.match(E.GPU_HOUR_SOURCE, /2026-10-25/);
 });
+
+test('unknown profile or model throws a clear error', () => {
+  assert.throws(() => E.createInstance('9g.90gb', 'llama-3-8b', {}), /unknown MIG profile: 9g\.90gb/);
+  assert.throws(() => E.createInstance('7g.80gb', 'gpt-x', {}), /unknown model: gpt-x/);
+});
+test('null or NaN config values fall back to the defaults', () => {
+  near(E.createInstance('7g.80gb', 'llama-3-8b', { gpuMemUtil: NaN }).kvBudget, 54.94e9, 0.01e9);
+  near(E.createInstance('7g.80gb', 'llama-3-8b', { gpuMemUtil: null }).kvBudget, 54.94e9, 0.01e9);
+  assert.equal(E.createSim({ ...E.PRESETS.batching, seed: 1, config: { queueCap: NaN } }).cfg.queueCap, 128);
+});
+test('no waiting request is admitted in a step that preempted (vLLM V1)', () => {
+  const sim = E.createSim({ seed: 2, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous',
+                            config: { gpuMemUtil: 0.45 }, traffic: { rate: 4, bursts: false } });
+  let checked = 0;
+  for (let t = 0; t < 60000; t += 1) {   // 1 ms ticks: at most one plan per instance per tick (a step is >= 1.5 ms)
+    const before = sim.stats.preemptions, wasRunning = new Set(sim.instances[0].running.map(r => r.id));
+    E.tick(sim, 1);
+    if (sim.stats.preemptions > before) {
+      checked += 1;
+      for (const r of sim.instances[0].running) assert.ok(wasRunning.has(r.id), `request ${r.id} admitted in a preempting step`);
+    }
+  }
+  assert.ok(checked > 0);
+});
+test('canAdmit: continuous mode, empty queue, room under max-num-seqs and in the KV pool', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 1, traffic: { rate: 0, bursts: false } });
+  const inst = sim.instances[0];
+  assert.equal(E.canAdmit(sim, inst), true);
+  E.enqueue(sim, { prompt: 100, output: 5 });
+  assert.equal(E.canAdmit(sim, inst), false);   // the queue head goes first
+  run(sim, 2000);
+  assert.equal(E.canAdmit(sim, inst), true);
+  E.setBatching(sim, 'request');
+  assert.equal(E.canAdmit(sim, inst), false);
+});

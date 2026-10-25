@@ -64,10 +64,19 @@
   var nextId = 1;
 
   function pick(config, key) {
-    return config && config[key] !== undefined ? config[key] : DEFAULTS[key];
+    var v = config ? config[key] : undefined;
+    if (v === undefined || v === null || (typeof v === 'number' && !isFinite(v))) return DEFAULTS[key];
+    return v;
+  }
+
+  // Throws on a profile or model name that isn't in the tables
+  function lookup(profile, model) {
+    if (!PROFILES.hasOwnProperty(profile)) throw new Error('unknown MIG profile: ' + profile);
+    if (!MODELS.hasOwnProperty(model)) throw new Error('unknown model: ' + model);
   }
 
   function createInstance(profile, model, config) {
+    lookup(profile, model);
     var p = PROFILES[profile], m = MODELS[model];
     var usableGB = p.memGB * pick(config, 'gpuMemUtil') - m.weightsGB - pick(config, 'activationReserveGB');
     var kvBudget = Math.max(0, usableGB) * 1e9;
@@ -93,6 +102,7 @@
 
   // One engine step: the slower of the compute time and the memory time, plus fixed overhead
   function stepTimeMs(profile, model, prefillTokens, decodeSeqs, kvTokensRead) {
+    lookup(profile, model);
     var p = PROFILES[profile], m = MODELS[model];
     var flops = 2 * m.params * (prefillTokens + decodeSeqs);
     var bytes = m.weightsGB * 1e9 + kvTokensRead * m.kvBytesPerToken;
@@ -219,7 +229,7 @@
   // With admit false, only the running sequences step (a legacy batch in request-level mode).
   function planContinuous(sim, inst, admit) {
     var cfg = sim.cfg, kv = MODELS[inst.model].kvBytesPerToken;
-    var items = [], tokens = cfg.maxNumBatchedTokens, grow = 0;
+    var items = [], tokens = cfg.maxNumBatchedTokens, grow = 0, preempted = false;
     function fits(add) { return inst.kvUsed + (grow + add) * kv <= inst.kvBudget; }
     function take(r, chunk, add) { items.push({ req: r, chunk: chunk }); tokens -= chunk || 1; grow += add; }
 
@@ -230,11 +240,12 @@
         if (chunk <= 0) continue;              // the token budget is spent; it waits a step
         add = chunk + (chunk === left ? 1 : 0);
       }
-      while (!fits(add) && inst.running.length > k) preemptNewest(sim, inst);
+      while (!fits(add) && inst.running.length > k) { preemptNewest(sim, inst); preempted = true; }
       if (inst.running.length > k) take(r, chunk, add);   // else r was the newest and is preempted
     }
 
-    while (admit && inst.queue.length && inst.running.length < cfg.maxNumSeqs && tokens > 0) {
+    // vLLM V1: a step that preempted admits nobody from the waiting queue
+    while (admit && !preempted && inst.queue.length && inst.running.length < cfg.maxNumSeqs && tokens > 0) {
       var q = inst.queue[0], qLeft = q.prefillTarget - q.prefillDone, qChunk = Math.min(qLeft, tokens);
       var qAdd = qChunk + (qChunk === qLeft ? 1 : 0);
       if (!fits(qAdd)) break;
@@ -245,6 +256,13 @@
       take(q, qChunk, qAdd);
     }
     return items;
+  }
+
+  // Whether a request arriving now would start at once: continuous mode, nothing queued ahead of it,
+  // a free max-num-seqs slot and some KV left
+  function canAdmit(sim, inst) {
+    return sim.batching === 'continuous' && inst.queue.length === 0 &&
+      inst.running.length < sim.cfg.maxNumSeqs && inst.kvUsed < inst.kvBudget;
   }
 
   // A continuous step's cost: its chunks, one token per decode, and the KV its sequences read
@@ -592,6 +610,7 @@
     createSim: createSim,
     tick: tick,
     route: route,
+    canAdmit: canAdmit,
     enqueue: enqueue,
     setBatching: setBatching,
     setArrivals: setArrivals,
