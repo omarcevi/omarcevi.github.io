@@ -133,18 +133,26 @@
     return inst.queue.length + inst.running.length;
   }
 
-  // Least outstanding requests among the instances that are up and fit the model, lowest index on ties
-  function route(sim) {
+  // An instance can take a request if it's up, fits the model, has queue room and, when the
+  // prompt is given, a max-model-len that holds the prompt plus max_tokens
+  function canTake(sim, inst, prompt) {
+    return inst.up && inst.fits && inst.queue.length < sim.cfg.queueCap &&
+      (prompt === undefined || prompt + sim.cfg.maxTokens <= inst.maxModelLen);
+  }
+
+  // Least outstanding requests among the instances that can take it, lowest index on ties.
+  // null when none can (the request gets a 503).
+  function route(sim, prompt) {
     var best = null;
     for (var k = 0; k < sim.instances.length; k++) {
       var inst = sim.instances[k];
-      if (inst.up && inst.fits && (!best || outstanding(inst) < outstanding(best))) best = inst;
+      if (canTake(sim, inst, prompt) && (!best || outstanding(inst) < outstanding(best))) best = inst;
     }
     return best;
   }
 
-  // A request arrives now. It's routed at once, or rejected (a 503, or vLLM's refusal of a
-  // request longer than max-model-len) when it has nowhere to go. inst is an index into sim.instances.
+  // A request arrives now. It's routed at once, or rejected when no instance can take it.
+  // inst is an index into sim.instances.
   function enqueue(sim, spec) {
     sim.stats.arrived += 1;
     var r = {
@@ -152,8 +160,8 @@
       prefillTarget: spec.prompt, prefillDone: 0, generated: 0, kvTokens: 0,
       tAdmit: null, tFirst: null, tDone: null, preemptions: 0
     };
-    var inst = route(sim);
-    if (!inst || inst.queue.length >= sim.cfg.queueCap || spec.prompt + sim.cfg.maxTokens > inst.maxModelLen) {
+    var inst = route(sim, spec.prompt);
+    if (!inst) {
       r.state = 'rejected';
       sim.stats.rejected += 1;
       return r;

@@ -101,3 +101,24 @@ test('a preempted sequence re-prefills its prompt plus what it made, from the qu
   assert.equal(b.generated, 1000);
   assert.equal(b.tFirst, tFirst);
 });
+test('router skips an instance whose queue is at the cap, even when it has the fewest outstanding', () => {
+  const sim = E.createSim({ seed: 3, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }, { profile: '4g.40gb', model: 'llama-3-8b' }],
+                            config: { queueCap: 2 }, traffic: { rate: 0, bursts: false } });
+  sim.instances[0].queue.push({}, {});                 // full, 2 outstanding
+  sim.instances[1].running.push({}, {}, {});           // room, 3 outstanding
+  assert.equal(E.route(sim), sim.instances[1]);
+  const r = E.enqueue(sim, { prompt: 1000, output: 10 });
+  assert.equal(r.state, 'queued');
+  assert.equal(r.inst, 1);
+  assert.equal(sim.stats.rejected, 0);
+});
+test('router sends a prompt too long for one instance to another that can hold it', () => {
+  const sim = E.createSim({ seed: 3, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }, { profile: '7g.80gb', model: 'llama-3-8b' }],
+                            config: { gpuMemUtil: 0.45 }, traffic: { rate: 0, bursts: false } });
+  assert.equal(sim.instances[0].maxModelLen, 7171);
+  assert.equal(sim.instances[1].maxModelLen, 8192);
+  const r = E.enqueue(sim, { prompt: 6500, output: 10 });     // 6500 + 1024 fits 8192, not 7171
+  assert.equal(r.state, 'queued');
+  assert.equal(r.inst, 1);
+  assert.equal(E.enqueue(sim, { prompt: 7500, output: 10 }).state, 'rejected');   // fits neither
+});
