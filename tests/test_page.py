@@ -111,6 +111,46 @@ class Hero(unittest.TestCase):
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
 
 
+class Simulator(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = parse()
+        cls.box = find_all(cls.doc, id="simbox")[0]
+
+    def test_scripts_in_order(self):
+        srcs = [s.attrs.get("src") for s in find_all(self.doc, "script") if s.attrs.get("src")]
+        self.assertLess(srcs.index("assets/sim-engine.js"), srcs.index("assets/sim.js"))
+        for s in find_all(self.doc, "script"):
+            if s.attrs.get("src", "").startswith("assets/sim"):
+                self.assertIn("defer", s.attrs)
+
+    def test_inline_sim_removed(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("function sim()", page)
+        self.assertNotIn("sim-batch", page)
+
+    def test_footer_metrics(self):
+        for i in ("m-ttft50", "m-ttft99", "m-tpot", "m-thr", "m-kv", "m-cost", "m-503"):
+            self.assertEqual(len(find_all(self.box, id=i)), 1, i)
+        self.assertIn("hidden", find_all(self.box, id="m-503-wrap")[0].attrs)
+
+    def test_tab_shell(self):
+        lists = find_all(self.box, role="tablist")
+        self.assertEqual(len(lists), 1)
+        tabs = find_all(lists[0], "button", role="tab")
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching"])
+        for t in tabs:
+            panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
+            self.assertEqual(panel.attrs.get("role"), "tabpanel")
+        radios = find_all(self.box, "button", role="radio")
+        self.assertEqual([r.attrs.get("data-batching") for r in radios], ["request", "continuous"])
+        self.assertEqual([r.attrs.get("aria-checked") for r in radios], ["false", "true"])
+
+    def test_controls(self):
+        for i in ("sim-play", "sim-burst"):
+            self.assertEqual(len(find_all(self.box, "button", id=i)), 1, i)
+
+
 DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 FULL_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 

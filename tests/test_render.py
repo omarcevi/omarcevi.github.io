@@ -75,5 +75,13 @@ class SpeakingRender(unittest.TestCase):
         self.assertTrue(src in html, "booking iframe src missing from the rendered page")
 
 
+class SimRender(unittest.TestCase):
+    def test_metrics_filled_after_warmup(self):
+        doc = parse(dump_dom("?today=2026-10-23"))
+        self.assertRegex(one(doc, id="m-ttft99").text(), r"\d")
+        self.assertRegex(one(doc, id="m-thr").text(), r"tok/s")
+        self.assertEqual(one(doc, id="sim-play").text().strip(), "❚❚")
+
+
 if __name__ == "__main__":
     unittest.main()
