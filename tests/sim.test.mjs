@@ -275,16 +275,21 @@ test('null or NaN config values fall back to the defaults', () => {
   near(E.createInstance('7g.80gb', 'llama-3-8b', { gpuMemUtil: null }).kvBudget, 54.94e9, 0.01e9);
   assert.equal(E.createSim({ ...E.PRESETS.batching, seed: 1, config: { queueCap: NaN } }).cfg.queueCap, 128);
 });
-test('no waiting request is admitted in a step that preempted (vLLM V1)', () => {
+test('no waiting request, the preempted one included, is admitted in a step that preempted (vLLM V1)', () => {
+  // A small token budget, so the preempted sequence's re-prefill chunk would fit right after the preemption
   const sim = E.createSim({ seed: 2, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous',
-                            config: { gpuMemUtil: 0.45 }, traffic: { rate: 4, bursts: false } });
+                            config: { gpuMemUtil: 0.45, maxNumBatchedTokens: 512 }, traffic: { rate: 4, bursts: false } });
+  const inst = sim.instances[0];
   let checked = 0;
-  for (let t = 0; t < 60000; t += 1) {   // 1 ms ticks: at most one plan per instance per tick (a step is >= 1.5 ms)
-    const before = sim.stats.preemptions, wasRunning = new Set(sim.instances[0].running.map(r => r.id));
+  for (let t = 0; t < 120000; t += 1) {   // 1 ms ticks: at most one plan per instance per tick (a step is >= 1.5 ms)
+    const before = sim.stats.preemptions, stayed = new Map(inst.running.map(r => [r.id, r.preemptions]));
     E.tick(sim, 1);
     if (sim.stats.preemptions > before) {
       checked += 1;
-      for (const r of sim.instances[0].running) assert.ok(wasRunning.has(r.id), `request ${r.id} admitted in a preempting step`);
+      for (const r of inst.running) {
+        assert.ok(stayed.has(r.id), `request ${r.id} was queued and admitted in a preempting step`);
+        assert.equal(r.preemptions, stayed.get(r.id), `request ${r.id} was preempted and re-admitted in the same step`);
+      }
     }
   }
   assert.ok(checked > 0);
