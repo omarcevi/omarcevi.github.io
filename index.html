@@ -328,7 +328,51 @@
     .cap a { color: var(--muted); }
 
     #simbox { margin-top: 2.25rem; }
-    #sim { display: block; width: 100%; height: 260px; cursor: crosshair; }
+    #sim { display: block; width: 100%; height: 260px; cursor: default; }
+    #m-503 { color: var(--p-bad); }
+    /* simulator tabs, the lesson line and its segmented switch (assets/sim.js wires them) */
+    .sim-tabs {
+      display: flex; gap: 0.15rem; padding: 0.35rem 0.6rem 0; overflow-x: auto;
+      font-family: var(--mono); font-size: 0.72rem; border-bottom: 1px solid var(--p-line2);
+    }
+    .sim-tabs[hidden], .sim-lesson[hidden] { display: none; }
+    .sim-tabs button {
+      font: inherit; color: var(--p-muted); background: none; border: 0; border-bottom: 2px solid transparent;
+      padding: 0.4rem 0.7rem; white-space: nowrap; cursor: pointer; transition: color 0.15s;
+    }
+    .sim-tabs button:hover, .sim-tabs button[aria-selected="true"] { color: var(--p-text); }
+    .sim-tabs button[aria-selected="true"] { border-bottom-color: var(--p-accent); }
+    .sim-tabs button i { font-style: normal; color: var(--p-faint); }
+    .sim-lesson {
+      display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1.5rem; flex-wrap: wrap;
+      padding: 0.75rem 0.9rem; font-size: 0.88rem; line-height: 1.55; color: var(--p-muted); border-bottom: 1px solid var(--p-line2);
+    }
+    .sim-lesson p { margin: 0; flex: 1 1 26em; max-width: 52em; }
+    .sim-lesson b { color: var(--p-text); font-weight: 500; }
+    /* the header buttons' padding and line height (the body's), so the switch is exactly as tall as they are */
+    .seg { display: inline-flex; border: 1px solid #2a2f38; border-radius: 999px; overflow: hidden; font-family: var(--mono); font-size: 0.72rem; line-height: 1.65; flex: none; }
+    .seg button {
+      font: inherit; color: var(--p-muted); background: #181b21; border: 0;
+      padding: 0.26rem 0.7rem; cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .seg button:hover { color: var(--p-accent); }
+    .seg button[aria-checked="true"] { background: var(--p-accent); color: #0f1115; cursor: default; }
+    /* .seg and .sim-tabs clip overflow, so their focus rings sit inside the button */
+    .seg button:focus-visible, .sim-tabs button:focus-visible { outline: 2px solid var(--p-accent); outline-offset: -2px; }
+    .seg button[aria-checked="true"]:focus-visible { outline-color: #0f1115; }
+    /* colour key under the canvas; each swatch is its canvas colour (COL in assets/sim.js) over the
+       instance box's fill, so the alpha colours come out exactly as drawn */
+    .sim-key {
+      display: flex; flex-wrap: wrap; gap: 0.25rem 1.2rem; padding: 0.1rem 0.9rem 0.6rem;
+      font-family: var(--mono); font-size: 0.68rem; color: var(--p-muted);
+    }
+    .sim-key span { display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
+    .sim-key i { flex: none; width: 14px; height: 4px; border-radius: 1.5px; background: linear-gradient(var(--c), var(--c)), #161920; }
+    .sim-key .k-prefill { --c: #7aa2ff; }
+    .sim-key .k-decode { --c: rgba(122, 162, 255, 0.6); }
+    .sim-key .k-done { --c: #4ade80; }
+    .sim-key .k-idle { --c: rgba(139, 145, 156, 0.35); }
+    .sim-key .k-kv { width: 18px; height: 3px; background: linear-gradient(90deg, #7aa2ff 55%, #232830 55%); }
 
     /* agent replay */
     .ag-body { display: grid; grid-template-columns: 236px 1fr; }
@@ -681,24 +725,41 @@
 
       <div class="panel js-only" id="simbox">
         <div class="p-head">
-          <div class="p-title"><span class="live"></span>inference.sim <span class="note">· one H100, 3 MIG slices · clock slowed 10×</span></div>
+          <div class="p-title"><span class="live"></span>inference.sim <span class="note">· Llama 3 8B on one H100 · real time</span></div>
           <div class="p-ctrl">
-            <button type="button" id="sim-play" aria-label="Pause simulation">❚❚</button>
+            <button type="button" id="sim-play" aria-label="Pause: stop new requests and let in-flight ones finish">❚❚</button>
             <button type="button" id="sim-burst">send burst</button>
-            <label>max batch <input type="range" id="sim-batch" min="1" max="16" value="8"><output id="sim-batch-v">8</output></label>
-            <label><input type="checkbox" id="sim-bursty" checked> bursty</label>
           </div>
         </div>
-        <canvas id="sim" aria-label="Animated simulation: requests are queued, dynamically batched, and served on GPU slices"></canvas>
+        <div class="sim-tabs" role="tablist" aria-label="Simulator lessons" hidden>
+          <button type="button" role="tab" id="sim-tabbtn-batching" data-tab="batching" aria-controls="sim-tab-batching" aria-selected="true"><i>01</i> batching</button>
+        </div>
+        <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
+          <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
+          <div class="seg" role="radiogroup" aria-label="Batching">
+            <button type="button" role="radio" data-batching="request" aria-checked="false">request-level</button>
+            <button type="button" role="radio" data-batching="continuous" aria-checked="true">continuous</button>
+          </div>
+        </div>
+        <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
+        <div class="sim-key">
+          <span><i class="k-prefill" aria-hidden="true"></i>prefill</span>
+          <span><i class="k-decode" aria-hidden="true"></i>decode, one token per step</span>
+          <span><i class="k-done" aria-hidden="true"></i>finished</span>
+          <span><i class="k-idle" aria-hidden="true"></i>idle slot (request-level only)</span>
+          <span><i class="k-kv" aria-hidden="true"></i>KV cache</span>
+        </div>
         <div class="p-foot">
-          <span>p50 <b id="m-p50">–</b></span>
-          <span>p99 <b id="m-p99">–</b></span>
-          <span>throughput <b id="m-thr">–</b></span>
-          <span>gpu util <b id="m-util">–</b></span>
-          <span>queue <b id="m-q">0</b></span>
+          <span>TTFT p50 <b id="m-ttft50">–</b></span>
+          <span>TTFT p99 <b id="m-ttft99">–</b></span>
+          <span>TPOT <b id="m-tpot">–</b></span>
+          <span title="output tokens per second">throughput <b id="m-thr">–</b></span>
+          <span>KV cache <b id="m-kv">–</b></span>
+          <span>cost <b id="m-cost">–</b></span>
+          <span id="m-503-wrap" hidden>rejected <b id="m-503">0</b></span>
         </div>
       </div>
-      <p class="cap js-only">A queueing model of my day job: requests get dynamically batched onto MIG slices of one H100. Send a burst, then drop max batch to 1 and watch p99. Service times are modeled, not measured.</p>
+      <p class="cap js-only">A model of LLM serving, not a benchmark: Llama 3 8B on one H100, step times from the H100's specs. Flip the batching mode, send a burst, then pause and watch it drain.</p>
     </header>
 
     <section id="about">
@@ -1213,204 +1274,9 @@
     })();
 
     /* =====================================================================
-       2. Inference simulator: arrivals → queue → dynamic batcher → MIG
-          slices on one H100 → streamed responses (a queueing model)
+       2. Inference simulator: lives in assets/sim-engine.js (model) and
+          assets/sim.js (drawing and controls)
        ===================================================================== */
-    (function sim() {
-      var box = $('simbox'), cv = $('sim');
-      if (!cv || !cv.getContext) return;
-      var ctx = cv.getContext('2d');
-      var M = { p50: $('m-p50'), p99: $('m-p99'), thr: $('m-thr'), util: $('m-util'), q: $('m-q') };
-      var playBtn = $('sim-play'), batchIn = $('sim-batch'), batchOut = $('sim-batch-v'), burstyIn = $('sim-bursty');
-
-      var SCALE = 0.1, RATE = 5.5, MAX_DELAY = 260;
-      var slices = [
-        { name: '3g.40gb', w: 3, speed: 0.72 },
-        { name: '2g.20gb', w: 2, speed: 1 },
-        { name: '2g.20gb', w: 2, speed: 1 }
-      ].map(function (s) { s.busy = false; s.items = []; s.start = 0; s.dur = 0; s.flash = 0; return s; });
-
-      var W = 0, H = 0, L = {};
-      var t = 0, reqs = [], queue = [], pending = [], lat = [], hist = [], doneT = [];
-      var nextArr = 0, nextBurst = 1800, statT = 0, util = 0;
-      var maxBatch = 8, bursty = true, playing = !REDUCE, visible = false, raf = 0, last = 0;
-      var FONT = '"Geist Mono", ui-monospace, monospace';
-
-      function layout() {
-        L.top = 30; L.bot = H - 50;
-        L.cell = Math.max(7, Math.min(10, W / 75));
-        L.qx0 = Math.round(W * 0.25);
-        L.gx0 = Math.round(W * 0.52); L.gx1 = Math.round(W * 0.84);
-        L.rows = Math.max(4, Math.floor((L.bot - L.top) / L.cell));
-        L.qcols = Math.max(2, Math.floor((L.gx0 - 26 - L.qx0) / L.cell));
-        var gap = 6, avail = L.bot - L.top - gap * 2, y = L.top;
-        slices.forEach(function (s) { s.h = avail * s.w / 7; s.y = y; s.x = L.gx0; s.wd = L.gx1 - L.gx0; y += s.h + gap; });
-      }
-      function qslot(i) {
-        var col = Math.min(Math.floor(i / L.rows), L.qcols - 1), row = i % L.rows;
-        return [L.qx0 + col * L.cell + L.cell / 2, L.top + row * L.cell + L.cell / 2];
-      }
-      function sslot(s, i, n) {
-        var c = L.cell * 0.95, cols = Math.max(1, Math.floor((s.wd - 12) / c));
-        var rowsN = Math.ceil(n / cols), col = i % cols, row = Math.floor(i / cols);
-        var x0 = s.x + 6 + ((s.wd - 12) - Math.min(n, cols) * c) / 2;
-        var y0 = s.y + 15 + (s.h - 19) / 2 - rowsN * c / 2;
-        return [x0 + col * c + c / 2, y0 + row * c + c / 2];
-      }
-      function retarget() {
-        queue.forEach(function (r, i) { var p = qslot(i); r.tx = p[0]; r.ty = p[1]; });
-        slices.forEach(function (s) { s.items.forEach(function (r, i) { var p = sslot(s, i, s.items.length); r.tx = p[0]; r.ty = p[1]; }); });
-      }
-      function resize() {
-        var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-        if (!r.width) return;
-        W = r.width; H = r.height;
-        cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        layout(); retarget(); draw();
-      }
-      function spawn() {
-        var r = { t0: t, x: -6, y: L.top + Math.random() * (L.bot - L.top), st: 'q', tx: 0, ty: 0 };
-        reqs.push(r); queue.push(r);
-        var p = qslot(queue.length - 1); r.tx = p[0]; r.ty = p[1];
-      }
-      function burst(n) { for (var i = 0; i < n; i++) pending.push(t + Math.random() * 450); }
-      function schedule() {
-        for (var k = 0; k < slices.length; k++) {
-          var s = slices[k];
-          if (s.busy || !queue.length) continue;
-          if (queue.length >= maxBatch || t - queue[0].t0 >= MAX_DELAY) {
-            var n = Math.min(maxBatch, queue.length), items = queue.splice(0, n);
-            s.busy = true; s.items = items; s.start = t + 180; s.dur = (320 + 60 * n) * s.speed;
-            items.forEach(function (r, i) { r.st = 'b'; r.slice = s; var p = sslot(s, i, n); r.tx = p[0]; r.ty = p[1]; });
-            retarget();
-          }
-        }
-      }
-      function step(dt) {
-        t += dt;
-        if (t >= nextArr) { spawn(); nextArr = t + (-Math.log(1 - Math.random()) / RATE) * 1000; }
-        if (bursty && t >= nextBurst) { burst(26 + Math.floor(Math.random() * 12)); nextBurst = t + 6500 + Math.random() * 4000; }
-        for (var i = pending.length - 1; i >= 0; i--) if (pending[i] <= t) { pending.splice(i, 1); spawn(); }
-        schedule();
-        slices.forEach(function (s) {
-          if (s.busy && t >= s.start + s.dur) {
-            s.items.forEach(function (r) { r.st = 'o'; r.vx = 170 + Math.random() * 90; lat.push(t - r.t0); doneT.push(t); });
-            s.busy = false; s.items = []; s.flash = 1;
-          }
-          s.flash = Math.max(0, s.flash - dt / 400);
-        });
-        var k = Math.min(1, dt / 1000 * 6);
-        for (var j = reqs.length - 1; j >= 0; j--) {
-          var r = reqs[j];
-          if (r.st === 'o') { r.x += r.vx * dt / 1000; if (r.x > W + 30) reqs.splice(j, 1); }
-          else { r.x += (r.tx - r.x) * k; r.y += (r.ty - r.y) * k; }
-        }
-        var busyW = 0; slices.forEach(function (s) { if (s.busy) busyW += s.w; });
-        util += (busyW / 7 - util) * Math.min(1, dt / 1500);
-        statT += dt;
-        if (statT > 300) { statT = 0; metrics(); }
-      }
-      function pctl(arr, p) { var a = arr.slice().sort(function (x, y) { return x - y; }); return a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))]; }
-      function metrics() {
-        if (lat.length > 120) lat = lat.slice(-120);
-        while (doneT.length && doneT[0] < t - 3000) doneT.shift();
-        var recent = lat.slice(-30);
-        if (recent.length) {
-          M.p50.textContent = Math.round(pctl(lat.slice(-60), 0.5) * SCALE) + 'ms';
-          M.p99.textContent = Math.round(pctl(recent, 0.99) * SCALE) + 'ms';
-          hist.push(pctl(recent, 0.99) * SCALE);
-          if (hist.length > 110) hist.shift();
-        }
-        M.thr.textContent = Math.round(doneT.length / 3 / SCALE) + ' req/s';
-        M.util.textContent = Math.round(util * 100) + '%';
-        M.q.textContent = queue.length;
-      }
-      function mix(a, b, f) { return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]; }
-      var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
-      function waitColor(w) {
-        var f = Math.min(1, w / 1600), c = f < 0.5 ? mix(BASE, WARN, f * 2) : mix(WARN, BAD, (f - 0.5) * 2);
-        return 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')';
-      }
-      function rr(x, y, w, h, r) {
-        ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-        ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-      }
-      function draw() {
-        if (!W) return;
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(220,225,235,0.06)';
-        for (var gx = 8; gx < W; gx += 16) for (var gy = 8; gy < L.bot + 4; gy += 16) ctx.fillRect(gx, gy, 1, 1);
-        ctx.font = '10px ' + FONT; ctx.fillStyle = '#5c626d';
-        ctx.fillText('requests →', 10, 18);
-        ctx.fillText(W > 560 ? 'queue · dynamic batcher' : 'queue', L.qx0 - 4, 18);
-        ctx.fillText('H100 · MIG', L.gx0, 18);
-        if (W > 420) ctx.fillText('stream →', L.gx1 + 10, 18);
-        ctx.strokeStyle = 'rgba(220,225,235,0.12)'; ctx.setLineDash([3, 4]);
-        rr(L.qx0 - 5, L.top - 5, L.qcols * L.cell + 10, L.rows * L.cell + 10, 6); ctx.stroke(); ctx.setLineDash([]);
-        slices.forEach(function (s) {
-          rr(s.x, s.y, s.wd, s.h, 6); ctx.fillStyle = '#161920'; ctx.fill();
-          if (s.busy && t > s.start) {
-            var p = Math.min(1, (t - s.start) / s.dur);
-            ctx.save(); rr(s.x, s.y, s.wd, s.h, 6); ctx.clip();
-            ctx.fillStyle = 'rgba(122,162,255,0.16)'; ctx.fillRect(s.x, s.y, s.wd * p, s.h); ctx.restore();
-          }
-          ctx.strokeStyle = s.flash > 0 ? 'rgba(74,222,128,' + (0.3 + s.flash * 0.6) + ')' : '#2a2f38';
-          rr(s.x, s.y, s.wd, s.h, 6); ctx.stroke();
-          ctx.fillStyle = '#8b919c'; ctx.font = '9px ' + FONT;
-          ctx.fillText(s.name, s.x + 6, s.y + 11);
-          if (s.busy) { var l = 'batch ' + s.items.length; ctx.fillText(l, s.x + s.wd - 6 - ctx.measureText(l).width, s.y + 11); }
-        });
-        var rad = L.cell * 0.36;
-        reqs.forEach(function (r) {
-          if (r.st === 'o') {
-            ctx.fillStyle = 'rgba(74,222,128,0.9)';
-            for (var q = 1; q <= 4; q++) { ctx.globalAlpha = 0.55 - q * 0.12; ctx.fillRect(r.x - q * 7 - 2, r.y - 1, 4, 2); }
-            ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, 6.283); ctx.fill(); return;
-          }
-          var col = waitColor(t - r.t0);
-          if (r.st === 'b' && r.slice && t > r.slice.start) { ctx.globalAlpha = 0.65 + 0.35 * Math.sin((t - r.slice.start) / 90); col = '#7aa2ff'; }
-          ctx.fillStyle = col; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1;
-        });
-        var by = H - 40, bh = 28, x0 = 62, x1 = W - 10;
-        ctx.strokeStyle = '#1c2027'; ctx.beginPath(); ctx.moveTo(0, by - 8); ctx.lineTo(W, by - 8); ctx.stroke();
-        ctx.fillStyle = '#5c626d'; ctx.font = '9px ' + FONT;
-        ctx.fillText('p99', 10, by + 10); ctx.fillText('rolling', 10, by + 21);
-        if (hist.length > 1) {
-          var mx = Math.max(120, Math.max.apply(null, hist) * 1.1);
-          ctx.beginPath();
-          hist.forEach(function (v, i) { var x = x0 + (x1 - x0) * i / 109, y = by + bh - (v / mx) * bh; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
-          ctx.strokeStyle = '#7aa2ff'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1;
-          var lx = x0 + (x1 - x0) * (hist.length - 1) / 109;
-          ctx.lineTo(lx, by + bh); ctx.lineTo(x0, by + bh); ctx.closePath(); ctx.fillStyle = 'rgba(122,162,255,0.10)'; ctx.fill();
-        }
-      }
-      function frame(now) {
-        raf = 0;
-        if (!visible || document.hidden) { last = 0; return; }
-        var dt = last ? Math.min(50, now - last) : 16; last = now;
-        if (playing) step(dt);
-        draw(); raf = requestAnimationFrame(frame);
-      }
-      function wake() { if (visible && !document.hidden && !raf) { last = 0; raf = requestAnimationFrame(frame); } }
-      function setPlaying(p) {
-        playing = p; playBtn.textContent = p ? '❚❚' : '▶ play';
-        playBtn.setAttribute('aria-label', p ? 'Pause simulation' : 'Play simulation');
-        box.classList.toggle('paused', !p);
-      }
-      playBtn.onclick = function () { setPlaying(!playing); };
-      $('sim-burst').onclick = function () { if (!playing) setPlaying(true); burst(24); };
-      cv.addEventListener('click', function () { if (!playing) setPlaying(true); burst(12); });
-      batchIn.oninput = function () { maxBatch = +batchIn.value; batchOut.textContent = maxBatch; };
-      burstyIn.onchange = function () { bursty = burstyIn.checked; };
-      resize();
-      for (var i = 0; i < 300; i++) step(16);
-      metrics(); draw(); setPlaying(playing);
-      if ('ResizeObserver' in window) new ResizeObserver(resize).observe(cv); else window.addEventListener('resize', resize);
-      if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; wake(); }).observe(cv);
-      else { visible = true; wake(); }
-      document.addEventListener('visibilitychange', wake);
-    })();
 
     /* =====================================================================
        3. Real attention: GPT-2 small reading the About text
@@ -1850,6 +1716,8 @@
     })();
   })();
   </script>
+  <script src="assets/sim-engine.js" defer></script>
+  <script src="assets/sim.js" defer></script>
   <script src="assets/speaking.js" defer></script>
 </body>
 </html>
