@@ -305,3 +305,75 @@ test('canAdmit: continuous mode, empty queue, room under max-num-seqs and in the
   E.setBatching(sim, 'request');
   assert.equal(E.canAdmit(sim, inst), false);
 });
+
+const two = (extra = {}) => E.createSim(Object.assign({ seed: 1,
+  instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }, { profile: '2g.20gb', model: 'llama-3.2-1b' }],
+  streams: [{ model: 'llama-3-8b', rate: 0 }, { model: 'llama-3.2-1b', rate: 0 }] }, extra));
+test('Llama 3.2 3B and 1B: KV per token and KV budget on a 2g.20gb slice', () => {
+  assert.equal(E.MODELS['llama-3.2-3b'].kvBytesPerToken, 114688);
+  assert.equal(E.MODELS['llama-3.2-1b'].kvBytesPerToken, 32768);
+  near(E.createInstance('2g.20gb', 'llama-3.2-3b', { gpuMemUtil: 0.9 }).kvBudget, 10.57e9, 0.01e9);   // 18 - 6.43 - 1
+  near(E.createInstance('2g.20gb', 'llama-3.2-1b', { gpuMemUtil: 0.9 }).kvBudget, 14.53e9, 0.01e9);   // 18 - 2.47 - 1
+  assert.deepEqual(['llama-3-8b', 'llama-3.2-3b', 'llama-3.2-1b'].map(m => E.MODELS[m].short), ['8B', '3B', '1B']);
+});
+test('an instance spec can set its own gpuMemUtil', () => {
+  const sim = E.createSim({ seed: 1, instances: [{ profile: '7g.80gb', model: 'llama-3-8b', gpuMemUtil: 0.45 }], traffic: { rate: 0 } });
+  near(sim.instances[0].kvBudget, 18.94e9, 0.01e9);   // 36 - 16.06 - 1
+});
+test('requests only go to instances serving their model', () => {
+  const sim = two();
+  assert.equal(E.route(sim, 100, 'llama-3.2-1b'), sim.instances[1]);
+  assert.equal(E.enqueue(sim, { prompt: 100, output: 5, model: 'llama-3-8b' }).inst, 0);
+  const r = E.enqueue(sim, { prompt: 100, output: 5, model: 'llama-3.2-1b' });
+  assert.deepEqual([r.inst, r.model], [1, 'llama-3.2-1b']);
+});
+test('each stream arrives at its own rate, with its own model', () => {
+  const sim = two({ streams: [{ model: 'llama-3-8b', rate: 1 }, { model: 'llama-3.2-1b', rate: 4,
+    lengths: { prompt: { median: 120, sigma: 0.5, min: 8, max: 1000 }, output: { median: 16, sigma: 0.5, min: 1, max: 120 } } }] });
+  run(sim, 60000); E.setArrivals(sim, false); run(sim, 120000);
+  const n = m => sim.finished.filter(r => r.model === m).length;
+  assert.ok(n('llama-3-8b') >= 45 && n('llama-3-8b') <= 75, String(n('llama-3-8b')));
+  assert.ok(n('llama-3.2-1b') >= 200 && n('llama-3.2-1b') <= 280, String(n('llama-3.2-1b')));
+});
+test('a burst goes to the stream it names', () => {
+  const sim = two();
+  E.setArrivals(sim, false); E.sendBurst(sim, 10, 1); run(sim, 30000);   // arrivals off first: turning them off drops pending ones
+  assert.equal(sim.finished.length, 10);
+  assert.ok(sim.finished.every(r => r.model === 'llama-3.2-1b'));
+});
+test('per-model metrics filter TTFT and TPOT by model', () => {
+  const sim = two();
+  for (let k = 0; k < 20; k++) { E.enqueue(sim, { prompt: 3000, output: 20, model: 'llama-3-8b' }); E.enqueue(sim, { prompt: 50, output: 20, model: 'llama-3.2-1b' }); }
+  run(sim, 20000);
+  assert.ok(E.metrics(sim, 'llama-3.2-1b').ttftP99 < E.metrics(sim, 'llama-3-8b').ttftP99);
+  assert.equal(E.metrics(sim, 'llama-3.2-3b').ttftP99, null);
+});
+test('GPU count is the number of distinct physical GPUs, and cost scales with it', () => {
+  const three = E.createSim({ seed: 1, traffic: { rate: 6, bursts: false },
+    instances: [0, 1, 2].map(g => ({ profile: '7g.80gb', model: 'llama-3-8b', gpu: g })) });
+  assert.equal(three.gpuCount, 3);
+  assert.equal(two().gpuCount, 1);
+  run(three, 20000);
+  const m = E.metrics(three);
+  near(m.costPer1M, E.GPU_HOUR_USD * 3 / 3600 / m.tokPerSec * 1e6, 1e-9);
+});
+test('per-model TTFT keeps a quiet model\'s samples when a busier model fills the last 200', () => {
+  const sim = two();
+  for (let k = 0; k < 10; k++) E.enqueue(sim, { prompt: 100, output: 5, model: 'llama-3-8b' });
+  run(sim, 2000);
+  for (let b = 0; b < 3; b++) {   // 300 first tokens on the 1B, in batches under the queue cap
+    for (let k = 0; k < 100; k++) E.enqueue(sim, { prompt: 20, output: 2, model: 'llama-3.2-1b' });
+    run(sim, 1000);
+  }
+  assert.equal(sim.stats.finished, 310);
+  assert.notEqual(E.metrics(sim, 'llama-3-8b').ttftP99, null);
+  assert.notEqual(E.metrics(sim).ttftP99, null);
+});
+test('a stream, burst or request naming something unknown throws a clear error', () => {
+  const inst = [{ profile: '7g.80gb', model: 'llama-3-8b' }];
+  assert.throws(() => E.createSim({ seed: 1, instances: inst, streams: [{ model: 'gpt-x', rate: 1 }] }), /unknown model: gpt-x/);
+  assert.throws(() => E.createSim({ seed: 1, instances: inst }), /needs streams or traffic/);
+  assert.throws(() => E.enqueue(two(), { prompt: 10, output: 1, model: 'gpt-x' }), /unknown model: gpt-x/);
+  assert.throws(() => E.sendBurst(two(), 3, 2), /unknown stream: 2/);
+  assert.equal(E.enqueue(two(), { prompt: 10, output: 1, model: 'llama-3.2-3b' }).state, 'rejected');   // known, but no instance: a 503
+});
