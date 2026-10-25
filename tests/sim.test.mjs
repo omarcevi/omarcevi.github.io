@@ -408,3 +408,69 @@ test('tab 02: less KV memory means more preemption overall and fewer requests se
   }
   assert.ok(lo >= 3 * hi, `${lo} vs ${hi}`);
 });
+
+const preset = (id, seed, quiet) => {
+  const p = E.PRESETS[id];
+  const streams = quiet ? p.streams.map(s => Object.assign({}, s, { bursts: false })) : p.streams;
+  return E.createSim(Object.assign({}, p, { seed, streams }));
+};
+const TAB3_SEEDS = [1, 2, 3, 4, 5];   // the page draws a random seed, so the lesson must not hang on one
+test('instances sharing a whole GPU are time-sliced; MIG slices and separate GPUs are not', () => {
+  assert.deepEqual(preset('mig-time', 1).instances.map(i => i.timeSliced), [true, true, true]);
+  assert.deepEqual(preset('mig-mig', 1).instances.map(i => i.timeSliced), [false, false, false]);
+  assert.deepEqual(preset('mig-gpu', 1).instances.map(i => i.timeSliced), [false, false, false]);
+});
+test('alone a time-sliced process runs at full speed; with a busy neighbour its step stretches', () => {
+  const sim = E.createSim({ seed: 1, streams: [{ model: 'llama-3-8b', rate: 0 }, { model: 'llama-3.2-1b', rate: 0 }],
+    instances: [{ profile: '7g.80gb', model: 'llama-3-8b', gpu: 0, gpuMemUtil: 0.45 }, { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 0, gpuMemUtil: 0.2 }] });
+  const i1 = sim.instances[1], cost = s => E.stepTimeMs('7g.80gb', 'llama-3.2-1b', s.prefill, s.decode, s.kvRead);
+  E.enqueue(sim, { prompt: 100, output: 400, model: 'llama-3.2-1b' });
+  E.tick(sim, 1);
+  assert.equal(i1.step.stretch, 1);
+  near(i1.stepEnd - i1.step.start, cost(i1.step), 1e-9);
+  E.enqueue(sim, { prompt: 6000, output: 50, model: 'llama-3-8b' });
+  let seen = false;
+  for (let t = 0; t < 2000 && !seen; t += 1) {
+    E.tick(sim, 1);
+    if (i1.step && i1.step.stretch === 2) { seen = true; near(i1.stepEnd - i1.step.start, 2 * cost(i1.step), 1e-9); }
+  }
+  assert.ok(seen);
+});
+test('a step carries its cost and stretch in both batching modes, with stretch 1 when not time-sliced', () => {
+  for (const batching of ['continuous', 'request']) {
+    const sim = E.createSim({ seed: 1, batching, instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], traffic: { rate: 0, bursts: false } });
+    const inst = sim.instances[0];
+    E.enqueue(sim, { prompt: 500, output: 20 });
+    E.tick(sim, 30);   // past maxQueueDelayMs, so a request-level batch has formed
+    assert.ok(inst.step, batching);
+    for (const key of ['start', 'items', 'prefill', 'decode', 'kvRead', 'stretch']) assert.ok(key in inst.step, `${batching}: ${key}`);
+    assert.equal(inst.step.stretch, 1);
+    near(inst.stepEnd - inst.step.start, E.stepTimeMs('7g.80gb', 'llama-3-8b', inst.step.prefill, inst.step.decode, inst.step.kvRead), 1e-9);
+  }
+});
+test('tab 03: GPU per model and MIG both meet every SLO on every seed, and MIG uses one GPU instead of three', () => {
+  for (const id of ['mig-gpu', 'mig-mig']) {
+    for (const seed of TAB3_SEEDS) {
+      const sim = preset(id, seed);
+      run(sim, 120000);
+      for (const [model, slo] of Object.entries(sim.slo)) {
+        const p99 = E.metrics(sim, model).ttftP99;
+        assert.ok(p99 !== null && p99 <= slo, `${id} seed ${seed} ${model}: ${p99} > ${slo}`);
+      }
+    }
+  }
+  assert.deepEqual(['mig-gpu', 'mig-time', 'mig-mig'].map(id => preset(id, 5).gpuCount), [3, 1, 1]);
+});
+test('tab 03: a burst on the 8B model raises the 1B model\'s p99 under time-slicing, not under MIG (median over seeds)', () => {
+  function effect(id, seed) {
+    const sim = preset(id, seed, true);
+    run(sim, 40000);
+    const before = E.metrics(sim, 'llama-3.2-1b').ttftP99;
+    for (let k = 0; k < 4; k++) { E.sendBurst(sim, 40, 0); run(sim, 5000); }
+    return E.metrics(sim, 'llama-3.2-1b').ttftP99 / before;
+  }
+  const median = id => TAB3_SEEDS.map(seed => effect(id, seed)).sort((a, b) => a - b)[Math.floor(TAB3_SEEDS.length / 2)];
+  const time = median('mig-time'), mig = median('mig-mig');
+  assert.ok(time >= 2, `time-slicing ×${time}`);
+  assert.ok(mig <= 1.3, `MIG ×${mig}`);
+});

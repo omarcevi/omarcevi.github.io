@@ -47,6 +47,13 @@
     queueCap: 128
   };
 
+  // Lognormal stand-ins for the Azure LLM conversation trace (Patel et al., Splitwise,
+  // ISCA 2024: median prompt 1020 tokens, median output 129). PR 3 refits these from the real trace.
+  var LENGTHS = {
+    prompt: { median: 1020, sigma: 0.8, min: 16, max: 7000 },
+    output: { median: 129, sigma: 0.93, min: 1, max: 1000 }
+  };
+
   // Synthetic lengths for tab 02: long prompts and long replies, so the KV pool fills.
   // Tuned on seeds 1-10 (tests/sim.test.mjs): a burst of 35-40 such requests needs roughly the
   // 0.9 pool (~19 GB, ~145k tokens), fits the 0.95 pool (~21 GB) with little preemption, and
@@ -56,16 +63,58 @@
     output: { median: 450, sigma: 0.2, min: 64, max: 1000 }
   };
 
-  var PRESETS = {
-    batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
-    kvcache: { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0.5, bursts: { min: 35, max: 40 }, lengths: LONG } }
+  // Synthetic lengths for tab 03's small models: short replies for the 3B, and for the 1B a
+  // classifier-like task that reads about 800 tokens and answers in one or two
+  var SHORT = {
+    prompt: { median: 300, sigma: 0.6, min: 16, max: 2000 },
+    output: { median: 12, sigma: 0.4, min: 4, max: 400 }
+  };
+  var TINY = {
+    prompt: { median: 800, sigma: 0.2, min: 8, max: 1000 },
+    output: { median: 1, sigma: 0.5, min: 1, max: 120 }
   };
 
-  // Lognormal stand-ins for the Azure LLM conversation trace (Patel et al., Splitwise,
-  // ISCA 2024: median prompt 1020 tokens, median output 129). PR 3 refits these from the real trace.
-  var LENGTHS = {
-    prompt: { median: 1020, sigma: 0.8, min: 16, max: 7000 },
-    output: { median: 129, sigma: 0.93, min: 1, max: 1000 }
+  // Tab 03: three models with their own traffic and TTFT p99 SLOs, on one of three deployments.
+  // Tuned for the tab 03 tests in tests/sim.test.mjs (seeds 1-5; a scratch run over seeds 1-60 held
+  // too). Time-slicing only hurts a process while its neighbours have work, so the 8B's traffic is
+  // bursts only (10-16 requests every 8-12 s) and the 3B is busy only part of the time: between 8B
+  // bursts the 1B gets most of the GPU, and during one its steps stretch. The 1B's prefill-heavy load
+  // turns that stretch into queueing, so its p99 rises 2-3x (median over seeds), while on its own
+  // MIG slice it barely moves.
+  function tab03(instances) {
+    return {
+      instances: instances,
+      batching: 'continuous',
+      slo: { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 },
+      streams: [
+        { model: 'llama-3-8b', rate: 0, bursts: { min: 10, max: 16 }, lengths: LENGTHS },
+        { model: 'llama-3.2-3b', rate: 2, bursts: false, lengths: SHORT },
+        { model: 'llama-3.2-1b', rate: 40, bursts: false, lengths: TINY }
+      ]
+    };
+  }
+
+  var PRESETS = {
+    batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
+    kvcache: { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0.5, bursts: { min: 35, max: 40 }, lengths: LONG } },
+    // GPU per model: Kubernetes gives each pod a whole H100
+    'mig-gpu': tab03([
+      { profile: '7g.80gb', model: 'llama-3-8b', gpu: 0 },
+      { profile: '7g.80gb', model: 'llama-3.2-3b', gpu: 1 },
+      { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 2 }
+    ]),
+    // Time-slicing: three processes share one H100 with no isolation, splitting its memory
+    'mig-time': tab03([
+      { profile: '7g.80gb', model: 'llama-3-8b', gpu: 0, gpuMemUtil: 0.45 },
+      { profile: '7g.80gb', model: 'llama-3.2-3b', gpu: 0, gpuMemUtil: 0.25 },
+      { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 0, gpuMemUtil: 0.2 }
+    ]),
+    // MIG: one H100 split 3g.40gb + 2g.20gb + 2g.20gb, one model per isolated slice
+    'mig-mig': tab03([
+      { profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 },
+      { profile: '2g.20gb', model: 'llama-3.2-3b', gpu: 0 },
+      { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 }
+    ])
   };
 
   var MAX_TICK_MS = 50;         // a background tab coming back must not replay minutes at once
@@ -115,7 +164,7 @@
       profile: profile,
       model: model,
       gpu: 0,              // the physical GPU it runs on; createSim sets it from the spec
-      timeSliced: false,   // whether it time-slices a whole GPU with other processes (not modeled yet)
+      timeSliced: false,   // whether it time-slices a whole GPU with other processes; createSim sets it
       fits: kvBudget > 0,
       kvBudget: kvBudget,
       // Like vLLM's max-model-len: a request longer than this is refused, so any one
@@ -408,12 +457,27 @@
 
   // ---- Steps ----
 
-  // Starts a step at sim.t if the instance has work. Returns whether it did.
+  // Time-slicing: processes sharing a whole GPU split its time among those with work, so a step is
+  // stretched by 1 plus the number of the GPU's other time-sliced processes with a step in flight.
+  // Alone it runs at full speed. The stretch is fixed when the step starts.
+  function stretchOf(sim, inst) {
+    var stretch = 1;
+    if (!inst.timeSliced) return stretch;
+    for (var k = 0; k < sim.instances.length; k++) {
+      var o = sim.instances[k];
+      if (o !== inst && o.timeSliced && o.gpu === inst.gpu && o.stepEnd !== null) stretch += 1;
+    }
+    return stretch;
+  }
+
+  // Starts a step at sim.t if the instance has work. Returns whether it did. inst.step keeps the
+  // step's cost (prefill tokens, decodes, KV tokens read) and its time-slicing stretch.
   function startStep(sim, inst) {
     var plan = sim.batching === 'request' ? planRequest(sim, inst) : costOf(planContinuous(sim, inst, true));
     if (!plan.items.length) return false;
-    inst.step = { start: sim.t, items: plan.items };
-    inst.stepEnd = sim.t + stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead);
+    var stretch = stretchOf(sim, inst);
+    inst.step = { start: sim.t, items: plan.items, prefill: plan.prefill, decode: plan.decode, kvRead: plan.kvRead, stretch: stretch };
+    inst.stepEnd = sim.t + stretch * stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead);
     return true;
   }
 
@@ -673,7 +737,11 @@
     var streams = opts.streams || (opts.traffic && [{ model: instances[0].model, rate: opts.traffic.rate,
                                                        bursts: opts.traffic.bursts, lengths: opts.traffic.lengths }]);
     if (!streams) throw new Error('createSim needs streams or traffic');
-    instances.forEach(function (inst) { gpus[inst.gpu] = true; });
+    instances.forEach(function (inst) {
+      gpus[inst.gpu] = true;
+      // A whole GPU (no MIG) shared with another instance is time-sliced
+      inst.timeSliced = inst.profile === '7g.80gb' && instances.some(function (o) { return o !== inst && o.gpu === inst.gpu; });
+    });
     var sim = {
       t: 0,
       rng: mulberry32(opts.seed),
