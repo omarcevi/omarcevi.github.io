@@ -505,7 +505,9 @@
 
   // TTFT is tFirst - t0 over the recent first tokens (TTFT_WINDOW_MS, TTFT_SAMPLES). TPOT is the mean of
   // (tDone - tFirst) / (generated - 1) over finished requests whose first token is in that window.
-  // Throughput is the tokens made over the last TOKRATE_WINDOW_MS, per second. Null means no data yet.
+  // Throughput is the output tokens made over the last TOKRATE_WINDOW_MS, per second, and cost is per
+  // 1M of them. Once drained it's 0 (the page stops the sim's clock, so the window would never age
+  // out) and cost has no value; TTFT and TPOT keep their last values. Null means no data yet.
   function metrics(sim) {
     var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r;
     for (k = 0; k < sim.ttftLog.length; k++) {
@@ -526,7 +528,7 @@
       used += sim.instances[k].kvUsed;
       budget += sim.instances[k].kvBudget;
     }
-    var tokPerSec = tokens / (TOKRATE_WINDOW_MS / 1000);
+    var tokPerSec = isDrained(sim) ? 0 : tokens / (TOKRATE_WINDOW_MS / 1000);
     var gpuCount = 1;   // PR 1 simulates one GPU
     return {
       ttftP50: ttfts.length ? nearestRank(ttfts, 0.5) : null,

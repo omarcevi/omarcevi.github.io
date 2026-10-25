@@ -150,6 +150,44 @@ class Simulator(unittest.TestCase):
         for i in ("sim-play", "sim-burst"):
             self.assertEqual(len(find_all(self.box, "button", id=i)), 1, i)
 
+    def test_colour_key(self):
+        keys = find_all(self.box, cls="sim-key")
+        self.assertEqual(len(keys), 1)
+        kids = keys[0].parent.elements()   # directly under the canvas, above the footer
+        self.assertEqual([k.tag if k.tag == "canvas" else k.classes[0] for k in kids[kids.index(keys[0]) - 1:][:3]],
+                         ["canvas", "sim-key", "p-foot"])
+        entries = keys[0].elements()
+        self.assertEqual([" ".join(e.text().split()) for e in entries], [
+            "prefill", "decode, one token per step", "finished", "idle slot (request-level only)", "KV cache"])
+        for e in entries:
+            self.assertEqual(len(find_all(e, "i")), 1, e.text())   # its swatch
+
+    def test_key_colours_match_canvas(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+
+        def squash(s):
+            return re.sub(r"\s+", "", s)
+        for cls, col in (("k-prefill", "accent"), ("k-decode", "decode"), ("k-done", "ok"), ("k-idle", "idle")):
+            css = re.search(r"\.sim-key \." + cls + r" \{ --c: ([^;]+); \}", page)
+            canvas = re.search(r"\b" + col + r": '([^']+)'", js)
+            self.assertIsNotNone(css, cls)
+            self.assertIsNotNone(canvas, col)
+            self.assertEqual(squash(css.group(1)), squash(canvas.group(1)), cls)
+
+    def test_throughput_and_cost_say_output_tokens(self):
+        thr = find_all(self.box, id="m-thr")[0].parent
+        self.assertEqual(thr.attrs.get("title"), "output tokens per second")
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("M.cost.parentNode.title = 'per 1M output tokens · H100 at $'", js)
+
+    def test_switch_as_tall_as_header_buttons(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        pad = re.compile(r"padding: ([0-9.]+rem [0-9.]+rem);")
+        ctrl = re.search(r"\.p-ctrl button, \.p-ctrl select \{([^}]*)\}", page).group(1)
+        seg = re.search(r"\.seg button \{([^}]*)\}", page).group(1)
+        self.assertEqual(pad.search(seg).group(1), pad.search(ctrl).group(1))
+
 
 DATE_RE = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 FULL_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")

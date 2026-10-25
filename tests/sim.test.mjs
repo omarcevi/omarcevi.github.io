@@ -90,8 +90,9 @@ test('a preempted sequence re-prefills its prompt plus what it made, from the qu
   const inst = sim.instances[0];
   const a = E.enqueue(sim, { prompt: 3000, output: 1000 });
   const b = E.enqueue(sim, { prompt: 3000, output: 1000 });
-  while (b.preemptions === 0) E.tick(sim, 16);
-  assert.equal(inst.queue[0], b);                                // newest out, back to the front
+  while (b.preemptions === 0 && sim.t < 60000) E.tick(sim, 16);
+  assert.ok(b.preemptions > 0, 'b was never preempted');
+  assert.equal(inst.queue[0], b);                               // newest out, back to the front
   assert.equal(b.generated, 585);                                // 2 * 3001 + 2 * 585 > 7171 tokens of KV
   assert.equal(b.prefillTarget, 3000 + 585);
   assert.equal(a.state, 'running');
@@ -199,6 +200,20 @@ test('pause drains: in-flight work finishes and nothing new arrives', () => {
   assert.ok(E.isDrained(sim));
   assert.equal(E.playState(sim, false), 'stopped');
   assert.equal(sim.stats.arrived, sim.stats.finished + sim.stats.rejected);
+});
+test('once drained, throughput is 0 and cost is –, while TTFT and TPOT keep their last values', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 4 });
+  run(sim, 20000);
+  E.setArrivals(sim, false);
+  while (!E.isDrained(sim) && sim.t < 200000) E.tick(sim, 16);   // the page stops the clock right here
+  assert.ok(E.isDrained(sim));
+  const m = E.metrics(sim);
+  assert.equal(m.tokPerSec, 0);
+  assert.equal(m.costPer1M, null);
+  assert.equal(E.fmt.tok(m.tokPerSec), '0 tok/s');
+  assert.equal(E.fmt.usd(m.costPer1M), '–');
+  assert.ok(m.ttftP99 > 0 && m.tpotMs > 0);
+  assert.equal(m.kvFrac, 0);
 });
 test('a burst while paused is served without restarting the flow', () => {
   const sim = E.createSim({ ...E.PRESETS.batching, seed: 4 });

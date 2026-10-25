@@ -18,12 +18,13 @@
   var FLASH_MS = 300;                    // a finished row flashes green this long
   var BURST = 24;
   var ROW_H = 4, ROW_GAP = 2.2, CELL = 9.5, DOT_R = 3.2, STRIP_H = 26;
+  var FADE_NEAR = 18, FADE_SPAN = 40;    // a dot for a row under "+N more" is gone this close to its target (px)
   var TOKENS_PER_PARTICLE = 100, MAX_PARTICLES_PER_S = 30;
   var FONT = '"Geist Mono", ui-monospace, monospace';
   var COL = {
     faint: '#5c626d', muted: '#8b919c', accent: '#7aa2ff', ok: '#4ade80', warn: '#f5a524', bad: '#ef4444',
     panel: '#0f1115', box: '#161920', line: '#2a2f38', track: '#232830', sep: '#1c2027',
-    prefillTodo: 'rgba(122,162,255,0.22)', decode: 'rgba(122,162,255,0.4)', idle: 'rgba(139,145,156,0.35)',
+    prefillTodo: 'rgba(122,162,255,0.22)', decode: 'rgba(122,162,255,0.6)', idle: 'rgba(139,145,156,0.35)',
     doneDecode: 'rgba(74,222,128,0.55)', free: 'rgba(122,162,255,0.55)', lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)'
   };
   var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
@@ -38,7 +39,7 @@
   var tabs = [].slice.call(box.querySelectorAll('[role=tablist] [role=tab]'));
   var panels = [].slice.call(box.querySelectorAll('[role=tabpanel]'));
   var radios = [].slice.call(box.querySelectorAll('[role=radiogroup] [role=radio][data-batching]'));
-  M.cost.parentNode.title = 'H100 at $' + E.GPU_HOUR_USD.toFixed(2) + '/h · ' + E.GPU_HOUR_SOURCE;
+  M.cost.parentNode.title = 'per 1M output tokens · H100 at $' + E.GPU_HOUR_USD.toFixed(2) + '/h · ' + E.GPU_HOUR_SOURCE;
 
   var sim = null, V = null, L = null, frozen = REDUCE, shown = null;
   var W = 0, H = 0, visible = false, raf = 0, last = 0;
@@ -80,8 +81,11 @@
       L.boxes.push(b);
     }
   }
-  // Row j's top; rows past what fits share the last line, where "+N more" goes
-  function rowY(b, j) { return b.rowTop + Math.min(j, b.cap - 1) * (ROW_H + ROW_GAP); }
+  // Rows drawn out of n: all of them while they fit, else all but the last two lines, which hold "+N more"
+  function drawn(b, n) { return n > b.cap ? Math.max(0, b.cap - 2) : n; }
+  function lineY(b, j) { return b.rowTop + j * (ROW_H + ROW_GAP); }
+  // Row j's top out of n rows; the rows under "+N more" wait behind the last drawn one
+  function rowY(b, j, n) { return lineY(b, Math.max(0, Math.min(j, drawn(b, n) - 1))); }
   // Queue slot i of an instance's lane, oldest first, filling columns top to bottom
   function qslot(b, i) {
     var col = Math.min(Math.floor(i / b.qrows), b.qcols - 1), row = i % b.qrows;
@@ -112,25 +116,25 @@
   }
   function tokenOut(b, rows) {
     if (V.toks.length > 120) return;
-    var vis = rows.length > b.cap ? b.cap - 1 : rows.length;   // from a drawn row, not the "+N more" line
+    var vis = drawn(b, rows.length);   // from a drawn row, not from under "+N more"
     var y = vis ? rows[Math.floor(Math.random() * vis)].y + ROW_H / 2 : b.y + b.h / 2;
     V.toks.push({ x: b.x + b.w + 2, y: y, vx: 110 + Math.random() * 80 });
   }
 
   function sync(dt) {
     var k = V.place ? 1 : Math.min(1, dt / 1000 * 9), seen = {};
-    function dot(r, tx, ty, lands) {
+    function dot(r, tx, ty, lands, fade) {
       var d = V.dots[r.id];
       if (!d) d = V.dots[r.id] = V.place ? { x: tx, y: ty } : { x: -4, y: L.top + Math.random() * (L.bot - L.top) };
       d.x += (tx - d.x) * k; d.y += (ty - d.y) * k;
       if (!lands) d.landed = false;
       else if (d.landed || Math.abs(tx - d.x) + Math.abs(ty - d.y) < 3) { d.landed = true; d.x = tx; d.y = ty; }
-      d.r = r;
+      d.r = r; d.tx = tx; d.ty = ty; d.fade = !!fade;
       seen[r.id] = true;
     }
     sim.instances.forEach(function (inst, ii) {
-      var b = L.boxes[ii], rows = V.rows[ii], live = {}, have = {}, made = 0, j, row, r;
-      var vis = rows.length > b.cap ? b.cap - 1 : rows.length;   // rows drawn; the rest are "+N more"
+      var b = L.boxes[ii], rows = V.rows[ii], live = {}, have = {}, made = 0, j, row, r, ty;
+      var vis = drawn(b, rows.length);   // rows drawn; the rest are "+N more"
       inst.running.forEach(function (x) { live[x.id] = x; });
       for (j = rows.length - 1; j >= 0; j--) {
         row = rows[j]; r = row.r;
@@ -144,12 +148,14 @@
         else if (row.doneAt === null || row.flew) rows.splice(j, 1);   // preempted, or finished and flown out
       }
       inst.running.forEach(function (x) {
-        if (!have[x.id]) rows.push({ r: x, y: rowY(b, rows.length), gen: x.generated, doneAt: x.tDone !== null ? -Infinity : null, flew: x.tDone !== null });
+        if (!have[x.id]) rows.push({ r: x, y: null, gen: x.generated, doneAt: x.tDone !== null ? -Infinity : null, flew: x.tDone !== null });
       });
+      vis = drawn(b, rows.length);
       for (j = 0; j < rows.length; j++) {
-        row = rows[j];
-        row.y += (rowY(b, j) - row.y) * k;
-        if (live[row.r.id] === row.r) dot(row.r, b.bx + 2, rowY(b, j) + ROW_H / 2, true);
+        row = rows[j]; ty = rowY(b, j, rows.length);
+        row.y = row.y === null ? ty : row.y + (ty - row.y) * k;   // a new row starts in its place
+        // a row under "+N more" isn't drawn, so its dot fades out before it reaches the box, clear of the label
+        if (live[row.r.id] === row.r) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis);
       }
       inst.queue.forEach(function (x, qi) { var p = qslot(b, qi); dot(x, p[0], p[1], false); });
       if (dt > 0) {   // token particles: scaled to the instance's tok/s, at most 30 a second
@@ -228,13 +234,13 @@
     if (ctx.measureText(inst.profile).width + ctx.measureText(right).width + 24 > b.w) right = tail;
     text(right, b.x + b.w - 7, b.y + 12, 9, hot ? COL.warn : COL.muted, 'right');
 
-    var chunks = stepChunks(inst), show = rows.length > b.cap ? b.cap - 1 : rows.length;
+    var chunks = stepChunks(inst), show = drawn(b, rows.length);
     for (var j = 0; j < show; j++) drawRow(inst, b, rows[j], chunks);
-    if (rows.length > b.cap) {
-      text('+' + (rows.length - show) + ' more', b.bx, rowY(b, b.cap - 1) + 4.5, 8, COL.faint);
-    } else if (canAdmit(inst)) {   // a free slot: the next request to arrive joins at the next step
+    if (rows.length > b.cap) {   // on its own line below the last drawn row (two row lines tall)
+      text('+' + (rows.length - show) + ' more', b.bx, lineY(b, show) + 7.5, 8, COL.faint);
+    } else if (rows.length < b.cap && canAdmit(inst)) {   // a free slot: the next request to arrive joins at the next step
       ctx.strokeStyle = COL.free; ctx.setLineDash([2, 2]);
-      rr(b.bx + 0.5, rowY(b, rows.length) + 0.5, b.bw * 0.22, ROW_H - 1, 1.5); ctx.stroke(); ctx.setLineDash([]);
+      rr(b.bx + 0.5, lineY(b, rows.length) + 0.5, b.bw * 0.22, ROW_H - 1, 1.5); ctx.stroke(); ctx.setLineDash([]);
     }
 
     var ky = b.y + b.h - 8;
@@ -245,10 +251,13 @@
   function drawDots() {
     for (var id in V.dots) {
       var d = V.dots[id];
-      if (d.landed) continue;
+      var a = d.fade ? Math.max(0, Math.min(1, (Math.abs(d.tx - d.x) + Math.abs(d.ty - d.y) - FADE_NEAR) / FADE_SPAN)) : 1;
+      if (d.landed || !a) continue;
+      ctx.globalAlpha = a;
       ctx.fillStyle = d.r.state === 'queued' ? waitColor(sim.t - d.r.t0) : COL.accent;
       dotAt(d.x, d.y);
     }
+    ctx.globalAlpha = 1;
     ctx.fillStyle = COL.bad;
     V.rejects.forEach(function (p) {
       ctx.globalAlpha = p.age < 500 ? 1 : Math.max(0, 1 - (p.age - 500) / 400);
