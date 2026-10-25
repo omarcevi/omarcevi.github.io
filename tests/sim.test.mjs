@@ -409,11 +409,7 @@ test('tab 02: less KV memory means more preemption overall and fewer requests se
   assert.ok(lo >= 3 * hi, `${lo} vs ${hi}`);
 });
 
-const preset = (id, seed, quiet) => {
-  const p = E.PRESETS[id];
-  const streams = quiet ? p.streams.map(s => Object.assign({}, s, { bursts: false })) : p.streams;
-  return E.createSim(Object.assign({}, p, { seed, streams }));
-};
+const preset = (id, seed) => E.createSim(Object.assign({}, E.PRESETS[id], { seed }));
 const TAB3_SEEDS = [1, 2, 3, 4, 5];   // the page draws a random seed, so the lesson must not hang on one
 test('instances sharing a whole GPU are time-sliced; MIG slices and separate GPUs are not', () => {
   assert.deepEqual(preset('mig-time', 1).instances.map(i => i.timeSliced), [true, true, true]);
@@ -424,6 +420,8 @@ test('alone a time-sliced process runs at full speed; with a busy neighbour its 
   const sim = E.createSim({ seed: 1, streams: [{ model: 'llama-3-8b', rate: 0 }, { model: 'llama-3.2-1b', rate: 0 }],
     instances: [{ profile: '7g.80gb', model: 'llama-3-8b', gpu: 0, gpuMemUtil: 0.45 }, { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 0, gpuMemUtil: 0.2 }] });
   const i1 = sim.instances[1], cost = s => E.stepTimeMs('7g.80gb', 'llama-3.2-1b', s.prefill, s.decode, s.kvRead);
+  // Shared, only the GPU part of a step stretches, and 30% of the GPU's time goes to context switches
+  const sliced = (s, k) => E.GPU.stepOverheadMs + k * (cost(s) - E.GPU.stepOverheadMs) / 0.7;
   E.enqueue(sim, { prompt: 100, output: 400, model: 'llama-3.2-1b' });
   E.tick(sim, 1);
   assert.equal(i1.step.stretch, 1);
@@ -432,7 +430,7 @@ test('alone a time-sliced process runs at full speed; with a busy neighbour its 
   let seen = false;
   for (let t = 0; t < 2000 && !seen; t += 1) {
     E.tick(sim, 1);
-    if (i1.step && i1.step.stretch === 2) { seen = true; near(i1.stepEnd - i1.step.start, 2 * cost(i1.step), 1e-9); }
+    if (i1.step && i1.step.stretch === 2) { seen = true; near(i1.stepEnd - i1.step.start, sliced(i1.step, 2), 1e-9); }
   }
   assert.ok(seen);
 });
@@ -461,16 +459,24 @@ test('tab 03: GPU per model and MIG both meet every SLO on every seed, and MIG u
   }
   assert.deepEqual(['mig-gpu', 'mig-time', 'mig-mig'].map(id => preset(id, 5).gpuCount), [3, 1, 1]);
 });
-test('tab 03: a burst on the 8B model raises the 1B model\'s p99 under time-slicing, not under MIG (median over seeds)', () => {
-  function effect(id, seed) {
-    const sim = preset(id, seed, true);
-    run(sim, 40000);
-    const before = E.metrics(sim, 'llama-3.2-1b').ttftP99;
-    for (let k = 0; k < 4; k++) { E.sendBurst(sim, 40, 0); run(sim, 5000); }
-    return E.metrics(sim, 'llama-3.2-1b').ttftP99 / before;
-  }
-  const median = id => TAB3_SEEDS.map(seed => effect(id, seed)).sort((a, b) => a - b)[Math.floor(TAB3_SEEDS.length / 2)];
-  const time = median('mig-time'), mig = median('mig-mig');
-  assert.ok(time >= 2, `time-slicing ×${time}`);
-  assert.ok(mig <= 1.3, `MIG ×${mig}`);
+// Each model's TTFT p99 after 120 s, median over the seeds, in sim.slo's order (8B, 3B, 1B)
+function tab3Medians(id) {
+  const rows = TAB3_SEEDS.map(seed => {
+    const sim = preset(id, seed);
+    run(sim, 120000);
+    return Object.keys(sim.slo).map(model => E.metrics(sim, model).ttftP99);
+  });
+  return rows[0].map((_, i) => {
+    const col = rows.map(r => r[i]);
+    assert.ok(col.every(v => v !== null), `${id}: no TTFT data`);
+    return col.sort((a, b) => a - b)[Math.floor(col.length / 2)];
+  });
+}
+test('tab 03: time-slicing is slower than MIG for every model (median p99 over seeds)', () => {
+  const time = tab3Medians('mig-time'), mig = tab3Medians('mig-mig');
+  Object.keys(E.PRESETS['mig-time'].slo).forEach((model, i) => assert.ok(time[i] > mig[i], `${model}: time-slicing ${time[i]} vs MIG ${mig[i]}`));
+});
+test('tab 03: time-slicing misses at least one model\'s SLO (median p99 over seeds)', () => {
+  const slo = E.PRESETS['mig-time'].slo, time = tab3Medians('mig-time');
+  assert.ok(Object.keys(slo).some((model, i) => time[i] > slo[model]), `time-slicing medians ${time} all within ${Object.values(slo)}`);
 });

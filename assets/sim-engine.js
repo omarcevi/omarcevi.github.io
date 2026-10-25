@@ -36,6 +36,10 @@
 
   var GPU = { tflops: 989, tbps: 3.35, mfu: 0.5, mbu: 0.8, stepOverheadMs: 1.5 };
 
+  // Share of GPU time lost when time-sliced contexts alternate: the context switches themselves plus
+  // the cache and TLB thrash after each one. An assumption chosen for the lesson, not a measurement.
+  var CTX_SWITCH_LOSS = 0.3;
+
   var DEFAULTS = {
     gpuMemUtil: 0.9,
     activationReserveGB: 1,
@@ -63,33 +67,32 @@
     output: { median: 450, sigma: 0.2, min: 64, max: 1000 }
   };
 
-  // Synthetic lengths for tab 03's small models: short replies for the 3B, and for the 1B a
-  // classifier-like task that reads about 800 tokens and answers in one or two
+  // Synthetic lengths for tab 03's small models: short tasks for the 3B, tiny ones for the 1B
   var SHORT = {
     prompt: { median: 300, sigma: 0.6, min: 16, max: 2000 },
-    output: { median: 12, sigma: 0.4, min: 4, max: 400 }
+    output: { median: 60, sigma: 0.6, min: 4, max: 400 }
   };
   var TINY = {
-    prompt: { median: 800, sigma: 0.2, min: 8, max: 1000 },
-    output: { median: 1, sigma: 0.5, min: 1, max: 120 }
+    prompt: { median: 250, sigma: 0.5, min: 8, max: 1000 },
+    output: { median: 16, sigma: 0.5, min: 1, max: 120 }
   };
 
   // Tab 03: three models with their own traffic and TTFT p99 SLOs, on one of three deployments.
-  // Tuned for the tab 03 tests in tests/sim.test.mjs (seeds 1-5; a scratch run over seeds 1-60 held
-  // too). Time-slicing only hurts a process while its neighbours have work, so the 8B's traffic is
-  // bursts only (10-16 requests every 8-12 s) and the 3B is busy only part of the time: between 8B
-  // bursts the 1B gets most of the GPU, and during one its steps stretch. The 1B's prefill-heavy load
-  // turns that stretch into queueing, so its p99 rises 2-3x (median over seeds), while on its own
-  // MIG slice it barely moves.
+  // The 8B is chat-like (steady, with small bursts); the 3B and 1B serve short tasks at a high rate.
+  // The 3B and 1B rates and the 1B's prompt length are tuned so that, at 120 s on seeds 1-5
+  // (tests/sim.test.mjs), GPU per model and MIG meet every SLO, and time-slicing's median p99 is above
+  // MIG's for every model and above the 8B's SLO. Time-slicing loses because CTX_SWITCH_LOSS leaves
+  // each of three busy processes 0.7 / 3 of the GPU, less than a 2g.20gb slice gets, and well under
+  // the 8B's 3g.40gb.
   function tab03(instances) {
     return {
       instances: instances,
       batching: 'continuous',
       slo: { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 },
       streams: [
-        { model: 'llama-3-8b', rate: 0, bursts: { min: 10, max: 16 }, lengths: LENGTHS },
-        { model: 'llama-3.2-3b', rate: 2, bursts: false, lengths: SHORT },
-        { model: 'llama-3.2-1b', rate: 40, bursts: false, lengths: TINY }
+        { model: 'llama-3-8b', rate: 1.5, bursts: { min: 10, max: 16 }, lengths: LENGTHS },
+        { model: 'llama-3.2-3b', rate: 8, bursts: false, lengths: SHORT },
+        { model: 'llama-3.2-1b', rate: 25, bursts: false, lengths: TINY }
       ]
     };
   }
@@ -457,9 +460,9 @@
 
   // ---- Steps ----
 
-  // Time-slicing: processes sharing a whole GPU split its time among those with work, so a step is
-  // stretched by 1 plus the number of the GPU's other time-sliced processes with a step in flight.
-  // Alone it runs at full speed. The stretch is fixed when the step starts.
+  // Time-slicing: processes sharing a whole GPU split its time among those with work, so a step's
+  // stretch is 1 plus the number of the GPU's other time-sliced processes with a step in flight. It's
+  // fixed when the step starts.
   function stretchOf(sim, inst) {
     var stretch = 1;
     if (!inst.timeSliced) return stretch;
@@ -470,6 +473,14 @@
     return stretch;
   }
 
+  // How long a step takes at a given stretch. Alone (stretch 1) it runs at full speed. Shared, only
+  // its GPU time (not the fixed host-side overhead) is stretched, and CTX_SWITCH_LOSS of the GPU's
+  // time goes to switching between contexts.
+  function slicedMs(baseMs, stretch) {
+    if (stretch <= 1) return baseMs;
+    return GPU.stepOverheadMs + stretch * (baseMs - GPU.stepOverheadMs) / (1 - CTX_SWITCH_LOSS);
+  }
+
   // Starts a step at sim.t if the instance has work. Returns whether it did. inst.step keeps the
   // step's cost (prefill tokens, decodes, KV tokens read) and its time-slicing stretch.
   function startStep(sim, inst) {
@@ -477,7 +488,7 @@
     if (!plan.items.length) return false;
     var stretch = stretchOf(sim, inst);
     inst.step = { start: sim.t, items: plan.items, prefill: plan.prefill, decode: plan.decode, kvRead: plan.kvRead, stretch: stretch };
-    inst.stepEnd = sim.t + stretch * stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead);
+    inst.stepEnd = sim.t + slicedMs(stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead), stretch);
     return true;
   }
 
