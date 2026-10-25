@@ -274,6 +274,23 @@ class Booking(unittest.TestCase):
         self.assertEqual(f.attrs.get("src"), BOOKING_URL)
         self.assertTrue(f.attrs.get("title"))
         self.assertEqual(f.attrs.get("loading"), "lazy")
+        node = f.parent
+        while node is not None and node.tag != "dialog":
+            node = node.parent
+        self.assertIsNotNone(node, "booking iframe should live in a <dialog>, not inline in the page")
+        self.assertEqual(node.attrs.get("id"), "booking")
+
+    def test_trigger(self):
+        # a real link, so the booking page still opens (in a new tab) without JS
+        a = find_all(self.doc, "a", id="booking-open")
+        self.assertEqual(len(a), 1)
+        self.assertEqual(a[0].attrs.get("href"), BOOKING_URL)
+        self.assertEqual(a[0].attrs.get("target"), "_blank")
+        self.assertTrue(find_all(a[0], "svg", cls="ic"))
+        dialog = find_all(self.doc, "dialog", id="booking")[0]
+        forms = find_all(dialog, "form")
+        self.assertEqual([f.attrs.get("method") for f in forms], ["dialog"])
+        self.assertTrue(find_all(forms[0], "button", cls="booking-close"))
 
     def test_fallback_link(self):
         links = find_all(self.doc, "a", cls="booking-link")
@@ -298,7 +315,7 @@ class Booking(unittest.TestCase):
         contact = find_all(self.doc, "section", id="contact")[0]
         links = find_all(find_all(contact, cls="links")[0], "a")
         self.assertEqual([a.attrs.get("href") for a in links], [
-            "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            BOOKING_URL, "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
             "https://github.com/omarcevi", "https://omarcevi.medium.com"])
         for a in links:
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
