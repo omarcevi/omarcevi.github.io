@@ -48,8 +48,11 @@
     output: { median: 129, sigma: 0.93, min: 1, max: 1000 }
   };
 
-  var MAX_TICK_MS = 50;      // a background tab coming back must not replay minutes at once
-  var TOKLOG_KEEP_MS = 10000; // the token log only feeds recent-throughput metrics
+  var MAX_TICK_MS = 50;         // a background tab coming back must not replay minutes at once
+  var TOKLOG_KEEP_MS = 10000;   // the token log only feeds recent-throughput metrics
+  var TOKRATE_WINDOW_MS = 3000; // throughput is the tokens made over the last 3 s
+  var TTFT_WINDOW_MS = 30000;   // TTFT percentiles cover first tokens from the last 30 s,
+  var TTFT_SAMPLES = 200;       // and at most the last 200 of them
 
   var nextId = 1;
 
@@ -71,6 +74,8 @@
       // admitted sequence fits the KV pool on its own and preemption always terminates
       maxModelLen: Math.min(m.contextLen, Math.floor(kvBudget / m.kvBytesPerToken)),
       kvUsed: 0,
+      kvReserved: 0,   // a request-level batch's up-front KV reservation, 0 when none is running
+      batch: null,     // that batch: { padLen, steps }; null in continuous mode and for a legacy batch
       queue: [],
       running: [],
       stepEnd: null,
@@ -173,11 +178,12 @@
 
   // ---- KV accounting ----
 
-  // The KV bytes an instance holds. inst.kvUsed is only ever set from this.
+  // The KV bytes an instance holds: what its sequences hold, or a request-level batch's
+  // reservation, whichever is more. inst.kvUsed is only ever set from this.
   function kvUsedBytes(inst) {
     var tokens = 0;
     for (var k = 0; k < inst.running.length; k++) tokens += inst.running[k].kvTokens;
-    return tokens * MODELS[inst.model].kvBytesPerToken;
+    return Math.max(inst.kvReserved, tokens * MODELS[inst.model].kvBytesPerToken);
   }
 
   // Preemption by recompute (vLLM's default): drop the newest sequence's KV and put it back at the
@@ -203,7 +209,8 @@
   // budget and the KV pool allow. Every KV check is on what the step will hold when it completes:
   // its chunks, plus one token per decode and per prefill that completes (that's the first token).
   // A running sequence that doesn't fit preempts the newest one; a queued one waits.
-  function planContinuous(sim, inst) {
+  // With admit false, only the running sequences step (a legacy batch in request-level mode).
+  function planContinuous(sim, inst, admit) {
     var cfg = sim.cfg, kv = MODELS[inst.model].kvBytesPerToken;
     var items = [], tokens = cfg.maxNumBatchedTokens, grow = 0;
     function fits(add) { return inst.kvUsed + (grow + add) * kv <= inst.kvBudget; }
@@ -220,7 +227,7 @@
       if (inst.running.length > k) take(r, chunk, add);   // else r was the newest and is preempted
     }
 
-    while (inst.queue.length && inst.running.length < cfg.maxNumSeqs && tokens > 0) {
+    while (admit && inst.queue.length && inst.running.length < cfg.maxNumSeqs && tokens > 0) {
       var q = inst.queue[0], qLeft = q.prefillTarget - q.prefillDone, qChunk = Math.min(qLeft, tokens);
       var qAdd = qChunk + (qChunk === qLeft ? 1 : 0);
       if (!fits(qAdd)) break;
@@ -233,23 +240,96 @@
     return items;
   }
 
+  // A continuous step's cost: its chunks, one token per decode, and the KV its sequences read
+  function costOf(items) {
+    var plan = { items: items, prefill: 0, decode: 0, kvRead: 0 };
+    for (var k = 0; k < items.length; k++) {
+      if (items[k].chunk) plan.prefill += items[k].chunk;
+      else plan.decode += 1;
+      plan.kvRead += items[k].req.kvTokens;
+    }
+    return plan;
+  }
+
+  // ---- Request-level batching (static batches: Hugging Face generate() behind Triton's dynamic batcher) ----
+
+  function batchDeadline(sim, inst) {
+    return inst.queue[0].t0 + sim.cfg.maxQueueDelayMs;
+  }
+
+  // A batch forms only on an empty instance, once the queue holds max-batch requests or its oldest has
+  // waited max-queue-delay. A sequence already running (a legacy batch from continuous mode) blocks it.
+  function batchReady(sim, inst) {
+    return !inst.running.length && inst.queue.length > 0 &&
+      (inst.queue.length >= sim.cfg.maxBatch || sim.t >= batchDeadline(sim, inst));
+  }
+
+  // Takes the queue head while the batch is under max-batch and every slot's KV fits: the scheduler can't
+  // know output lengths, so each slot reserves the batch's longest prompt plus max_tokens. A batch of one
+  // always fits, since the router only sends prompts within max-model-len.
+  function formBatch(sim, inst) {
+    var cfg = sim.cfg, kv = MODELS[inst.model].kvBytesPerToken, n = 0, maxPrompt = 0, padLen = 0;
+    while (n < inst.queue.length && n < cfg.maxBatch) {
+      var longest = Math.max(maxPrompt, inst.queue[n].prompt);
+      if ((n + 1) * (longest + cfg.maxTokens) * kv > inst.kvBudget) break;
+      maxPrompt = longest;
+      n += 1;
+    }
+    var taken = inst.queue.splice(0, n);
+    for (var k = 0; k < n; k++) {
+      var r = taken[k];
+      r.state = 'running';
+      if (r.tAdmit === null) r.tAdmit = sim.t;
+      padLen = Math.max(padLen, r.prefillTarget);   // a re-prefill after preemption also redoes the tokens it made
+      inst.running.push(r);
+    }
+    inst.kvReserved = n * (maxPrompt + cfg.maxTokens) * kv;
+    inst.batch = { padLen: padLen, steps: 0 };
+    inst.kvUsed = kvUsedBytes(inst);
+  }
+
+  // A static batch computes every slot, padded: its first step prefills n * padLen tokens and gives every
+  // sequence its first token, then each step decodes all n slots, idle ones included, over padded KV.
+  function planRequest(sim, inst) {
+    if (batchReady(sim, inst)) formBatch(sim, inst);
+    var b = inst.batch;
+    if (!b) return costOf(planContinuous(sim, inst, false));   // a legacy batch, or nothing to do
+    var n = inst.running.length, items = [];
+    for (var k = 0; k < n; k++) {
+      var r = inst.running[k];
+      if (r.state === 'running') items.push({ req: r, chunk: b.steps ? 0 : r.prefillTarget - r.prefillDone });
+    }
+    if (!b.steps) return { items: items, prefill: n * b.padLen, decode: 0, kvRead: 0 };
+    return { items: items, prefill: 0, decode: n, kvRead: n * (b.padLen + b.steps) };
+  }
+
+  function endBatch(inst) {
+    for (var k = 0; k < inst.running.length; k++) inst.running[k].state = 'done';
+    inst.running = [];
+    inst.batch = null;
+    inst.kvReserved = 0;
+  }
+
+  // ---- Steps ----
+
   // Starts a step at sim.t if the instance has work. Returns whether it did.
   function startStep(sim, inst) {
-    var items = planContinuous(sim, inst);
-    if (!items.length) return false;
-    var prefill = 0, decode = 0, kvRead = 0;
-    for (var k = 0; k < items.length; k++) {
-      if (items[k].chunk) prefill += items[k].chunk;
-      else decode += 1;
-      kvRead += items[k].req.kvTokens;
-    }
-    inst.step = { start: sim.t, items: items };
-    inst.stepEnd = sim.t + stepTimeMs(inst.profile, inst.model, prefill, decode, kvRead);
+    var plan = sim.batching === 'request' ? planRequest(sim, inst) : costOf(planContinuous(sim, inst, true));
+    if (!plan.items.length) return false;
+    inst.step = { start: sim.t, items: plan.items };
+    inst.stepEnd = sim.t + stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead);
     return true;
   }
 
+  // Keeps a log of [time, value] entries to its last keepMs and its last maxLen entries
+  function trimLog(log, t, keepMs, maxLen) {
+    while (log.length && (log.length > maxLen || log[0][0] < t - keepMs)) log.shift();
+  }
+
+  // A sequence that reaches its length is finished and counted right then, exactly once. In a
+  // request-level batch it then stays as an idle slot, and the batch ends when every slot is idle.
   function finishStep(sim, inst) {
-    var t = inst.stepEnd, items = inst.step.items, made = 0, k, r;
+    var t = inst.stepEnd, items = inst.step.items, made = 0, idle = 0, k, r;
     for (k = 0; k < items.length; k++) {
       r = items[k].req;
       if (items[k].chunk) {
@@ -259,24 +339,30 @@
       }
       r.generated += 1;                                  // a decode token, or the first token after prefill
       r.kvTokens += 1;
-      if (r.tFirst === null) r.tFirst = t;
+      if (r.tFirst === null) {
+        r.tFirst = t;
+        sim.ttftLog.push([t, t - r.t0]);
+      }
       made += 1;
     }
+    if (inst.batch) inst.batch.steps += 1;
     // A sequence ends at its own length (its stop token) or at max_tokens
     for (k = inst.running.length - 1; k >= 0; k--) {
       r = inst.running[k];
-      if (r.generated < Math.min(r.output, sim.cfg.maxTokens)) continue;
-      inst.running.splice(k, 1);
-      r.state = 'done';
-      r.tDone = t;
-      r.kvTokens = 0;
-      sim.finished.push(r);
-      sim.stats.finished += 1;
+      if (r.state === 'running' && r.generated >= Math.min(r.output, sim.cfg.maxTokens)) {
+        r.tDone = t;
+        r.kvTokens = 0;
+        sim.finished.push(r);
+        sim.stats.finished += 1;
+        if (inst.batch) r.state = 'idle';
+        else { r.state = 'done'; inst.running.splice(k, 1); }
+      }
+      if (r.state === 'idle') idle += 1;
     }
-    if (made) {
-      sim.tokLog.push([t, made]);
-      while (sim.tokLog[0][0] < t - TOKLOG_KEEP_MS) sim.tokLog.shift();
-    }
+    if (inst.batch && idle === inst.running.length) endBatch(inst);
+    if (made) sim.tokLog.push([t, made]);
+    trimLog(sim.tokLog, t, TOKLOG_KEEP_MS, Infinity);
+    trimLog(sim.ttftLog, t, TTFT_WINDOW_MS, TTFT_SAMPLES);
     inst.kvUsed = kvUsedBytes(inst);
     inst.step = null;
     inst.stepEnd = null;
@@ -284,10 +370,19 @@
 
   // ---- Event loop ----
 
-  // Wake-up times besides arrivals and step ends: Infinity, or a time after sim.t. Request-level
-  // batching will add its max-queue-delay timeout here; continuous batching needs none.
+  // Wake-up times besides arrivals and step ends: Infinity, or a time after sim.t. In request-level
+  // mode an empty instance wakes when its oldest queued request reaches max-queue-delay (a deadline
+  // already reached forms its batch on the next pass); continuous batching needs none.
   function wakeUpTime(sim) {
-    return Infinity;
+    var t = Infinity;
+    if (sim.batching !== 'request') return t;
+    for (var k = 0; k < sim.instances.length; k++) {
+      var inst = sim.instances[k];
+      if (inst.running.length || !inst.queue.length) continue;
+      var deadline = batchDeadline(sim, inst);
+      if (deadline > sim.t && deadline < t) t = deadline;
+    }
+    return t;
   }
 
   // The earliest event. Step completions win ties, so the router sees the slots they free.
@@ -334,6 +429,52 @@
     sim.t = end;
   }
 
+  // Switches the batching mode live and logs it in sim.events. To continuous: idle slots (already
+  // finished and counted) leave, and the reservation gives way to the KV the sequences hold. To
+  // request-level: the sequences running finish as a legacy batch that nothing joins, guarded by
+  // preemption like in continuous mode, and the first batch forms once they're done.
+  function setBatching(sim, mode) {
+    if (mode === sim.batching) return;
+    sim.batching = mode;
+    sim.events.push({ t: sim.t, label: mode === 'request' ? 'request-level on' : 'continuous on' });
+    if (mode !== 'continuous') return;
+    for (var k = 0; k < sim.instances.length; k++) {
+      var inst = sim.instances[k];
+      inst.running = inst.running.filter(function (r) {
+        if (r.state !== 'idle') return true;
+        r.state = 'done';
+        return false;
+      });
+      inst.batch = null;
+      inst.kvReserved = 0;
+      inst.kvUsed = kvUsedBytes(inst);
+    }
+  }
+
+  // ---- Metrics ----
+
+  // Nearest-rank percentile (p in 0..1) of an ascending list
+  function nearestRank(sorted, p) {
+    return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
+  }
+
+  // TTFT is tFirst - t0 over the recent first tokens (TTFT_WINDOW_MS, TTFT_SAMPLES), null without any.
+  // Throughput is the tokens made over the last TOKRATE_WINDOW_MS, per second.
+  function metrics(sim) {
+    var ttfts = [], tokens = 0, k;
+    for (k = 0; k < sim.ttftLog.length; k++) {
+      if (sim.ttftLog[k][0] >= sim.t - TTFT_WINDOW_MS) ttfts.push(sim.ttftLog[k][1]);
+    }
+    ttfts.sort(function (a, b) { return a - b; });
+    for (k = 0; k < sim.tokLog.length; k++) {
+      if (sim.tokLog[k][0] >= sim.t - TOKRATE_WINDOW_MS) tokens += sim.tokLog[k][1];
+    }
+    return {
+      ttftP99: ttfts.length ? nearestRank(ttfts, 0.99) : null,
+      tokPerSec: tokens / (TOKRATE_WINDOW_MS / 1000)
+    };
+  }
+
   // opts = { seed, instances: [{ profile, model }], batching, traffic: { rate (req/s), bursts }, config? }
   function createSim(opts) {
     var cfg = {};
@@ -350,7 +491,8 @@
       events: [],
       finished: [],
       stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0 },
-      tokLog: [],
+      tokLog: [],      // [time, tokens made in a step]
+      ttftLog: [],     // [time of a first token, its TTFT]
       nextArrival: Infinity,
       nextBurst: Infinity
     };
@@ -370,7 +512,9 @@
     createSim: createSim,
     tick: tick,
     route: route,
-    enqueue: enqueue
+    enqueue: enqueue,
+    setBatching: setBatching,
+    metrics: metrics
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

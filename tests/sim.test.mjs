@@ -122,3 +122,68 @@ test('router sends a prompt too long for one instance to another that can hold i
   assert.equal(r.inst, 1);
   assert.equal(E.enqueue(sim, { prompt: 7500, output: 10 }).state, 'rejected');   // fits neither
 });
+
+test('request-level batch size is capped by the up-front KV reservation', () => {
+  const sim = E.createSim({ seed: 1, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'request',
+                            config: { gpuMemUtil: 0.45 }, traffic: { rate: 0, bursts: false } });
+  for (let k = 0; k < 6; k++) E.enqueue(sim, { prompt: 2000, output: 50 });
+  E.tick(sim, 30);                                  // past maxQueueDelayMs
+  assert.equal(sim.instances[0].running.length, 2); // 0.94e9 / ((2000+1024)*131072) = 2.37
+});
+test('a request-level batch holds finished sequences as idle slots until its longest one ends', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 1, batching: 'request', traffic: { rate: 0, bursts: false } });
+  const short = E.enqueue(sim, { prompt: 100, output: 3 });
+  const long = E.enqueue(sim, { prompt: 100, output: 300 });
+  run(sim, 600);
+  assert.equal(short.state, 'idle');
+  assert.equal(sim.instances[0].running.length, 2);
+  run(sim, 10000);
+  assert.equal(long.state, 'done');
+  assert.equal(sim.instances[0].running.length, 0);
+});
+test('continuous batching beats request-level (same seed, tab 01 preset)', () => {
+  const a = E.createSim({ ...E.PRESETS.batching, seed: 7, batching: 'continuous' }); run(a, 60000);
+  const b = E.createSim({ ...E.PRESETS.batching, seed: 7, batching: 'request' }); run(b, 60000);
+  assert.ok(E.metrics(a).ttftP99 * 2 <= E.metrics(b).ttftP99);
+  assert.ok(E.metrics(a).tokPerSec > E.metrics(b).tokPerSec);
+});
+test('toggling modes mid-flight loses and duplicates nothing', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 8 });
+  for (let k = 0; k < 6; k++) { run(sim, 10000); E.setBatching(sim, k % 2 ? 'continuous' : 'request'); }
+  sim.arrivalsOn = false; sim.pending = [];
+  run(sim, 240000);
+  assert.equal(sim.stats.arrived, sim.stats.finished + sim.stats.rejected);
+  assert.equal(new Set(sim.finished.map(r => r.id)).size, sim.finished.length);
+  assert.equal(sim.events.length, 6);
+});
+test('switching to continuous mid-batch drops the idle slots, frees the reservation and logs the event', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 1, batching: 'request', traffic: { rate: 0, bursts: false } });
+  const inst = sim.instances[0], kv = E.MODELS['llama-3-8b'].kvBytesPerToken;
+  const short = E.enqueue(sim, { prompt: 100, output: 3 });
+  const long = E.enqueue(sim, { prompt: 100, output: 300 });
+  run(sim, 600);
+  assert.equal(inst.kvUsed, 2 * (100 + 1024) * kv);         // the reservation, not the tokens held
+  E.setBatching(sim, 'continuous');
+  assert.deepEqual(sim.events, [{ t: sim.t, label: 'continuous on' }]);
+  assert.deepEqual(inst.running, [long]);
+  assert.equal(short.state, 'done');
+  assert.equal(inst.kvUsed, long.kvTokens * kv);
+  run(sim, 10000);
+  assert.equal(long.state, 'done');
+  assert.equal(sim.stats.finished, 2);                       // short was counted once, when it went idle
+});
+test('after a switch to request-level, running sequences finish as a legacy batch that nobody joins', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 1, traffic: { rate: 0, bursts: false } });
+  const long = E.enqueue(sim, { prompt: 100, output: 300 });
+  run(sim, 500);
+  E.setBatching(sim, 'request');
+  assert.equal(sim.events[0].label, 'request-level on');
+  const next = E.enqueue(sim, { prompt: 100, output: 5 });
+  run(sim, 1000);
+  assert.equal(long.state, 'running');
+  assert.equal(next.state, 'queued');
+  run(sim, 10000);
+  assert.equal(next.state, 'done');
+  assert.ok(next.tAdmit >= long.tDone);
+  assert.equal(sim.stats.finished, 2);
+});
