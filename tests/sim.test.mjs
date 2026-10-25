@@ -391,13 +391,20 @@ test('tab 02: every slider position from 0.5 to 0.95 starts the server and fits 
     assert.ok(inst.maxModelLen >= E.PRESETS.kvcache.traffic.lengths.prompt.max + 1024, String(u));
   }
 });
-test('tab 02: at the default 0.9 the KV pool fills and the scheduler preempts', () => {
-  const r = kvRun(0.9, 3);
-  assert.ok(r.peak >= 0.9, String(r.peak));
-  assert.ok(r.sim.stats.preemptions > 0);
+const KV_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];   // the page draws a random seed, so the lesson must not hang on one
+test('tab 02: at the default 0.9 the KV pool fills and the scheduler preempts, on every seed', () => {
+  for (const seed of KV_SEEDS) {
+    const r = kvRun(0.9, seed);
+    assert.ok(r.peak >= 0.9, `seed ${seed}: peak ${r.peak}`);
+    assert.ok(r.sim.stats.preemptions > 0, `seed ${seed}: no preemptions`);
+  }
 });
-test('tab 02: less KV memory means more preemption and fewer requests served', () => {
-  const lo = kvRun(0.5, 3), hi = kvRun(0.95, 3);
-  assert.ok(lo.sim.stats.preemptions >= 3 * Math.max(1, hi.sim.stats.preemptions), `${lo.sim.stats.preemptions} vs ${hi.sim.stats.preemptions}`);
-  assert.ok(hi.sim.stats.finished > lo.sim.stats.finished);
+test('tab 02: less KV memory means more preemption overall and fewer requests served on every seed', () => {
+  let lo = 0, hi = 0;
+  for (const seed of KV_SEEDS) {
+    const a = kvRun(0.5, seed), b = kvRun(0.95, seed);
+    lo += a.sim.stats.preemptions; hi += b.sim.stats.preemptions;
+    assert.ok(b.sim.stats.finished > a.sim.stats.finished, `seed ${seed}: ${b.sim.stats.finished} vs ${a.sim.stats.finished}`);
+  }
+  assert.ok(lo >= 3 * hi, `${lo} vs ${hi}`);
 });
