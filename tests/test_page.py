@@ -182,9 +182,15 @@ class Simulator(unittest.TestCase):
                          ["canvas", "sim-key", "p-foot"])
         entries = keys[0].elements()
         self.assertEqual([" ".join(e.text().split()) for e in entries], [
-            "prefill", "decode, one token per step", "finished", "idle slot (request-level only)", "KV cache"])
+            "prefill", "decode, one token per step", "finished", "idle slot (request-level only)", "preempted", "KV cache"])
         for e in entries:
             self.assertEqual(len(find_all(e, "i")), 1, e.text())   # its swatch
+        self.assertEqual(find_all(entries[4], "i")[0].classes, ["k-pre"])
+
+    def test_key_text_size(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        key = re.search(r"\.sim-key \{([^}]*)\}", page).group(1)
+        self.assertIn("font-size: 0.72rem;", key)   # the footer's size, and no DOM text under 11px
 
     def test_key_colours_match_canvas(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -192,12 +198,20 @@ class Simulator(unittest.TestCase):
 
         def squash(s):
             return re.sub(r"\s+", "", s)
-        for cls, col in (("k-prefill", "accent"), ("k-decode", "decode"), ("k-done", "ok"), ("k-idle", "idle")):
+        for cls, col in (("k-prefill", "accent"), ("k-decode", "decode"), ("k-done", "ok"), ("k-idle", "idle"), ("k-pre", "warn")):
             css = re.search(r"\.sim-key \." + cls + r" \{ --c: ([^;]+); \}", page)
             canvas = re.search(r"\b" + col + r": '([^']+)'", js)
             self.assertIsNotNone(css, cls)
             self.assertIsNotNone(canvas, col)
             self.assertEqual(squash(css.group(1)), squash(canvas.group(1)), cls)
+
+    def test_caption_is_tab_neutral(self):
+        kids = self.box.parent.elements()
+        cap = kids[kids.index(self.box) + 1]
+        self.assertEqual(cap.classes, ["cap", "js-only"])
+        self.assertEqual(" ".join(cap.text().split()),
+                         "A model of LLM serving, not a benchmark: step times come from the H100's specs and each "
+                         "model's real size. Pick a tab, send a burst, then pause and watch it drain.")
 
     def test_throughput_and_cost_say_output_tokens(self):
         thr = find_all(self.box, id="m-thr")[0].parent

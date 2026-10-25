@@ -2,9 +2,10 @@
 // on the #sim canvas and wires the panel's controls. Each tab is an engine preset, rebuilt and
 // warmed up when the tab opens; tab 02's memory slider and tab 03's deployment switch redeploy the
 // same way. The canvas shows arrivals, each instance's queue lane, its running sequences (one row
-// each) and KV cache, the token stream, and a rolling TTFT p99 line with a marker for each switch
-// the visitor makes. Animations run on the page's frame clock; the sim's own clock stops once it
-// has drained.
+// each, flashing amber when preempted) and KV cache, the token stream, and a rolling TTFT p99 line
+// with a marker for each switch the visitor makes. In tab 03 each box also shows its model's p99
+// against that model's SLO, and a time-sliced step's stretch. Animations run on the page's frame
+// clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
   var E = window.SimEngine;
@@ -16,7 +17,9 @@
 
   var WARMUP_TICKS = 500, TICK_MS = 16;  // 8 s of sim time, so a tab never opens empty
   var SAMPLE_MS = 300, SAMPLES = 110;    // footer refresh and sparkline samples, in sim time
-  var FLASH_MS = 300;                    // a finished row flashes green this long
+  var FLASH_MS = 300;                    // a finished row flashes green this long, a preempted one amber
+  var P99_WINDOW_MS = 120000;            // a box's p99 against its SLO covers 2 min: over 30 s an 8B's p99 is just its slowest request
+  var TALL_AT = 3;                       // instances: from three, the canvas grows (#sim.tall) so each box draws 6 rows (5 on phones)
   var BURST = 24;
   var ROW_H = 4, ROW_GAP = 2.2, CELL = 9.5, DOT_R = 3.2, STRIP_H = 26;
   var FADE_NEAR = 18, FADE_SPAN = 40;    // a dot for a row under "+N more" is gone this close to its target (px)
@@ -26,7 +29,8 @@
     faint: '#5c626d', muted: '#8b919c', accent: '#7aa2ff', ok: '#4ade80', warn: '#f5a524', bad: '#ef4444',
     panel: '#0f1115', box: '#161920', line: '#2a2f38', track: '#232830', sep: '#1c2027',
     prefillTodo: 'rgba(122,162,255,0.22)', decode: 'rgba(122,162,255,0.6)', idle: 'rgba(139,145,156,0.35)',
-    doneDecode: 'rgba(74,222,128,0.55)', free: 'rgba(122,162,255,0.55)', lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)'
+    doneDecode: 'rgba(74,222,128,0.55)', preDecode: 'rgba(245,165,36,0.55)', free: 'rgba(122,162,255,0.55)',
+    lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)'
   };
   var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
   var PLAY = {
@@ -129,15 +133,18 @@
   // ---- View state: what the canvas shows, eased towards the engine's state ----
 
   function freshView() {
-    var zeros = sim.instances.map(function () { return 0; });
+    var zeros = sim.instances.map(function () { return 0; }), models = {};
+    sim.instances.forEach(function (inst) { models[inst.model] = true; });
     return {
       vt: 0,              // frame clock (ms); it runs on after the sim's clock stops
       place: true,        // the next sync puts everything at its target instead of easing there
       dots: {},           // request id -> a dot for a queued request, or one flying to its row
-      rows: sim.instances.map(function () { return []; }),   // per instance: { r, y, gen, doneAt, flew }
+      rows: sim.instances.map(function () { return []; }),   // per instance: { r, y, gen, doneAt, flew, pre, preAt }
       rate: zeros.slice(), acc: zeros.slice(),               // per instance: tok/s (smoothed), particle debt
       fly: [], toks: [], rejects: [],                        // finished requests, token particles, 503s
-      hist: [], nextSample: SAMPLE_MS, rejected: 0
+      hist: [], nextSample: SAMPLE_MS, rejected: 0,
+      multi: Object.keys(models).length > 1,                 // several models: each box names its model
+      p99: {}                                                // model -> TTFT p99 over P99_WINDOW_MS (tab 03), per footer refresh
     };
   }
 
@@ -172,24 +179,32 @@
         row = rows[j]; r = row.r;
         made += r.generated - row.gen; row.gen = r.generated;
         if (r.tDone !== null && row.doneAt === null) row.doneAt = V.vt;
+        if (r.preemptions > row.pre && row.preAt === null) {
+          if (j < vis) row.preAt = V.vt;   // preempted: a drawn row flashes amber before it leaves
+          else row.pre = r.preemptions;    // a row under "+N more" just goes (or stays, if already readmitted)
+        }
+        if (row.preAt !== null && V.vt - row.preAt >= FLASH_MS) {
+          row.pre = r.preemptions; row.preAt = null;   // flashed: it leaves below, unless already readmitted
+        }
         if (row.doneAt !== null && !row.flew && V.vt - row.doneAt >= FLASH_MS) {
           row.flew = true;
           if (j < vis) flyOut(b, row);   // a row under "+N more" was never drawn, so nothing flies out of it
         }
         if (live[r.id] === r) have[r.id] = true;              // running, or an idle slot of a request-level batch
-        else if (row.doneAt === null || row.flew) rows.splice(j, 1);   // preempted, or finished and flown out
+        else if (row.preAt === null && (row.doneAt === null || row.flew)) rows.splice(j, 1);   // preempted and flashed, or finished and flown out
       }
       inst.running.forEach(function (x) {
-        if (!have[x.id]) rows.push({ r: x, y: null, gen: x.generated, doneAt: x.tDone !== null ? -Infinity : null, flew: x.tDone !== null });
+        if (!have[x.id]) rows.push({ r: x, y: null, gen: x.generated, doneAt: x.tDone !== null ? -Infinity : null, flew: x.tDone !== null, pre: x.preemptions, preAt: null });
       });
       vis = drawn(b, rows.length);
       for (j = 0; j < rows.length; j++) {
         row = rows[j]; ty = rowY(b, j, rows.length);
         row.y = row.y === null ? ty : row.y + (ty - row.y) * k;   // a new row starts in its place
-        // a row under "+N more" isn't drawn, so its dot fades out before it reaches the box, clear of the label
-        if (live[row.r.id] === row.r) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis);
+        // a row under "+N more" isn't drawn, so its dot fades out before it reaches the box, clear of the label.
+        // A flashing preempted row keeps its dot; once the row goes, the dot eases back to the queue front.
+        if (live[row.r.id] === row.r || row.preAt !== null) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis);
       }
-      inst.queue.forEach(function (x, qi) { var p = qslot(b, qi); dot(x, p[0], p[1], false); });
+      inst.queue.forEach(function (x, qi) { if (!seen[x.id]) { var p = qslot(b, qi); dot(x, p[0], p[1], false); } });
       if (dt > 0) {   // token particles: scaled to the instance's tok/s, at most 30 a second
         V.rate[ii] += (made * 1000 / dt - V.rate[ii]) * Math.min(1, dt / 600);
         V.acc[ii] += Math.min(MAX_PARTICLES_PER_S, V.rate[ii] / TOKENS_PER_PARTICLE) * dt / 1000;
@@ -234,7 +249,10 @@
   function drawRow(inst, b, row, chunks) {
     var r = row.r, x = b.bx, y = row.y, pw = prefillW(b, r);
     var flash = row.doneAt !== null && V.vt - row.doneAt < FLASH_MS;
-    if (flash) {
+    if (row.preAt !== null) {   // preempted: its KV is gone, and it will redo its prefill from the queue
+      bar(x, y, pw, ROW_H, COL.warn);
+      bar(x + pw + 1.5, y, decodeW(b, pw, r.generated), ROW_H, COL.preDecode);
+    } else if (flash) {
       bar(x, y, pw, ROW_H, COL.ok);
       bar(x + pw + 1.5, y, decodeW(b, pw, r.generated), ROW_H, COL.doneDecode);
     } else if (r.state === 'idle') {
@@ -250,27 +268,72 @@
     }
   }
 
-  function canAdmit(inst) {
-    return sim.batching === 'continuous' && !inst.queue.length && inst.running.length < sim.cfg.maxNumSeqs && inst.kvUsed < inst.kvBudget;
+  // A box's name: a whole H100 as itself, numbered when there are several, or shared when time-sliced;
+  // a MIG slice by its profile
+  function boxName(inst) {
+    if (inst.profile !== '7g.80gb') return inst.profile;
+    return inst.timeSliced ? 'shared H100' : sim.gpuCount > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
+  }
+  function width(pieces) {
+    var w = 0;
+    for (var k = 0; k < pieces.length; k++) w += ctx.measureText(pieces[k][0]).width;
+    return w;
+  }
+  // A box's header: its name on the left; on the right a time-sliced step's stretch (×2, ×3), then in
+  // tab 03 the model's p99 against its SLO, else the running count, then KV. levels runs from the fullest
+  // header to the barest: pieces drop from the right (KV, then "p99 "), and last the name gives way to
+  // just the model. A time-sliced box always keeps room for its marker, so nothing shifts as it blinks.
+  function header(inst) {
+    var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0, fits;
+    var kvTxt = 'KV ' + Math.round(kv * 100) + '%', kvCol = hot ? COL.warn : COL.muted;
+    inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
+    if (sim.slo) {
+      var p = V.p99[inst.model], v = E.fmt.ms(p === undefined ? null : p);
+      var pCol = p === null || p === undefined ? COL.muted : p <= sim.slo[inst.model] ? COL.ok : COL.bad;
+      fits = [[['p99 ' + v, pCol], [' · ' + kvTxt, kvCol]], [['p99 ' + v, pCol]], [[v, pCol]]];
+    } else {
+      fits = [[['running ' + n + ' · ' + kvTxt, kvCol]], [[n + ' · ' + kvTxt, kvCol]]];
+    }
+    var short = E.MODELS[inst.model].short, name = V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
+    var levels = fits.map(function (f) { return [name, f]; });
+    if (V.multi) levels.push([short, fits[fits.length - 1]]);
+    ctx.font = '9px ' + FONT;
+    return {
+      kv: kv, hot: hot, levels: levels,
+      marker: inst.step && inst.step.stretch > 1 ? ['×' + inst.step.stretch + ' ', COL.warn] : null,
+      room: inst.timeSliced ? ctx.measureText('×0 ').width : 0
+    };
+  }
+  // The first level whose header fits its box (the last one if none does)
+  function fitLevel(h, b) {
+    ctx.font = '9px ' + FONT;
+    for (var k = 0; k < h.levels.length - 1; k++) {
+      if (ctx.measureText(h.levels[k][0]).width + h.room + width(h.levels[k][1]) + 24 <= b.w) return k;
+    }
+    return h.levels.length - 1;
+  }
+  function drawHeader(h, level, b) {
+    var right = (h.marker ? [h.marker] : []).concat(h.levels[level][1]), x = b.x + b.w - 7;
+    text(h.levels[level][0], b.x + 7, b.y + 12, 9, COL.muted);
+    for (var k = right.length - 1; k >= 0; k--) {   // right-aligned, last piece first
+      text(right[k][0], x, b.y + 12, 9, right[k][1], 'right');
+      x -= ctx.measureText(right[k][0]).width;
+    }
   }
 
-  function drawInstance(inst, b, rows) {
+  function drawInstance(inst, b, rows, h, level) {
     ctx.strokeStyle = COL.lane; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
     rr(L.qx0 - 6, b.y, L.qx1 - L.qx0 + 12, b.h, 6); ctx.stroke(); ctx.setLineDash([]);
 
     rr(b.x, b.y, b.w, b.h, 6); ctx.fillStyle = COL.box; ctx.fill(); ctx.strokeStyle = COL.line; ctx.stroke();
-    var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0;
-    inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
-    var tail = n + ' · KV ' + Math.round(kv * 100) + '%', right = 'running ' + tail;
-    text(inst.profile, b.x + 7, b.y + 12, 9, COL.muted);
-    if (ctx.measureText(inst.profile).width + ctx.measureText(right).width + 24 > b.w) right = tail;
-    text(right, b.x + b.w - 7, b.y + 12, 9, hot ? COL.warn : COL.muted, 'right');
+    var kv = h.kv, hot = h.hot;
+    drawHeader(h, level, b);
 
     var chunks = stepChunks(inst), show = drawn(b, rows.length);
     for (var j = 0; j < show; j++) drawRow(inst, b, rows[j], chunks);
     if (rows.length > b.cap) {   // on its own line below the last drawn row (two row lines tall)
       text('+' + (rows.length - show) + ' more', b.bx, lineY(b, show) + 7.5, 8, COL.faint);
-    } else if (rows.length < b.cap && canAdmit(inst)) {   // a free slot: the next request to arrive joins at the next step
+    } else if (rows.length < b.cap && E.canAdmit(sim, inst)) {   // a free slot: the next request to arrive joins at the next step
       ctx.strokeStyle = COL.free; ctx.setLineDash([2, 2]);
       rr(b.bx + 0.5, lineY(b, rows.length) + 0.5, b.bw * 0.22, ROW_H - 1, 1.5); ctx.stroke(); ctx.setLineDash([]);
     }
@@ -358,7 +421,10 @@
     text(narrow ? 'queue' : 'router · queue', L.qx0 - 4, 16, 10, COL.faint);
     text(narrow ? VIEWS[preset].narrow : VIEWS[preset].label, L.gx0, 16, 10, COL.faint);
     if (W > 420) text('tokens →', L.gx1 + 10, 16, 10, COL.faint);
-    sim.instances.forEach(function (inst, ii) { drawInstance(inst, L.boxes[ii], V.rows[ii]); });
+    // every box's header at the same level, so their names and pieces match
+    var heads = sim.instances.map(header), level = 0;
+    heads.forEach(function (h, ii) { level = Math.max(level, fitLevel(h, L.boxes[ii])); });
+    sim.instances.forEach(function (inst, ii) { drawInstance(inst, L.boxes[ii], V.rows[ii], heads[ii], level); });
     drawDots();
     drawStream();
     drawStrip();
@@ -368,6 +434,9 @@
 
   function footer() {
     var m = E.metrics(sim), f = E.fmt;
+    if (sim.slo) {   // each box's p99 against its SLO, refreshed with the footer
+      Object.keys(sim.slo).forEach(function (model) { V.p99[model] = E.metrics(sim, model, P99_WINDOW_MS).ttftP99; });
+    }
     M.p50.textContent = f.ms(m.ttftP50);
     M.p99.textContent = f.ms(m.ttftP99);
     M.tpot.textContent = f.ms(m.tpotMs);
@@ -420,13 +489,17 @@
     if (!raf && visible && !document.hidden && live()) { last = 0; raf = requestAnimationFrame(frame); }
   }
 
-  function resize() {
+  // Sizes the canvas's pixels to its box; returns whether anything changed
+  function measure() {
     var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (!r.width) return;
+    if (!r.width || (r.width === W && r.height === H && cv.width === Math.round(W * dpr))) return false;
     W = r.width; H = r.height;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!sim) return;
+    return true;
+  }
+  function resize() {
+    if (!measure() || !sim) return;
     layout(); V.place = true; sync(0); draw();
   }
 
@@ -461,6 +534,8 @@
     cv.setAttribute('aria-label', VIEWS[id].aria);
     syncRadios();
     shown = null;
+    cv.classList.toggle('tall', sim.instances.length >= TALL_AT);   // 320px (300px on phones) for three boxes
+    measure();
     L = null;
     if (W) { layout(); sync(0); }
     footer();

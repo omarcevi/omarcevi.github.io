@@ -123,8 +123,9 @@
   var MAX_TICK_MS = 50;         // a background tab coming back must not replay minutes at once
   var TOKLOG_KEEP_MS = 10000;   // the token log only feeds recent-throughput metrics
   var TOKRATE_WINDOW_MS = 3000; // throughput is the tokens made over the last 3 s
-  var TTFT_WINDOW_MS = 30000;   // TTFT percentiles cover first tokens from the last 30 s,
+  var TTFT_WINDOW_MS = 30000;   // TTFT percentiles cover first tokens from the last 30 s by default,
   var TTFT_SAMPLES = 200;       // and at most the last 200 of them (of that model's, for one model)
+  var TTFT_KEEP_MS = 120000;    // the TTFT log keeps 120 s, the longest window metrics takes
   var FINISHED_KEEP = 500;      // sim.finished keeps only the latest requests, so memory stays bounded
   var BURST_SPREAD_MS = 450;    // a manual burst arrives over this long
   var BURSTS = { min: 30, max: 40 };   // a stream with bursts: true gets 30-40 requests at a time,
@@ -534,7 +535,7 @@
     if (inst.batch && idle === inst.running.length) endBatch(inst);
     if (made) sim.tokLog.push([t, made]);
     trimLog(sim.tokLog, t, TOKLOG_KEEP_MS, Infinity);
-    trimLog(sim.ttftLog, t, TTFT_WINDOW_MS, Infinity);   // metrics takes the last TTFT_SAMPLES, per model
+    trimLog(sim.ttftLog, t, TTFT_KEEP_MS, Infinity);   // metrics takes its window and sample cap, per model
     inst.kvUsed = kvUsedBytes(inst);
     inst.step = null;
     inst.stepEnd = null;
@@ -669,24 +670,28 @@
     return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
   }
 
-  // TTFT is tFirst - t0 over the recent first tokens (TTFT_WINDOW_MS, TTFT_SAMPLES). TPOT is the mean of
-  // (tDone - tFirst) / (generated - 1) over finished requests whose first token is in that window.
-  // With a model, both cover only that model's requests, and TTFT its last TTFT_SAMPLES first tokens.
+  // TTFT is tFirst - t0 over the first tokens in the window: windowMs when given (at most TTFT_KEEP_MS),
+  // else TTFT_WINDOW_MS. It takes at most the last TTFT_SAMPLES of them per TTFT_WINDOW_MS of window, so a
+  // 120 s window takes up to 800. TPOT is the mean of (tDone - tFirst) / (generated - 1) over finished
+  // requests whose first token is in that window. With a model, both cover only that model's requests,
+  // and the sample cap counts only its first tokens.
   // Throughput is the output tokens made over the last TOKRATE_WINDOW_MS, per second, and cost is per
   // 1M of them at sim.gpuCount GPUs. Once drained it's 0 (the page stops the sim's clock, so the window
   // would never age out) and cost has no value; TTFT and TPOT keep their last values. Throughput, KV
   // and cost are always whole-sim. Null means no data yet.
-  function metrics(sim, model) {
+  function metrics(sim, model, windowMs) {
+    var win = given(windowMs) ? Math.min(windowMs, TTFT_KEEP_MS) : TTFT_WINDOW_MS;
+    var cap = Math.round(TTFT_SAMPLES * win / TTFT_WINDOW_MS);
     var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r, e;
-    for (k = sim.ttftLog.length - 1; k >= 0 && ttfts.length < TTFT_SAMPLES; k--) {   // newest first
+    for (k = sim.ttftLog.length - 1; k >= 0 && ttfts.length < cap; k--) {   // newest first
       e = sim.ttftLog[k];
-      if (e[0] < sim.t - TTFT_WINDOW_MS) break;   // the log is in time order
+      if (e[0] < sim.t - win) break;   // the log is in time order
       if (!model || e[2] === model) ttfts.push(e[1]);
     }
     ttfts.sort(function (a, b) { return a - b; });
     for (k = 0; k < sim.finished.length; k++) {
       r = sim.finished[k];
-      if ((!model || r.model === model) && r.tFirst >= sim.t - TTFT_WINDOW_MS && r.generated > 1) {
+      if ((!model || r.model === model) && r.tFirst >= sim.t - win && r.generated > 1) {
         tpotSum += (r.tDone - r.tFirst) / (r.generated - 1);
         tpotN += 1;
       }

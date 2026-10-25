@@ -329,6 +329,7 @@
 
     #simbox { margin-top: 2.25rem; }
     #sim { display: block; width: 100%; height: 260px; cursor: default; }
+    #sim.tall { height: 320px; }   /* three instance boxes (assets/sim.js sets .tall) */
     #m-503 { color: var(--p-bad); }
     /* simulator tabs, the lesson line and its segmented switch (assets/sim.js wires them) */
     .sim-tabs {
@@ -373,7 +374,7 @@
        instance box's fill, so the alpha colours come out exactly as drawn */
     .sim-key {
       display: flex; flex-wrap: wrap; gap: 0.25rem 1.2rem; padding: 0.1rem 0.9rem 0.6rem;
-      font-family: var(--mono); font-size: 0.68rem; color: var(--p-muted);
+      font-family: var(--mono); font-size: 0.72rem; color: var(--p-muted);
     }
     .sim-key span { display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
     .sim-key i { flex: none; width: 14px; height: 4px; border-radius: 1.5px; background: linear-gradient(var(--c), var(--c)), #161920; }
@@ -381,6 +382,7 @@
     .sim-key .k-decode { --c: rgba(122, 162, 255, 0.6); }
     .sim-key .k-done { --c: #4ade80; }
     .sim-key .k-idle { --c: rgba(139, 145, 156, 0.35); }
+    .sim-key .k-pre { --c: #f5a524; }
     .sim-key .k-kv { width: 18px; height: 3px; background: linear-gradient(90deg, #7aa2ff 55%, #232830 55%); }
 
     /* agent replay */
@@ -653,6 +655,7 @@
       .topbar { padding: 0.75rem 0; }
       .topbar nav { gap: 0.9rem; }
       #sim { height: 230px; }
+      #sim.tall { height: 300px; }
       .p-title .note { display: none; }
       .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
@@ -770,6 +773,7 @@
           <span><i class="k-decode" aria-hidden="true"></i>decode, one token per step</span>
           <span><i class="k-done" aria-hidden="true"></i>finished</span>
           <span><i class="k-idle" aria-hidden="true"></i>idle slot (request-level only)</span>
+          <span><i class="k-pre" aria-hidden="true"></i>preempted</span>
           <span><i class="k-kv" aria-hidden="true"></i>KV cache</span>
         </div>
         <div class="p-foot">
@@ -784,7 +788,7 @@
           <span id="m-503-wrap" hidden>rejected <b id="m-503">0</b></span>
         </div>
       </div>
-      <p class="cap js-only">A model of LLM serving, not a benchmark: Llama 3 8B on one H100, step times from the H100's specs. Flip the batching mode, send a burst, then pause and watch it drain.</p>
+      <p class="cap js-only">A model of LLM serving, not a benchmark: step times come from the H100's specs and each model's real size. Pick a tab, send a burst, then pause and watch it drain.</p>
     </header>
 
     <section id="about">

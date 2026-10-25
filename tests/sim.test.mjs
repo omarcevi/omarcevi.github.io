@@ -369,6 +369,33 @@ test('per-model TTFT keeps a quiet model\'s samples when a busier model fills th
   assert.notEqual(E.metrics(sim, 'llama-3-8b').ttftP99, null);
   assert.notEqual(E.metrics(sim).ttftP99, null);
 });
+test('TTFT metrics cover the last 30 s by default, and up to 120 s when a window is given', () => {
+  const sim = E.createSim({ seed: 1, instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], traffic: { rate: 0, bursts: false } });
+  for (let k = 0; k < 40; k++) E.enqueue(sim, { prompt: 6000, output: 2 });   // a pile-up at t = 0: first tokens over ~8 s
+  run(sim, 40000);
+  for (let k = 0; k < 10; k++) E.enqueue(sim, { prompt: 50, output: 2 });     // quick ones at t = 40 s
+  run(sim, 5000);
+  const pileUp = sim.finished.filter(r => r.prompt === 6000);
+  assert.equal(pileUp.length, 40);
+  assert.ok(pileUp.every(r => r.tFirst < sim.t - 30000 && r.tFirst - r.t0 > 200));
+  // default: the pile-up is older than 30 s, so only the quick ones count, as before the log kept 120 s
+  const m = E.metrics(sim);
+  assert.ok(m.ttftP99 < 100, `default p99 ${m.ttftP99}`);
+  assert.deepEqual(E.metrics(sim, undefined, 30000), m);
+  assert.deepEqual(E.metrics(sim, 'llama-3-8b'), E.metrics(sim, 'llama-3-8b', 30000));
+  // a 120 s window reaches back past 30 s, whole-sim and per model
+  const slowest = Math.max(...pileUp.map(r => r.tFirst - r.t0));
+  assert.equal(E.metrics(sim, undefined, 120000).ttftP99, slowest);
+  assert.equal(E.metrics(sim, 'llama-3-8b', 120000).ttftP99, slowest);
+  assert.equal(E.metrics(sim, 'llama-3.2-1b', 120000).ttftP99, null);
+});
+test('a longer TTFT window takes proportionally more samples: 200 per 30 s', () => {
+  const sim = E.createSim({ seed: 1, instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], traffic: { rate: 0, bursts: false } });
+  sim.t = 100000;
+  for (let k = 0; k < 500; k++) sim.ttftLog.push([10000 + k * 100, k < 10 ? 5000 : 10, 'llama-3-8b']);   // 50 s of first tokens, the oldest 10 slow
+  assert.equal(E.metrics(sim).ttftP99, null);                              // all older than 30 s
+  assert.equal(E.metrics(sim, 'llama-3-8b', 120000).ttftP99, 5000);       // up to 800 samples: all 500, 2% slow
+});
 test('a stream, burst or request naming something unknown throws a clear error', () => {
   const inst = [{ profile: '7g.80gb', model: 'llama-3-8b' }];
   assert.throws(() => E.createSim({ seed: 1, instances: inst, streams: [{ model: 'gpt-x', rate: 1 }] }), /unknown model: gpt-x/);
