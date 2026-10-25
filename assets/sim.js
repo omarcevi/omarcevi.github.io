@@ -18,7 +18,7 @@
   var WARMUP_TICKS = 500, TICK_MS = 16;  // 8 s of sim time, so a tab never opens empty
   var SAMPLE_MS = 300, SAMPLES = 110;    // footer refresh and sparkline samples, in sim time
   var FLASH_MS = 300;                    // a finished row flashes green this long, a preempted one amber
-  var P99_WINDOW_MS = 120000;            // a box's p99 against its SLO covers 2 min: over 30 s an 8B's p99 is just its slowest request
+  var P99_WINDOW_MS = 30000;             // a box's p99 vs its SLO: its model's first tokens of the last 30 s (at most the latest 200), the footer's window
   var TALL_AT = 3;                       // instances: from three, the canvas grows (#sim.tall) so each box draws 6 rows (5 on phones)
   var BURST = 24;
   var ROW_H = 4, ROW_GAP = 2.2, CELL = 9.5, DOT_R = 3.2, STRIP_H = 26;

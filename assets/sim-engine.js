@@ -81,16 +81,19 @@
   // The 8B is chat-like (steady, with small bursts); the 3B and 1B serve short tasks at a high rate.
   // The 3B and 1B rates and the 1B's prompt length are tuned so that, at 120 s on seeds 1-5
   // (tests/sim.test.mjs), GPU per model and MIG meet every SLO, and time-slicing's median p99 is above
-  // MIG's for every model and above the 8B's SLO. Time-slicing loses because CTX_SWITCH_LOSS leaves
-  // each of three busy processes 0.7 / 3 of the GPU, less than a 2g.20gb slice gets, and well under
-  // the 8B's 3g.40gb.
+  // MIG's for every model and above the 8B's SLO. The 8B's bursts (6-10 requests) are sized so MIG's
+  // 8B box, coloured on a 30 s p99 as on the page, stays green with no manual burst: red 0% of the time
+  // on seeds 1-60 (8 s warm-up, then 120 s). Bursts of 10-16 left it red 4.6% of the time, and bursts
+  // of 6-12 on 2 of 60 seeds. A manual burst of 24 still turns it red for about 30 s, since a 3g slice
+  // has less headroom than a whole GPU. Time-slicing loses because CTX_SWITCH_LOSS leaves each of three
+  // busy processes 0.7 / 3 of the GPU, less than a 2g.20gb slice gets, and well under the 8B's 3g.40gb.
   function tab03(instances) {
     return {
       instances: instances,
       batching: 'continuous',
       slo: { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 },
       streams: [
-        { model: 'llama-3-8b', rate: 1.5, bursts: { min: 10, max: 16 }, lengths: LENGTHS },
+        { model: 'llama-3-8b', rate: 1.5, bursts: { min: 6, max: 10 }, lengths: LENGTHS },
         { model: 'llama-3.2-3b', rate: 8, bursts: false, lengths: SHORT },
         { model: 'llama-3.2-1b', rate: 25, bursts: false, lengths: TINY }
       ]
