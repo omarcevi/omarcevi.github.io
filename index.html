@@ -359,7 +359,8 @@
     .seg button:hover { color: var(--p-accent); }
     .seg button[aria-checked="true"] { background: var(--p-accent); color: #0f1115; cursor: default; }
     /* tab 05's trace option while its data loads, or if it doesn't */
-    .seg button[aria-disabled="true"], .seg button[aria-disabled="true"]:hover { color: var(--p-faint); cursor: not-allowed; }
+    .seg button[aria-disabled="true"], .seg button[aria-disabled="true"]:hover,
+    .seg button:disabled, .seg button:disabled:hover { color: var(--p-faint); cursor: not-allowed; }
     /* .seg and .sim-tabs clip overflow, so their focus rings sit inside the button */
     .seg button:focus-visible, .sim-tabs button:focus-visible { outline: 2px solid var(--p-accent); outline-offset: -2px; }
     .seg button[aria-checked="true"]:focus-visible { outline-color: #0f1115; }
@@ -759,6 +760,7 @@
           <button type="button" role="tab" id="sim-tabbtn-mig" data-tab="mig" aria-controls="sim-tab-mig" aria-selected="false"><i>03</i> mig layout</button>
           <button type="button" role="tab" id="sim-tabbtn-routing" data-tab="routing" aria-controls="sim-tab-routing" aria-selected="false"><i>04</i> routing</button>
           <button type="button" role="tab" id="sim-tabbtn-traffic" data-tab="traffic" aria-controls="sim-tab-traffic" aria-selected="false"><i>05</i> real traffic</button>
+          <button type="button" role="tab" id="sim-tabbtn-failure" data-tab="failure" aria-controls="sim-tab-failure" aria-selected="false"><i>06</i> failure</button>
         </div>
         <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
           <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
@@ -796,6 +798,16 @@
             <button type="button" role="radio" data-traffic="trace" aria-checked="true">Azure trace</button>
           </div>
         </div>
+        <div class="sim-lesson" id="sim-tab-failure" role="tabpanel" data-tab="failure" aria-labelledby="sim-tabbtn-failure" hidden>
+          <p><b>Failure.</b> Two replicas of Llama 3 8B, each on its own H100, share the traffic. Kill one and its requests come back as client retries: their KV cache died with the GPU, so each redoes its prefill and starts its reply over, and p99 spikes. The survivor can't carry both GPUs' traffic alone, so its queue grows and requests get 503s. Turn the autoscaler on and a replacement H100 comes up after a cold start, and the queues drain. <span class="sim-note">Cold start: 30 s, assumed (a warm spare node loading the weights); a fresh node takes minutes.</span></p>
+          <div class="sim-ctls">
+            <div class="seg"><button type="button" id="sim-kill">kill a GPU</button></div>
+            <div class="seg" role="radiogroup" aria-label="Autoscaler">
+              <button type="button" role="radio" data-autoscale="off" aria-checked="true">autoscaler off</button>
+              <button type="button" role="radio" data-autoscale="on" aria-checked="false">autoscaler on</button>
+            </div>
+          </div>
+        </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
         <div class="sim-key">
           <span><i class="k-prefill" aria-hidden="true"></i>prefill</span>
@@ -818,6 +830,7 @@
           <span id="m-mis-wrap" title="share of hard requests the router sent to the small model, last 30 s" hidden>misrouted <b id="m-mis">–</b></span>
           <span id="m-pre-wrap" hidden>preempted <b id="m-pre">0</b></span>
           <span id="m-503-wrap" hidden>rejected <b id="m-503">0</b></span>
+          <span id="m-retry-wrap" title="requests a dead GPU sent back to the router as client retries" hidden>retried <b id="m-retry">0</b></span>
         </div>
       </div>
       <p class="cap js-only">A model of LLM serving, not a benchmark: step times come from the H100's specs and each model's real size. Pick a tab, send a burst, then pause and watch it drain.</p>
