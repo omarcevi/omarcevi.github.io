@@ -192,6 +192,11 @@ class Simulator(unittest.TestCase):
         key = re.search(r"\.sim-key \{([^}]*)\}", page).group(1)
         self.assertIn("font-size: 0.72rem;", key)   # the footer's size, and no DOM text under 11px
 
+    def test_page_reads_no_engine_internals(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        for bad in ("inst.step", ".stepEnd", "inst.batch", "sim.cfg"):
+            self.assertNotIn(bad, js, bad)
+
     def test_key_colours_match_canvas(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")

@@ -237,17 +237,8 @@
 
   // ---- Drawing ----
 
-  // Share of each prefill chunk in the instance's current step that's done by now, by request id
-  function stepChunks(inst) {
-    var out = {}, st = inst.step;
-    if (!st) return out;
-    var f = inst.stepEnd > st.start ? Math.min(1, (sim.t - st.start) / (inst.stepEnd - st.start)) : 0;
-    for (var k = 0; k < st.items.length; k++) if (st.items[k].chunk) out[st.items[k].req.id] = st.items[k].chunk * f;
-    return out;
-  }
-
   // One sequence: a prefill block (filled as its chunks run), then the decode part, one token per step
-  function drawRow(inst, b, row, chunks) {
+  function drawRow(inst, b, row) {
     var r = row.r, x = b.bx, y = row.y, pw = prefillW(b, r);
     var flash = row.doneAt !== null && V.vt - row.doneAt < FLASH_MS;
     if (row.preAt !== null) {   // preempted: its KV is gone, and it will redo its prefill from the queue
@@ -258,11 +249,11 @@
       bar(x + pw + 1.5, y, decodeW(b, pw, r.generated), ROW_H, COL.doneDecode);
     } else if (r.state === 'idle') {
       // a finished sequence still holds its slot, and the batch keeps stepping it until the slowest one ends
-      var dw = decodeW(b, pw, inst.batch ? Math.max(r.generated, inst.batch.steps) : r.generated);
+      var dw = decodeW(b, pw, Math.max(r.generated, E.slotSteps(inst)));
       bar(x, y, pw, ROW_H, COL.idle);
       bar(x + pw + 1.5, y, dw, ROW_H, COL.idle);
     } else {
-      var pf = r.prefillTarget > 0 ? Math.min(1, (r.prefillDone + (chunks[r.id] || 0)) / r.prefillTarget) : 1;
+      var pf = E.prefillProgress(sim, inst, r);
       if (pf < 1) bar(x, y, pw, ROW_H, COL.prefillTodo);
       bar(x, y, pw * pf, ROW_H, COL.accent);
       bar(x + pw + 1.5, y, decodeW(b, pw, r.generated), ROW_H, COL.decode);
@@ -304,7 +295,7 @@
     ctx.font = '9px ' + FONT;
     return {
       kv: kv, hot: hot, levels: levels,
-      marker: inst.step && inst.step.stretch > 1 ? ['×' + inst.step.stretch + ' ', COL.warn] : null,
+      marker: E.stretchNow(inst) > 1 ? ['×' + E.stretchNow(inst) + ' ', COL.warn] : null,
       room: inst.timeSliced ? ctx.measureText('×0 ').width : 0
     };
   }
@@ -333,8 +324,8 @@
     var kv = h.kv, hot = h.hot;
     drawHeader(h, level, b);
 
-    var chunks = stepChunks(inst), show = drawn(b, rows.length);
-    for (var j = 0; j < show; j++) drawRow(inst, b, rows[j], chunks);
+    var show = drawn(b, rows.length);
+    for (var j = 0; j < show; j++) drawRow(inst, b, rows[j]);
     if (rows.length > b.cap) {   // on its own line below the last drawn row (two row lines tall)
       text('+' + (rows.length - show) + ' more', b.bx, lineY(b, show) + 7.5, 8, COL.faint);
     } else if (rows.length < b.cap && E.canAdmit(sim, inst)) {   // a free slot: the next request to arrive joins at the next step

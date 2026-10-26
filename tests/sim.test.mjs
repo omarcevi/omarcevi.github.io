@@ -622,3 +622,47 @@ test('tab 03: bursts on a quiet 8B raise the 1B\'s p99 under time-slicing (≥ 1
   assert.ok(time >= 1.5, `time-slicing ×${time}`);
   assert.ok(mig <= 1.3, `MIG ×${mig}`);
 });
+
+test('prefillProgress: 0 before admission, between 0 and 1 mid-chunk, 1 after prefill', () => {
+  const sim = E.createSim({ seed: 1, instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0, bursts: false } });
+  const inst = sim.instances[0];
+  const r = E.enqueue(sim, { prompt: 4000, output: 20 });
+  assert.equal(E.prefillProgress(sim, inst, r), 0);
+  let mid = null;
+  for (let t = 0; t < 3000 && r.generated === 0; t++) {
+    E.tick(sim, 1);
+    const p = E.prefillProgress(sim, inst, r);
+    assert.ok(p >= 0 && p <= 1);
+    if (p > 0 && p < 1 && mid === null) mid = p;
+  }
+  assert.ok(mid !== null && mid > 0 && mid < 1);
+  assert.equal(E.prefillProgress(sim, inst, r), 1);
+});
+test('slotSteps counts the decode steps a request-level batch has run, 0 when none', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 1, batching: 'request', traffic: { rate: 0, bursts: false } });
+  const inst = sim.instances[0];
+  assert.equal(E.slotSteps(inst), 0);
+  E.enqueue(sim, { prompt: 100, output: 3 });
+  E.enqueue(sim, { prompt: 100, output: 300 });
+  run(sim, 600);
+  assert.ok(inst.batch && inst.batch.steps > 3);
+  assert.equal(E.slotSteps(inst), inst.batch.steps);
+  run(sim, 10000);
+  assert.equal(E.slotSteps(inst), 0);
+});
+test('stretchNow is 2 for a time-sliced instance with a busy neighbour and 1 alone or idle', () => {
+  const sim = E.createSim({ seed: 1, streams: [{ model: 'llama-3-8b', rate: 0 }, { model: 'llama-3.2-1b', rate: 0 }],
+    instances: [{ profile: '7g.80gb', model: 'llama-3-8b', gpu: 0, gpuMemUtil: 0.45 }, { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 0, gpuMemUtil: 0.2 }] });
+  const i1 = sim.instances[1];
+  assert.equal(E.stretchNow(i1), 1);
+  E.enqueue(sim, { prompt: 100, output: 400, model: 'llama-3.2-1b' });
+  E.tick(sim, 1);
+  assert.equal(E.stretchNow(i1), 1);
+  E.enqueue(sim, { prompt: 6000, output: 50, model: 'llama-3-8b' });
+  let seen = false;
+  for (let t = 0; t < 2000 && !seen; t++) {
+    E.tick(sim, 1);
+    if (E.stretchNow(i1) === 2) seen = true;
+  }
+  assert.ok(seen);
+});

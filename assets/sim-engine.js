@@ -503,6 +503,32 @@
     return true;
   }
 
+  // ---- What the page draws ----
+
+  // The share of r's prefill done by sim.t: what's finished, plus the in-flight share of its chunk in
+  // the instance's current step
+  function prefillProgress(sim, inst, r) {
+    if (!(r.prefillTarget > 0)) return 1;
+    var done = r.prefillDone, st = inst.step;
+    if (st && inst.stepEnd > st.start) {
+      var f = Math.min(1, (sim.t - st.start) / (inst.stepEnd - st.start));
+      for (var k = 0; k < st.items.length; k++) {
+        if (st.items[k].req === r && st.items[k].chunk) { done += st.items[k].chunk * f; break; }
+      }
+    }
+    return Math.min(1, done / r.prefillTarget);
+  }
+
+  // Decode steps the current request-level batch has run; 0 when there's none
+  function slotSteps(inst) {
+    return inst.batch ? inst.batch.steps : 0;
+  }
+
+  // The current step's time-slicing stretch; 1 when idle or not time-sliced
+  function stretchNow(inst) {
+    return inst.step && inst.stepEnd !== null ? inst.step.stretch : 1;
+  }
+
   // Keeps a log of [time, value] entries to its last keepMs and its last maxLen entries
   function trimLog(log, t, keepMs, maxLen) {
     while (log.length && (log.length > maxLen || log[0][0] < t - keepMs)) log.shift();
@@ -808,6 +834,9 @@
     tick: tick,
     route: route,
     canAdmit: canAdmit,
+    prefillProgress: prefillProgress,
+    slotSteps: slotSteps,
+    stretchNow: stretchNow,
     enqueue: enqueue,
     setBatching: setBatching,
     setArrivals: setArrivals,
