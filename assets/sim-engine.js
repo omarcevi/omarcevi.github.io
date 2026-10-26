@@ -165,6 +165,20 @@
     return Object.assign({}, TAB05, { streams: [{ model: 'llama-3-8b', trace: data, startMs: TRACE_START_MS }] });
   }
 
+  // Tab 06: two replicas of the 8B, each on its own H100, behind the router. Killing one sends its requests back
+  // through the router as client retries; with the autoscaler on, a replacement H100 starts in its place and
+  // serves after COLD_START_MS. The cold start is an assumption, not a measurement (COLD_START_NOTE).
+  var COLD_START_MS = 30000;
+  var COLD_START_NOTE = 'assumed: a warm spare node with the image cached, where vLLM loads 16 GB of weights and captures ' +
+                        'CUDA graphs; a fresh node takes minutes more';
+  // The rate two replicas serve with room to spare but one alone can't (about 17-18 req/s with LENGTHS). Measured
+  // as a visitor sees it (40 s warm-up, a refresh every 300 ms on a 30 s p99), seeds 1-10, killing at the open:
+  // red 0.3-0.6 s after the kill (retries redo prefill, and their TTFT counts from their first arrival); with the
+  // autoscaler off, 0-27 503s 30 s after the kill and 42-188 at 60 s; with it on, red for the last time 42-47 s
+  // after the kill (the 30 s cold start, then the backlog). At 21 the 503s start too late on some loads (none by
+  // 60 s on one); at 20, on most. tests/sim.test.mjs checks all three.
+  var FAILURE_RATE = 22;
+
   var PRESETS = {
     batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
     // Tab 02: bursts of 8-12 over a steady 0.5 req/s, so the 0.9 pool fills within 30 s of opening (and the
@@ -199,7 +213,11 @@
     // billed in full
     'routing-api': tab04({ profile: 'api', model: 'api' }),
     // Tab 05, random: the trace's average rate and fitted lengths, without its hour
-    'traffic-random': Object.assign({}, TAB05, { streams: [{ model: 'llama-3-8b', rate: TRACE_RATE, bursts: false, lengths: TRACE_FIT }] })
+    'traffic-random': Object.assign({}, TAB05, { streams: [{ model: 'llama-3-8b', rate: TRACE_RATE, bursts: false, lengths: TRACE_FIT }] }),
+    failure: {
+      instances: [{ profile: '7g.80gb', model: 'llama-3-8b', gpu: 0 }, { profile: '7g.80gb', model: 'llama-3-8b', gpu: 1 }],
+      batching: 'continuous', slo: { 'llama-3-8b': 2000 }, autoscaler: false, traffic: { rate: FAILURE_RATE, bursts: false }
+    }
   };
 
   // Tab 04's gateway. Its router is the System1 model; a request's hidden difficulty is a uniform draw raised
@@ -298,7 +316,9 @@
       running: [],
       stepEnd: null,
       step: null,
-      up: true
+      up: true,
+      readyAt: null,   // tab 06: when a replacement starting on this slot serves, null otherwise
+      deadGpu: null    // tab 06: the GPU that died here, while its replacement starts
     };
   }
 
@@ -538,7 +558,8 @@
       prefillTarget: spec.prompt, prefillDone: 0, generated: 0, kvTokens: 0,
       tAdmit: null, tFirst: null, tDone: null, preemptions: 0,
       difficulty: null, noiseZ: null, score: null, tScored: null, hop: 'serve', target: null,
-      apiStart: null, apiFirst: null   // on an API instance: when r entered it, and when its first token is due
+      apiStart: null, apiFirst: null,  // on an API instance: when r entered it, and when its first token is due
+      retries: 0                       // tab 06: how often a dead GPU sent it back to the router
     };
     if (sim.routing) {
       r.difficulty = Math.pow(sim.rng(), DIFFICULTY_POWER);
@@ -942,6 +963,7 @@
     for (k = 0; k < sim.instances.length; k++) {
       var inst = sim.instances[k], at = inst.api ? apiWake(sim, inst) : inst.stepEnd;
       if (at !== null && at < ev.t) { consider(at, inst.api ? 'api' : 'step', null); ev.inst = inst; }
+      if (inst.readyAt !== null && inst.readyAt !== undefined && inst.readyAt < ev.t) { consider(inst.readyAt, 'ready', null); ev.inst = inst; }
     }
     if (sim.pending.length) consider(sim.pending[0].t, 'pending', sim.pending[0].stream);
     if (sim.arrivalsOn) {
@@ -979,6 +1001,7 @@
       else if (ev.kind === 'pending') { sim.pending.shift(); arrive(sim, ev.stream); }
       else if (ev.kind === 'poisson') { arrive(sim, ev.stream); s.nextArrival = sim.t + poissonGap(sim, s); }
       else if (ev.kind === 'trace') arriveTrace(sim, ev.stream);
+      else if (ev.kind === 'ready') serveReplacement(sim, ev.inst);
       else if (ev.kind === 'burst') { addBurst(sim, ev.stream); s.nextBurst = sim.t + burstGap(sim); }
       // a 'wake' needs nothing more: idle instances start on the next pass
     }
@@ -1052,9 +1075,97 @@
   function isDrained(sim) {
     if (sim.arrivalsOn || sim.pending.length) return false;
     for (var k = 0; k < sim.instances.length; k++) {
-      if (sim.instances[k].queue.length || sim.instances[k].running.length) return false;
+      var inst = sim.instances[k];
+      if (inst.queue.length || inst.running.length || (inst.readyAt !== null && inst.readyAt !== undefined)) return false;
     }
     return true;
+  }
+
+  // ---- Tab 06: failure and replacement ----
+
+  // The GPUs being paid for: those with an instance up or starting (a dead one isn't billed)
+  function countGpus(sim) {
+    var gpus = {};
+    sim.instances.forEach(function (inst) {
+      if (!inst.api && (inst.up || inst.readyAt !== null)) gpus[inst.gpu] = true;
+    });
+    sim.gpuCount = Object.keys(gpus).length;
+  }
+
+  // A request whose GPU died goes back to the router as a client retry. Its KV died with the GPU, so it redoes
+  // its prefill and its reply starts over. It keeps its arrival time: its TTFT is the user's wait for the answer
+  // they finally get. A first token logged before the kill stays in the log, since the user saw it before the
+  // stream broke.
+  function retry(sim, r) {
+    r.state = 'queued';
+    r.kvTokens = 0;
+    r.prefillTarget = r.prompt;
+    r.prefillDone = 0;
+    r.generated = 0;
+    r.tFirst = null;
+    r.inst = null;
+    r.retries += 1;
+    sim.stats.retried += 1;
+    place(sim, r);
+  }
+
+  // Starts a replacement H100 in a dead instance's slot: it's billed from now and serves after COLD_START_MS
+  function startReplacement(sim, inst) {
+    inst.deadGpu = inst.gpu;
+    inst.gpu = sim.nextGpu++;
+    inst.readyAt = sim.t + COLD_START_MS;
+    sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' starting' });
+    countGpus(sim);
+  }
+
+  function serveReplacement(sim, inst) {
+    inst.readyAt = null;
+    inst.deadGpu = null;
+    inst.up = true;
+    sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' up' });
+    countGpus(sim);
+  }
+
+  // Kills the highest-numbered GPU that's up, while another is up: its step stops, its KV is gone, and its
+  // running then queued requests are retried through the router. Returns that GPU, or null when only one is up.
+  function killGpu(sim) {
+    var up = sim.instances.filter(function (inst) { return !inst.api && inst.up; }), g = -1;
+    if (up.length < 2) return null;
+    up.forEach(function (inst) { if (inst.gpu > g) g = inst.gpu; });
+    var dead = up.filter(function (inst) { return inst.gpu === g; }), reqs = [];
+    dead.forEach(function (inst) {
+      inst.running.forEach(function (r) { if (r.state === 'idle') r.state = 'done'; else reqs.push(r); });
+      reqs = reqs.concat(inst.queue);
+      Object.assign(inst, { up: false, running: [], queue: [], step: null, stepEnd: null, batch: null, kvUsed: 0, kvReserved: 0 });
+    });
+    sim.events.push({ t: sim.t, label: 'H100 ' + (g + 1) + ' killed' });
+    countGpus(sim);
+    reqs.forEach(function (r) { retry(sim, r); });
+    if (sim.autoscaler) dead.forEach(function (inst) { startReplacement(sim, inst); });
+    return g;
+  }
+
+  // On, a replacement starts for every dead instance; off, the ones still starting are called off
+  function setAutoscaler(sim, on) {
+    if (on === sim.autoscaler) return;
+    sim.autoscaler = on;
+    sim.events.push({ t: sim.t, label: on ? 'autoscaler on' : 'autoscaler off' });
+    sim.instances.forEach(function (inst) {
+      if (inst.api || inst.up) return;
+      if (on && inst.readyAt === null) startReplacement(sim, inst);
+      else if (!on && inst.readyAt !== null) { inst.gpu = inst.deadGpu; inst.deadGpu = null; inst.readyAt = null; }
+    });
+    countGpus(sim);
+  }
+
+  // What the page draws for an instance: up, down (killed) or starting (a replacement, readyInMs from serving)
+  function instanceStatus(sim, inst) {
+    var starting = !inst.up && inst.readyAt !== null && inst.readyAt !== undefined;
+    return {
+      state: inst.up ? 'up' : starting ? 'starting' : 'down',
+      gpu: inst.gpu,
+      readyInMs: starting ? Math.max(0, inst.readyAt - sim.t) : null
+    };
   }
 
   function playState(sim, frozen) {
@@ -1208,13 +1319,15 @@
       slo: opts.slo || null,
       routing: routingOf(opts.routing),
       gpuCount: Object.keys(gpus).length,
+      nextGpu: Object.keys(gpus).reduce(function (n, g) { return Math.max(n, +g + 1); }, 0),   // tab 06: a replacement's GPU id
+      autoscaler: !!opts.autoscaler,
       arrivalsOn: true,
       pending: [],     // { t, stream }, earliest first
       events: [],
       finished: [],
       // routedSmall and routedLarge count the gateway's decisions; misrouted, the hard requests sent small;
       // apiUsd, the API model's spend in USD
-      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0, routedSmall: 0, routedLarge: 0, misrouted: 0, apiUsd: 0 },
+      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0, routedSmall: 0, routedLarge: 0, misrouted: 0, apiUsd: 0, retried: 0 },
       tokLog: [],      // [time, tokens made in a step]
       ttftLog: [],     // [time of a first token, its TTFT, its model]
       routeLog: [],    // [time scored, target ('small' or 'large'), whether hard], over the last ROUTE_WINDOW_MS
@@ -1245,6 +1358,12 @@
     setArrivals: setArrivals,
     sendBurst: sendBurst,
     traceClock: traceClock,
+    killGpu: killGpu,
+    setAutoscaler: setAutoscaler,
+    instanceStatus: instanceStatus,
+    COLD_START_MS: COLD_START_MS,
+    COLD_START_NOTE: COLD_START_NOTE,
+    FAILURE_RATE: FAILURE_RATE,
     tracePreset: tracePreset,
     TRACE_FIT: TRACE_FIT,
     TRACE_RATE: TRACE_RATE,
