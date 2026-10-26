@@ -108,10 +108,19 @@
 
   // Tab 04: one H100 split 3g.40gb + 2g.20gb + 1g.10gb, one 1g slice left free. Every request goes first to the
   // System1 model on 1g, which scores it; a score at or above the threshold goes on to the large model (the 8B
-  // on 3g, or the API model), the rest to the 1B on 2g. The rate, hardCut, noise and threshold are starting
-  // values for the visitor-view calibration: 9 req/s is above the about 6 req/s the 8B serves alone on its slice
-  // (5.6-6.3 overloaded, seeds 1-3), a difficulty of u^2 (DIFFICULTY_POWER) puts 1 - sqrt(0.55), about 26%, at
-  // or above the 0.55 hard cut, and the 0.45 threshold sits one noise sigma below it.
+  // on 3g, or the API model), the rest to the 1B on 2g. A difficulty of u^2 (DIFFICULTY_POWER) puts
+  // 1 - sqrt(0.55), about 26%, at or above the 0.55 hard cut, and the 0.45 default threshold sits one noise sigma
+  // (0.1) below it. 10 req/s, plus bursts of 4-6 every 8-12 s, is more than the 8B alone serves on its slice
+  // (5.6-6.2 req/s, seeds 1-3). tests/sim.test.mjs checks the boxes as a visitor sees them (the page's 40 s
+  // warm-up, then a refresh every 300 ms on a 30 s p99), on seeds 1-10. At threshold 0 on-prem, the 8B box is
+  // red on every refresh of the first 30 s, and 503s come within 2 min on every load. At the default, 65-70%
+  // go small, every box is green on every refresh in both modes, and a median 1.3% of hard requests are
+  // misrouted. At 0.9 about 80% are misrouted, and at 1 all of them. On-prem cost per 1M falls from $0.95 at
+  // threshold 0 to $0.58 at the default (median at 60 s). In API mode, API $/h falls from about $177 to $60 to
+  // $10 at 0, the default and 0.9. Measured, not tested: on seeds 1-400, 14 loads (3.5%) show a red box at the
+  // default, mostly the 1B's, when a burst of long prompts queues at the System1 model (25 loads with 9 req/s and
+  // bursts of 6-10). Moved live from the default to 0 (seeds 1-10), the 8B turns red 2.6-14 s later and is red on
+  // a median 80% of the next 30 s.
   function tab04(large) {
     return {
       instances: [
@@ -121,7 +130,7 @@
       ],
       batching: 'continuous',
       slo: { 'llama-3-8b': 2000, api: 2000, 'llama-3.2-1b': 1000 },
-      streams: [{ model: 'system1', rate: 9, bursts: { min: 6, max: 10 }, lengths: LENGTHS }],
+      streams: [{ model: 'system1', rate: 10, bursts: { min: 4, max: 6 }, lengths: LENGTHS }],
       routing: { small: 'llama-3.2-1b', large: large.model, threshold: 0.45, hardCut: 0.55, noise: 0.1 }
     };
   }

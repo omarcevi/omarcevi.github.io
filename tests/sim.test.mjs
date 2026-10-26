@@ -688,7 +688,6 @@ test('tab 04: a System1 model with Llama 3.2 1B\'s numbers, on 1g next to the 1B
   assert.equal(p.streams.length, 1);
   assert.equal(p.streams[0].model, 'system1');
   assert.equal(p.streams[0].lengths, E.PRESETS['mig-mig'].streams[0].lengths);   // LENGTHS, the chat-like stand-in
-  assert.ok(p.streams[0].rate > 6.5, 'the rate is above what the 8B alone serves on its 3g slice');
   assert.deepEqual([p.routing.small, p.routing.large], ['llama-3.2-1b', 'llama-3-8b']);
   const sim = preset('routing-onprem', 1);
   assert.equal(sim.gpuCount, 1);
@@ -697,6 +696,20 @@ test('tab 04: a System1 model with Llama 3.2 1B\'s numbers, on 1g next to the 1B
   assert.notEqual(sim.routing, p.routing);   // a copy, so moving the threshold leaves the preset alone
   assert.equal(routingSim({ threshold: 0.8 }).routing.threshold, 0.8);   // the page's override, kept across redeploys
   for (const id of ['batching', 'kvcache', 'mig-gpu', 'mig-time', 'mig-mig']) assert.equal(preset(id, 1).routing, null, id);
+});
+test('tab 04: the stream is more than the 8B alone serves on its 3g slice, so threshold 0 overloads it (seeds 1-3)', () => {
+  const stream = routePreset().streams[0];
+  for (const seed of [1, 2, 3]) {
+    const sim = E.createSim({ seed, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous',
+      streams: [Object.assign({}, stream, { model: 'llama-3-8b' })] });
+    run(sim, 60000);
+    const before = sim.stats.finished, backlog = sim.instances[0].queue.length;
+    run(sim, 60000);
+    // with requests waiting throughout, what it finishes over the minute is all it can serve
+    assert.ok(backlog > 0 && sim.instances[0].queue.length > 0, `seed ${seed}: queue ${backlog}, ${sim.instances[0].queue.length}`);
+    const served = (sim.stats.finished - before) / 60;
+    assert.ok(served < stream.rate, `seed ${seed}: the 8B alone serves ${served.toFixed(2)} req/s of ${stream.rate}`);
+  }
 });
 test('tab 04: TTFT runs from arrival to the answer\'s first token, so it includes the System1 hop', () => {
   const sim = quietRouting({ threshold: 0 });   // everything to the 8B
@@ -995,4 +1008,86 @@ test('tab 04: at a 75/25 small/large split the API bill is at least 70% of the b
     const gpu = E.GPU_HOUR_USD * sim.gpuCount / 3600, api = m.apiUsdPerHour / 3600;
     assert.ok(api / (gpu + api) >= 0.7, `seed ${seed}: the API is ${(100 * api / (gpu + api)).toFixed(1)}% of the blended cost`);
   }
+});
+
+// ---- Tab 04 as a visitor sees it ----
+
+// The page warms up every preset with an slo for TAB03_WARMUP_TICKS (PAGE.tab03WarmMs, 40 s), tab 04's too, so a
+// load opens on a full 30 s p99 window; then the footer and the boxes refresh every 300 ms. A box is red when its
+// model's TTFT p99 over P99_WINDOW_MS is over its target in sim.slo, and green when it's within it. Only the
+// models with both a target and an instance have a coloured box: the System1 box has no target, on-prem has no API
+// and the API mode no 8B.
+const ROUTE_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];   // the page draws a random seed, so the lesson must not hang on one
+const routeVisits = {};
+// One load of a tab 04 deployment with the slider at threshold: per refresh, its time, whether each box is red,
+// whether every box is green, and the footer's metrics
+function routeVisit(id, threshold, seed, watchMs = 30000) {
+  const key = [id, threshold, seed, watchMs].join('/');
+  if (routeVisits[key]) return routeVisits[key];
+  const p = E.PRESETS[id];
+  const sim = E.createSim(Object.assign({}, p, { seed, routing: Object.assign({}, p.routing, { threshold }) }));
+  const boxes = Object.keys(sim.slo).filter(model => sim.instances.some(i => i.model === model));
+  const refreshes = [];
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => {
+    const p99 = boxes.map(model => E.metrics(s, model, PAGE.p99WindowMs).ttftP99);
+    refreshes.push({
+      t: s.t,
+      red: p99.map((v, i) => v !== null && v > s.slo[boxes[i]]),
+      green: p99.every((v, i) => v !== null && v <= s.slo[boxes[i]]),
+      m: E.metrics(s)
+    });
+  });
+  return (routeVisits[key] = { boxes, refreshes });
+}
+const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
+const greenShare = refreshes => refreshes.filter(r => r.green).length / refreshes.length;
+// The mean of what the footer shows for a metric over a load's refreshes, leaving out the ones that show '–' (null;
+// NaN, so the test fails, if every one does)
+const shown = (refreshes, key) => mean(refreshes.map(r => r.m[key]).filter(v => v !== null));
+const fixed = (list, digits = 2) => list.map(v => v.toFixed(digits)).join(' ');
+const defaultThreshold = () => E.PRESETS['routing-onprem'].routing.threshold;
+
+test('tab 04 as a visitor sees it: the default threshold is on the slider\'s 0.05 steps, the same in both modes', () => {
+  const x = defaultThreshold();
+  near(Math.round(x / 0.05) * 0.05, x, 1e-12);
+  assert.ok(x > 0 && x < 1);
+  assert.equal(E.PRESETS['routing-api'].routing.threshold, x);
+  assert.deepEqual(routeVisit('routing-onprem', x, 1).boxes, ['llama-3-8b', 'llama-3.2-1b']);
+  assert.deepEqual(routeVisit('routing-api', x, 1).boxes, ['api', 'llama-3.2-1b']);
+});
+test('tab 04 as a visitor sees it: at threshold 0 on-prem the 8B box is red on 70% of refreshes in the first 30 s (median over loads), and 503s keep coming within 2 min on 8 of 10', () => {
+  const loads = ROUTE_SEEDS.map(seed => routeVisit('routing-onprem', 0, seed, 120000));
+  const large = loads[0].boxes.indexOf('llama-3-8b');
+  const shares = loads.map(({ refreshes }) => redShare(refreshes.filter(r => r.t <= refreshes[0].t + 30000).map(r => r.red[large])));
+  assert.ok(median(shares) >= 0.7, `median ${median(shares)}; per load ${fixed(shares)}`);
+  const rejected = loads.map(({ refreshes }) => [refreshes[0].m.rejected, refreshes[refreshes.length - 1].m.rejected]);
+  const growing = rejected.filter(([open, end]) => end > open).length;
+  assert.ok(growing >= 8, `503s grew on ${growing}/10 loads (at the open, 2 min later: ${rejected.map(r => r.join('/')).join(' ')})`);
+});
+test('tab 04 as a visitor sees it: at the default threshold on-prem every box is green on 95% of refreshes and at most 5% of hard requests are misrouted (median over loads)', () => {
+  const loads = ROUTE_SEEDS.map(seed => routeVisit('routing-onprem', defaultThreshold(), seed));
+  const green = loads.map(({ refreshes }) => greenShare(refreshes)), mis = loads.map(({ refreshes }) => shown(refreshes, 'misroutedShare'));
+  assert.ok(median(green) >= 0.95, `median ${median(green)}; per load ${fixed(green)}`);
+  assert.ok(median(mis) <= 0.05, `median ${median(mis)}; per load ${fixed(mis, 3)}`);
+});
+test('tab 04 as a visitor sees it: at threshold 1 on-prem at least half the hard requests are misrouted (median over loads)', () => {
+  const mis = ROUTE_SEEDS.map(seed => shown(routeVisit('routing-onprem', 1, seed).refreshes, 'misroutedShare'));
+  assert.ok(median(mis) >= 0.5, `median ${median(mis)}; per load ${fixed(mis, 3)}`);
+});
+test('tab 04: on-prem, cost per 1M output tokens is lower at the default threshold than at 0, since the same H100 serves more (median over seeds, at 60 s)', () => {
+  const cost = threshold => ROUTE_SEEDS.map(seed => {
+    const sim = routingSim({ threshold }, seed);
+    run(sim, 60000);
+    return E.metrics(sim).costPer1M;
+  });
+  const at0 = cost(0), atDefault = cost(defaultThreshold());
+  assert.ok(median(atDefault) < median(at0), `$${median(atDefault)} vs $${median(at0)}; per seed ${fixed(atDefault)} vs ${fixed(at0)}`);
+});
+test('tab 04 as a visitor sees it: in API mode API $/h falls from threshold 0 to the default to 0.9 (median over loads), and every box is green on 95% of refreshes at the default', () => {
+  const thresholds = [0, defaultThreshold(), 0.9];
+  const usd = thresholds.map(x => ROUTE_SEEDS.map(seed => shown(routeVisit('routing-api', x, seed).refreshes, 'apiUsdPerHour')));
+  const medians = usd.map(median);
+  assert.ok(medians[0] > medians[1] && medians[1] > medians[2], `API $/h ${fixed(medians, 1)} at ${thresholds.join(', ')}`);
+  const green = ROUTE_SEEDS.map(seed => greenShare(routeVisit('routing-api', defaultThreshold(), seed).refreshes));
+  assert.ok(median(green) >= 0.95, `median ${median(green)}; per load ${fixed(green)}`);
 });
