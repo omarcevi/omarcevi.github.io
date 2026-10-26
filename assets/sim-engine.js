@@ -1002,7 +1002,7 @@
   function metrics(sim, model, windowMs) {
     var win = given(windowMs) ? Math.min(windowMs, TTFT_KEEP_MS) : TTFT_WINDOW_MS;
     var cap = Math.round(TTFT_SAMPLES * win / TTFT_WINDOW_MS);
-    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, usd = 0, hasApi = false, k, r, e;
+    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, usd = 0, usdRecent = 0, hasApi = false, k, r, e;
     var routed = 0, small = 0, hard = 0, misrouted = 0;
     for (k = sim.routeLog.length - 1; k >= 0; k--) {   // newest first; the log is in time order
       e = sim.routeLog[k];
@@ -1034,16 +1034,19 @@
     }
     for (k = 0; k < sim.apiLog.length; k++) {
       if (sim.apiLog[k][0] >= sim.t - API_WINDOW_MS) usd += sim.apiLog[k][1];
+      if (sim.apiLog[k][0] >= sim.t - TOKRATE_WINDOW_MS) usdRecent += sim.apiLog[k][1];
     }
     var drained = isDrained(sim), tokPerSec = drained ? 0 : tokens / (TOKRATE_WINDOW_MS / 1000);
     var apiUsdPerHour = !hasApi ? null : drained ? 0 : usd / (API_WINDOW_MS / 1000) * 3600;
+    // cost divides spend by tokens over the same 3 s, so the API's 30 s spend can't outlive the tokens it paid for
+    var apiUsdPerSec = usdRecent / (TOKRATE_WINDOW_MS / 1000);
     return {
       ttftP50: ttfts.length ? nearestRank(ttfts, 0.5) : null,
       ttftP99: ttfts.length ? nearestRank(ttfts, 0.99) : null,
       tpotMs: tpotN ? tpotSum / tpotN : null,
       tokPerSec: tokPerSec,
       kvFrac: budget > 0 ? used / budget : null,
-      costPer1M: tokPerSec > 0 ? (GPU_HOUR_USD * sim.gpuCount / 3600 + (apiUsdPerHour || 0) / 3600) / tokPerSec * 1e6 : null,
+      costPer1M: tokPerSec > 0 ? (GPU_HOUR_USD * sim.gpuCount / 3600 + apiUsdPerSec) / tokPerSec * 1e6 : null,
       apiUsdPerHour: apiUsdPerHour,
       rejected: sim.stats.rejected,
       smallShare: routed ? small / routed : null,

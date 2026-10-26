@@ -965,14 +965,15 @@ test('tab 04: the API instance is no GPU: one H100 in both modes, and KV use cou
   Object.assign(sim.instances[2], { kvUsed: 5e9, kvBudget: 10e9 });   // even an API instance holding KV wouldn't count
   near(E.metrics(sim).kvFrac, frac, 1e-12);
 });
-test('tab 04: cost per 1M output tokens blends the H100 and the API spend, and API $/h is the last 30 s of spend', () => {
+test('tab 04: cost per 1M output tokens blends the H100 and the API spend of the same 3 s as its tokens, and API $/h is the last 30 s of spend', () => {
   const sim = preset('routing-api', 1);
   let at30 = null;
   run(sim, 60000, s => { if (s.t === 30000) at30 = s.stats.apiUsd; });
   const m = E.metrics(sim);
-  assert.ok(at30 > 0 && m.apiUsdPerHour > 0 && m.tokPerSec > 0);
+  const last3s = sim.apiLog.filter(([t]) => t >= sim.t - 3000).reduce((n, [, usd]) => n + usd, 0);
+  assert.ok(at30 > 0 && last3s > 0 && m.apiUsdPerHour > 0 && m.tokPerSec > 0);
   near(m.apiUsdPerHour, (sim.stats.apiUsd - at30) * 3600 / 30, 1e-9);
-  near(m.costPer1M, (E.GPU_HOUR_USD * sim.gpuCount / 3600 + m.apiUsdPerHour / 3600) / m.tokPerSec * 1e6, 1e-9);
+  near(m.costPer1M, (E.GPU_HOUR_USD * sim.gpuCount / 3600 + last3s / 3) / m.tokPerSec * 1e6, 1e-9);
   // on-prem there is no API: no API $/h, and cost is the H100's alone
   const onprem = preset('routing-onprem', 1);
   run(onprem, 20000);
@@ -985,6 +986,29 @@ test('tab 04: cost per 1M output tokens blends the H100 and the API spend, and A
   while (!E.isDrained(sim) && sim.t < 200000) E.tick(sim, 16);
   assert.ok(E.isDrained(sim));
   assert.deepEqual([E.metrics(sim).apiUsdPerHour, E.metrics(sim).costPer1M], [0, null]);
+});
+test('tab 04: draining in API mode, cost never jumps above its running level, and once the API has had nothing in flight for 3 s it is the H100 alone', () => {
+  for (const seed of [1, 2, 3]) {
+    const sim = preset('routing-api', seed);
+    run(sim, 60000);
+    const steady = E.metrics(sim).costPer1M;
+    E.setArrivals(sim, false);
+    let peak = 0, idleSince = null, checked = false;
+    while (!E.isDrained(sim) && sim.t < 200000) {
+      E.tick(sim, 16);
+      const m = E.metrics(sim), api = sim.instances.find(i => i.api);
+      if (m.costPer1M !== null) peak = Math.max(peak, m.costPer1M);
+      if (api.running.length) idleSince = null;
+      else if (idleSince === null) idleSince = sim.t;
+      if (idleSince !== null && sim.t - idleSince > 3000 && m.tokPerSec > 0) {
+        near(m.costPer1M, E.GPU_HOUR_USD * sim.gpuCount / 3600 / m.tokPerSec * 1e6, 1e-9);
+        checked = true;
+      }
+    }
+    // the H100 is still billed while its slices drain, so cost rises a little, but nothing like 30 s of API spend over 3 s of tokens
+    assert.ok(peak < steady * 4, `seed ${seed}: peak $${peak.toFixed(2)} vs steady $${steady.toFixed(2)}`);
+    assert.ok(checked || E.isDrained(sim), `seed ${seed}`);
+  }
 });
 // The run whose small share after 60 s is closest to 0.75, from a bisection on the threshold. A seed's scores
 // and the times they're made don't depend on the threshold, so the small share only grows with it.
