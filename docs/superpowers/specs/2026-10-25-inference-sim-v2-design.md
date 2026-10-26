@@ -162,14 +162,20 @@ MIG wins when several models share a card, which is how Omar got about 1.75× ca
 
 ## Delivery
 
-Six PRs, each shippable on its own. The page never looks half-built because a tab that isn't built yet just doesn't appear. Amended 2026-10-26: a model-routing tab joins as tab 04 (see `2026-10-26-inference-sim-v2-routing-design.md`), so the real-traffic and failure tabs become 05 and 06.
+Seven PRs, each shippable on its own. The page never looks half-built because a tab that isn't built yet just doesn't appear. Amended 2026-10-26: a model-routing tab joins as tab 04 (see `2026-10-26-inference-sim-v2-routing-design.md`), so the real-traffic and failure tabs become 05 and 06.
 
 1. Engine, move to `assets/sim.js`, tabs shell, tab 01, new footer metrics, pause/drain.
 2. Tabs 02 and 03.
 3. Tab 04, model routing: the System1 model routes each request to a small or large model, which can be on-prem or an API model.
 4. Tab 05 (real traffic), the trace script and its data.
-5. Tab 06 (failure), follow a request, the config drawer.
-6. Sandbox: every knob, terminal prompt, SLO challenge, cost meter.
+5. Tab 06 (failure). Amended 2026-10-26: follow-a-request and the config drawer move to their own PR, so this one teaches one lesson.
+6. Follow a request and the config drawer, on every tab.
+7. Sandbox: every knob, terminal prompt, SLO challenge, cost meter.
+
+Tab 06 decisions (2026-10-26, the builder's calls, listed in the PR 5 plan):
+- `kill a GPU` fails the highest-numbered H100 that's up, and is disabled while only one is up.
+- With the autoscaler on, a replacement H100 starts in the dead one's place, on a new GPU number. Its cold start is 30 s, labelled as an assumption (a warm spare node loading the weights).
+- A starting GPU is billed, a dead one isn't.
 
 ## Left to the builder
 
