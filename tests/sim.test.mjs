@@ -846,3 +846,153 @@ test('tab 04: a drain waits for requests between hops and finishes', () => {
   assert.ok(onlyServing, 'the System1 model emptied before the serving models');
   assert.equal(sim.stats.arrived, sim.stats.finished + sim.stats.rejected);
 });
+
+// ---- Tab 04: the API model ----
+
+const apiPreset = () => E.PRESETS['routing-api'];
+// The API routing preset with its own routing settings merged over the preset's, and its stream quiet (rate 0,
+// no bursts) so a test sends its own requests
+function quietApi(over = {}, seed = 1, extra = {}) {
+  const p = apiPreset();
+  return E.createSim(Object.assign({}, p, { seed, routing: Object.assign({}, p.routing, over),
+    streams: p.streams.map(s => Object.assign({}, s, { rate: 0, bursts: false })) }, extra));
+}
+const logged = sim => sim.tokLog.reduce((n, e) => n + e[1], 0);
+
+test('tab 04: the API model is an instance with no GPU, no KV and no queue, and routing-api puts it in the 8B\'s place', () => {
+  assert.deepEqual(E.MODELS.api, { label: 'API model', short: 'API' });
+  const on = E.PRESETS['routing-onprem'], p = apiPreset();
+  assert.deepEqual(p.instances, [on.instances[0], on.instances[1], { profile: 'api', model: 'api' }]);
+  assert.deepEqual(p.routing, Object.assign({}, on.routing, { large: 'api' }));
+  for (const key of ['batching', 'slo', 'streams']) assert.deepEqual(p[key], on[key], key);
+  const sim = preset('routing-api', 1), a = sim.instances[2];
+  assert.deepEqual([a.api, a.fits, a.profile, a.model, a.kvBudget, a.kvUsed, a.timeSliced], [true, true, 'api', 'api', 0, 0, false]);
+  assert.ok(sim.instances.slice(0, 2).every(i => i.api === false && i.fits));
+  assert.deepEqual(sim.routing, p.routing);
+  assert.equal(E.canAdmit(sim, a), false);   // the page draws no free-slot row for it
+  assert.throws(() => E.createInstance('7g.80gb', 'api', {}), /API model/);
+  assert.throws(() => E.createInstance('api', 'llama-3-8b', {}), /API model/);
+  for (const key of ['inputPer1M', 'outputPer1M', 'baseMs', 'msPerInputToken', 'tpotMs']) assert.ok(E.API[key] > 0, key);
+  assert.equal(E.API_SOURCE, E.API.source);
+  assert.match(E.API_SOURCE, /https:\/\/\S+.*https:\/\/\S+/);   // a list price and a latency benchmark,
+  assert.match(E.API_SOURCE, /checked 2026-10-26/);             // with the date they were checked
+});
+test('tab 04: an API request\'s first token comes a fixed base plus a time per input token after it enters, then one token every tpotMs, logged as made', () => {
+  const sim = quietApi({ threshold: 0 }), A = E.API, ttft = A.baseMs + 1000 * A.msPerInputToken;   // everything to the API
+  const r = E.enqueue(sim, { prompt: 1000, output: 50 });
+  // the tokens made by time t: the first at tScored + ttft, then one every tpotMs, 50 in all
+  const due = t => r.tScored === null || t < r.tScored + ttft ? 0 : Math.min(50, 1 + Math.floor((t - r.tScored - ttft) / A.tpotMs));
+  let waited = false;
+  run(sim, 5000, s => {
+    const n = logged(s);
+    assert.ok(n <= due(s.t + 1e-6) && n >= due(s.t - 100), `${n} tokens logged at ${s.t}, ${due(s.t)} made`);
+    if (r.tScored !== null && r.tFirst === null) {   // between hops: the prefill bar fills over the first-token wait
+      near(E.prefillProgress(s, s.instances[2], r), (s.t - r.tScored) / ttft, 1e-9);
+      waited = true;
+    }
+  });
+  assert.ok(waited);
+  assert.equal(r.state, 'done');
+  assert.deepEqual([r.target, r.model, r.inst, r.generated, r.kvTokens], ['large', 'api', 2, 50, 0]);
+  near(r.tFirst - r.tScored, ttft, 1e-9);
+  near(r.tDone - r.tFirst, 49 * A.tpotMs, 1e-9);
+  assert.equal(E.prefillProgress(sim, sim.instances[2], r), 1);
+  assert.deepEqual(sim.ttftLog, [[r.tFirst, r.tFirst - r.t0, 'api']]);   // its TTFT includes the System1 hop
+  assert.equal(logged(sim), 50);
+  assert.equal(sim.stats.finished, 1);
+  near(E.metrics(sim, 'api').tpotMs, A.tpotMs, 1e-9);
+  assert.deepEqual([sim.instances[2].queue.length, sim.instances[2].running.length], [0, 0]);
+});
+test('tab 04: API spend bills the prompt when a request enters and each output token as it is made', () => {
+  const sim = quietApi({ threshold: 0 }), A = E.API;
+  const r = E.enqueue(sim, { prompt: 1000, output: 50 });
+  let entered = null;
+  run(sim, 5000, s => { if (r.tScored !== null && entered === null) entered = [s.stats.apiUsd, r.generated]; });
+  assert.ok(entered);
+  assert.equal(entered[1], 0);                          // scored, at the API, no token yet: the prompt is billed
+  near(entered[0], 1000 * A.inputPer1M / 1e6, 1e-15);
+  assert.equal(r.state, 'done');
+  near(sim.stats.apiUsd, 1000 * A.inputPer1M / 1e6 + 50 * A.outputPer1M / 1e6, 1e-15);
+  // the System1 model and the small model cost no API spend
+  const small = quietApi({ threshold: 1 });
+  E.enqueue(small, { prompt: 1000, output: 50 });
+  run(small, 5000);
+  assert.deepEqual([small.stats.finished, small.stats.apiUsd], [1, 0]);
+});
+test('tab 04: the API model never queues or rejects: 500 requests at once at threshold 0 all run there together', () => {
+  // The gateway's queue (the System1 model's) is raised to hold all 500, so every one reaches the API
+  const sim = quietApi({ threshold: 0 }, 1, { config: { queueCap: 500 } }), A = E.API, a = sim.instances[2];
+  const reqs = Array.from({ length: 500 }, () => E.enqueue(sim, { prompt: 16, output: 50 }));
+  E.setArrivals(sim, false);
+  let peak = 0;
+  while (!E.isDrained(sim) && sim.t < 60000) {
+    E.tick(sim, 16);
+    assert.equal(a.queue.length, 0);
+    peak = Math.max(peak, a.running.length);
+  }
+  assert.ok(E.isDrained(sim));
+  assert.deepEqual([sim.stats.rejected, sim.stats.finished, sim.stats.routedLarge], [0, 500, 500]);
+  assert.ok(peak >= 400, `at most ${peak} at once`);   // well past max-num-seqs (256): no concurrency limit
+  for (const r of reqs) {   // the same fixed latency at any load
+    assert.equal(r.model, 'api');
+    near(r.tFirst - r.tScored, A.baseMs + 16 * A.msPerInputToken, 1e-9);
+    near(r.tDone - r.tFirst, 49 * A.tpotMs, 1e-9);
+  }
+});
+test('tab 04: the API instance is no GPU: one H100 in both modes, and KV use counts only the GPU instances', () => {
+  for (const id of ['routing-onprem', 'routing-api']) assert.equal(preset(id, 1).gpuCount, 1, id);
+  assert.equal(E.createSim({ seed: 1, streams: [{ model: 'llama-3-8b', rate: 0 }],
+    instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }, { profile: 'api', model: 'api', gpu: 1 }] }).gpuCount, 1);
+  const sim = preset('routing-api', 2);
+  run(sim, 20000);
+  const gpus = sim.instances.filter(i => !i.api);
+  const frac = gpus.reduce((n, i) => n + i.kvUsed, 0) / gpus.reduce((n, i) => n + i.kvBudget, 0);
+  assert.ok(frac > 0 && sim.instances[2].running.length > 0);
+  near(E.metrics(sim).kvFrac, frac, 1e-12);
+  Object.assign(sim.instances[2], { kvUsed: 5e9, kvBudget: 10e9 });   // even an API instance holding KV wouldn't count
+  near(E.metrics(sim).kvFrac, frac, 1e-12);
+});
+test('tab 04: cost per 1M output tokens blends the H100 and the API spend, and API $/h is the last 30 s of spend', () => {
+  const sim = preset('routing-api', 1);
+  let at30 = null;
+  run(sim, 60000, s => { if (s.t === 30000) at30 = s.stats.apiUsd; });
+  const m = E.metrics(sim);
+  assert.ok(at30 > 0 && m.apiUsdPerHour > 0 && m.tokPerSec > 0);
+  near(m.apiUsdPerHour, (sim.stats.apiUsd - at30) * 3600 / 30, 1e-9);
+  near(m.costPer1M, (E.GPU_HOUR_USD * sim.gpuCount / 3600 + m.apiUsdPerHour / 3600) / m.tokPerSec * 1e6, 1e-9);
+  // on-prem there is no API: no API $/h, and cost is the H100's alone
+  const onprem = preset('routing-onprem', 1);
+  run(onprem, 20000);
+  const o = E.metrics(onprem);
+  assert.equal(o.apiUsdPerHour, null);
+  near(o.costPer1M, E.GPU_HOUR_USD / 3600 / o.tokPerSec * 1e6, 1e-9);
+  assert.equal(E.metrics(preset('batching', 1)).apiUsdPerHour, null);
+  // drained, nothing is being spent: 0, like throughput
+  E.setArrivals(sim, false);
+  while (!E.isDrained(sim) && sim.t < 200000) E.tick(sim, 16);
+  assert.ok(E.isDrained(sim));
+  assert.deepEqual([E.metrics(sim).apiUsdPerHour, E.metrics(sim).costPer1M], [0, null]);
+});
+// The run whose small share after 60 s is closest to 0.75, from a bisection on the threshold. A seed's scores
+// and the times they're made don't depend on the threshold, so the small share only grows with it.
+function split75(seed) {
+  let lo = 0, hi = 1, best = null;
+  for (let k = 0; k < 12; k++) {
+    const x = (lo + hi) / 2, sim = E.createSim(Object.assign({}, apiPreset(), { seed, routing: Object.assign({}, apiPreset().routing, { threshold: x }) }));
+    run(sim, 60000);
+    const m = E.metrics(sim);
+    if (!best || Math.abs(m.smallShare - 0.75) < Math.abs(best.m.smallShare - 0.75)) best = { x, sim, m };
+    if (Math.abs(m.smallShare - 0.75) <= 0.01) break;
+    if (m.smallShare < 0.75) lo = x;
+    else hi = x;
+  }
+  return best;
+}
+test('tab 04: at a 75/25 small/large split the API bill is at least 70% of the blended cost (seeds 1-5, 60 s)', () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const { x, sim, m } = split75(seed);
+    assert.ok(m.smallShare >= 0.7 && m.smallShare <= 0.8, `seed ${seed}: small share ${m.smallShare} at threshold ${x}`);
+    const gpu = E.GPU_HOUR_USD * sim.gpuCount / 3600, api = m.apiUsdPerHour / 3600;
+    assert.ok(api / (gpu + api) >= 0.7, `seed ${seed}: the API is ${(100 * api / (gpu + api)).toFixed(1)}% of the blended cost`);
+  }
+});
