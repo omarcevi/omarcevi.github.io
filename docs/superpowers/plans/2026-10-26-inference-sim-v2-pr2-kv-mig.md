@@ -539,3 +539,25 @@ git commit -m "Sim v2: draw several instances, preemption flashes, per-model p99
 ## Next plans
 
 PR 3 (tab 04 and the Azure trace), PR 4 (tab 05, follow-a-request, config drawer) and PR 5 (the sandbox) are unchanged from the PR 1 plan's "Next plans" section.
+
+### What changed during execution (supersedes the decisions above where they differ)
+
+- **Time-slicing overhead.** Omar's call: under contention, a time-sliced step loses 30% of its GPU time to context switching (`CTX_SWITCH_LOSS`, labelled an assumption on the page). Stretch and loss apply to the GPU part of a step only.
+- **Calibration** is tested over several seeds, and tabs 02 and 03 have visitor-view tests (8 s warm-up, 300 ms sampling, 30 s windows; tab 03 warms up 40 s).
+- **Final values:**
+  - Tab 02 runs at rate 0.5 with bursts of 8–12, prompts around 5500 tokens and replies around 400.
+  - Tab 03's 8B runs at rate 2.5 with bursts of 6–10; the 3B at rate 8 and the 1B at rate 25.
+- **Box p99** is coloured on the footer's 30 s window and shows its target as text (`p99 x / target`). The canvas aria-label carries each model's status.
+- **The burst-triggered noisy-neighbour jump** isn't visible on the page, because the tab 03 traffic is steady. A quiet-8B engine test keeps the effect covered.
+
+### Follow-ups from PR 2's final review
+
+- **Tab 02 overload:** tab 02 runs about 50% over capacity at every slider position (TTFT p99 about 33 s after 2 min, 503s from about 5 min). Consider a clause in the synthetic-traffic note, or a gentler load that still shows preemption in 30 s.
+- **Tab 03 switch:** about 1 in 8 switches to time-slicing opens green for the first 5 s.
+- **Noisy-neighbour test:** it reads the peak p99 during the bursts, which inflates both ratios by about 1.2×. Note this in its comment, or compare against a matched baseline.
+- **Phones:** the preempted row is the newest, so it usually sits under "+N more" and the amber flash is desktop-only. Consider drawing preempted rows first.
+- **MIG headroom:** MIG's 8B headroom is thinner at rate 2.5 (max 1.9 s over 2 min), and a manual burst turns it red for about 33 s.
+- **Uniform rows:** tab 02's prompt sigma of 0.1 makes the rows look uniform.
+- **Warm-up cost:** the tab 03 warm-up costs 8–14 ms per click on desktop.
+- **Engine vs UI:** the UI still reads engine internals (`inst.step`, `stepEnd`, `batch.steps`, `sim.cfg`, `r.prefillDone`).
+- **Engine validation:** the engine doesn't validate physical MIG layouts per GPU, which the sandbox will need.
