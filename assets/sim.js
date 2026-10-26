@@ -1,11 +1,12 @@
 // Inference simulator, page side: draws the engine in assets/sim-engine.js (window.SimEngine)
 // on the #sim canvas and wires the panel's controls. Each tab is an engine preset, rebuilt and
-// warmed up when the tab opens; tab 02's memory slider and tab 03's deployment switch redeploy the
-// same way. The canvas shows arrivals, each instance's queue lane, its running sequences (one row
-// each, flashing amber when preempted) and KV cache, the token stream, and a rolling TTFT p99 line
-// with a marker for each switch the visitor makes. In tab 03 each box also shows its model's p99 next
-// to that model's SLO (green or red, and in words in the canvas's aria-label), and a time-sliced step's
-// stretch. Animations run on the page's frame clock; the sim's own clock stops once it has drained.
+// warmed up when the tab opens; tab 02's memory slider, tab 03's deployment switch and tab 04's
+// large-model switch redeploy the same way, while tab 04's routing threshold moves live. The canvas
+// shows arrivals, each instance's queue lane, its running sequences (one row each, flashing amber when
+// preempted) and KV cache, the token stream, and a rolling TTFT p99 line with a marker for each switch
+// the visitor makes. In tabs 03 and 04 each box also shows its model's p99 next to that model's SLO
+// (green or red, and in words in the canvas's aria-label), and in tab 03 a time-sliced step's stretch.
+// Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
   var E = window.SimEngine;
@@ -16,7 +17,7 @@
   function $(id) { return document.getElementById(id); }
 
   var WARMUP_TICKS = 500, TICK_MS = 16;  // 8 s of sim time, so a tab never opens empty
-  var TAB03_WARMUP_TICKS = 2500;         // 40 s in tab 03, so a deployment opens on steady state with a full 30 s p99 window
+  var TAB03_WARMUP_TICKS = 2500;         // 40 s in tabs 03 and 04, so a deployment opens on steady state with a full 30 s p99 window
   var SAMPLE_MS = 300, SAMPLES = 110;    // footer refresh and sparkline samples, in sim time
   var FLASH_MS = 300;                    // a finished row flashes green this long, a preempted one amber
   var P99_WINDOW_MS = 30000;             // a box's p99 vs its SLO: its model's first tokens of the last 30 s (at most the latest 200), the footer's window
@@ -61,22 +62,33 @@
     'mig-mig': {
       note: '· three models on one H100 split 3g+2g+2g · real time', label: 'one H100 · MIG 3g+2g+2g', narrow: 'H100 · MIG',
       aria: 'Animated simulation: three models on isolated MIG slices of one H100'
+    },
+    'routing-onprem': {
+      note: '· System1 model, Llama 3.2 1B and Llama 3 8B on one H100 · real time', label: 'one H100 · MIG 3g+2g+1g', narrow: 'H100 · MIG',
+      aria: 'Animated simulation: a System1 model scores each request and routes it to a small or a large model on one H100'
+    },
+    'routing-api': {
+      note: '· System1 model and Llama 3.2 1B on one H100, large model by API · real time', label: 'H100 + API model', narrow: 'H100 + API',
+      aria: 'Animated simulation: a System1 model routes each request to a small model on one H100 or to a large model behind an API'
     }
   };
   var KV_MEM = 0.9;   // tab 02's slider default, vLLM's --gpu-memory-utilization default
+  var ROUTE = E.PRESETS['routing-onprem'].routing.threshold;   // tab 04's slider default, the engine's
 
   var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap'), wrapPre = $('m-pre-wrap');
+  var wrapSmall = $('m-small-wrap'), wrapMis = $('m-mis-wrap'), wrapApi = $('m-api-wrap');
   var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
+  var route = $('sim-route'), routeOut = $('sim-route-v');
   var M = {
     p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'),
-    gpus: $('m-gpus'), cost: $('m-cost'), pre: $('m-pre'), rej: $('m-503')
+    gpus: $('m-gpus'), cost: $('m-cost'), pre: $('m-pre'), rej: $('m-503'),
+    small: $('m-small'), mis: $('m-mis'), api: $('m-api')
   };
   var tabs = [].slice.call(box.querySelectorAll('[role=tablist] [role=tab]'));
   var panels = [].slice.call(box.querySelectorAll('[role=tabpanel]'));
   // Each panel's radio group is its own roving-tabindex group
   function group(panelId) { return [].slice.call($(panelId).querySelectorAll('[role=radiogroup] [role=radio]')); }
-  var batchRadios = group('sim-tab-batching'), deployRadios = group('sim-tab-mig');
-  M.cost.parentNode.title = 'per 1M output tokens · H100 at $' + E.GPU_HOUR_USD.toFixed(2) + '/h · ' + E.GPU_HOUR_SOURCE;
+  var batchRadios = group('sim-tab-batching'), deployRadios = group('sim-tab-mig'), largeRadios = group('sim-tab-routing');
 
   var sim = null, preset = null, V = null, L = null, frozen = REDUCE, shown = null;
   var W = 0, H = 0, visible = false, raf = 0, last = 0;
@@ -137,6 +149,9 @@
     var zeros = sim.instances.map(function () { return 0; }), models = {};
     sim.instances.forEach(function (inst) { models[inst.model] = true; });
     return {
+      api: sim.instances.some(function (inst) { return inst.api; }),   // tab 04's API mode
+      // the models with a target and a box: tab 04's targets also name the large model of the other mode
+      targets: Object.keys(sim.slo || {}).filter(function (model) { return models[model]; }),
       vt: 0,              // frame clock (ms); it runs on after the sim's clock stops
       place: true,        // the next sync puts everything at its target instead of easing there
       dots: {},           // request id -> a dot for a queued request, or one flying to its row
@@ -145,7 +160,7 @@
       fly: [], toks: [], rejects: [],                        // finished requests, token particles, 503s
       hist: [], nextSample: SAMPLE_MS, rejected: 0,
       multi: Object.keys(models).length > 1,                 // several models: each box names its model
-      p99: {}                                                // model -> TTFT p99 over P99_WINDOW_MS (tab 03), per footer refresh
+      p99: {}                                                // model -> TTFT p99 over P99_WINDOW_MS (tabs 03, 04), per footer refresh
     };
   }
 
@@ -427,9 +442,9 @@
 
   // ---- Footer and play button ----
 
-  // The canvas's aria-label in tab 03: the view, then each model's p99 against its target, as the boxes show it
+  // The canvas's aria-label in tabs 03 and 04: the view, then each model's p99 against its target, as the boxes show it
   function sloLabel() {
-    return VIEWS[preset].aria + '. ' + Object.keys(sim.slo).map(function (model) {
+    return VIEWS[preset].aria + '. ' + V.targets.map(function (model) {
       var p = V.p99[model], slo = sim.slo[model];
       return E.MODELS[model].short + ' p99 ' + E.fmt.spoken(p) + ', target ' + E.fmt.spoken(slo) +
         (p === null ? '' : p <= slo ? ', met' : ', missed');
@@ -438,7 +453,7 @@
   function footer() {
     var m = E.metrics(sim), f = E.fmt;
     if (sim.slo) {   // each box's p99 against its SLO, refreshed with the footer, and the same in words
-      Object.keys(sim.slo).forEach(function (model) { V.p99[model] = E.metrics(sim, model, P99_WINDOW_MS).ttftP99; });
+      V.targets.forEach(function (model) { V.p99[model] = E.metrics(sim, model, P99_WINDOW_MS).ttftP99; });
       var label = sloLabel();
       if (cv.getAttribute('aria-label') !== label) cv.setAttribute('aria-label', label);
     }
@@ -453,6 +468,11 @@
     wrapPre.hidden = !(sim.stats.preemptions > 0);
     M.rej.textContent = m.rejected.toLocaleString('en-US');
     wrap503.hidden = !(m.rejected > 0);
+    // tab 04: the routing shares, and in API mode the API model's spend
+    wrapSmall.hidden = wrapMis.hidden = !sim.routing;
+    wrapApi.hidden = !V.api;
+    if (sim.routing) { M.small.textContent = f.pct(m.smallShare); M.mis.textContent = f.pct(m.misroutedShare); }
+    if (V.api) M.api.textContent = m.apiUsdPerHour === null ? '\u2013' : '$' + m.apiUsdPerHour.toFixed(2) + '/h';
     return m;
   }
   function sample(m) {
@@ -518,18 +538,25 @@
       b.tabIndex = on ? 0 : -1;
     });
   }
-  // Batching follows the sim; the deployment follows the preset, MIG while tab 03 isn't open
+  // Batching follows the sim; the deployment and the large model follow the preset, MIG while tab 03
+  // isn't open and on-prem while tab 04 isn't
   function syncRadios() {
     check(batchRadios, 'data-batching', sim.batching);
     check(deployRadios, 'data-deploy', preset.indexOf('mig-') === 0 ? preset.slice(4) : 'mig');
+    check(largeRadios, 'data-large', preset.indexOf('routing-') === 0 ? preset.slice(8) : 'onprem');
   }
 
-  // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow (tab 03, whose
-  // boxes show a 30 s p99, for longer). Nothing of the old sim's view carries over, and frozen stays as it
-  // is (reduced motion opens every one frozen).
+  // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow (tabs 03 and 04,
+  // whose boxes show a 30 s p99, for longer). Tab 04 starts at the slider's threshold, so a mode switch keeps
+  // it, from the warm-up on and with no marker. Nothing of the old sim's view carries over, and frozen stays
+  // as it is (reduced motion opens every one frozen).
   function deploy(id, config) {
+    var p = E.PRESETS[id];
     preset = id;
-    sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: Math.floor(Math.random() * 2147483647), config: config }));
+    sim = E.createSim(Object.assign({}, p, {
+      seed: Math.floor(Math.random() * 2147483647), config: config,
+      routing: p.routing ? Object.assign({}, p.routing, { threshold: +route.value }) : null
+    }));
     V = freshView();
     for (var k = 0, n = sim.slo ? TAB03_WARMUP_TICKS : WARMUP_TICKS; k < n; k++) {
       E.tick(sim, TICK_MS);
@@ -538,6 +565,10 @@
     V.rejected = sim.stats.rejected;
     note.textContent = VIEWS[id].note;
     cv.setAttribute('aria-label', VIEWS[id].aria);
+    // blended in API mode: the H100 plus the API model's tokens
+    M.cost.parentNode.title = 'per 1M output tokens · H100 at $' + E.GPU_HOUR_USD.toFixed(2) + '/h · ' + E.GPU_HOUR_SOURCE +
+      (V.api ? ' · plus the API model at $' + E.API.inputPer1M.toFixed(2) + ' / $' + E.API.outputPer1M.toFixed(2) +
+               ' per 1M input / output tokens · ' + E.API_SOURCE : '');
     syncRadios();
     shown = null;
     cv.classList.toggle('tall', sim.instances.length >= TALL_AT);   // 320px (300px on phones) for three boxes
@@ -550,7 +581,8 @@
     wake();
   }
 
-  // Opens a tab with its controls at their defaults: continuous batching, the slider at 0.9, MIG
+  // Opens a tab with its controls at their defaults: continuous batching, the slider at 0.9, MIG, and
+  // tab 04's threshold at the engine's default with the 8B on-prem
   function switchTab(id) {
     tabs.forEach(function (t) {
       var on = t.getAttribute('data-tab') === id;
@@ -560,8 +592,10 @@
     panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab') !== id; });
     kvMem.value = String(KV_MEM);
     kvMemOut.textContent = KV_MEM.toFixed(2);
+    route.value = String(ROUTE);
+    routeOut.textContent = ROUTE.toFixed(2);
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
-    else deploy(id === 'mig' ? 'mig-mig' : 'batching');
+    else deploy(id === 'mig' ? 'mig-mig' : id === 'routing' ? 'routing-onprem' : 'batching');
   }
 
   function setMode(b) {
@@ -572,6 +606,10 @@
   function setDeploy(b) {
     var id = 'mig-' + b.getAttribute('data-deploy');
     if (id !== preset) deploy(id);
+  }
+  function setLarge(b) {
+    var id = 'routing-' + b.getAttribute('data-large');
+    if (id !== preset) deploy(id);   // at the slider's threshold
   }
 
   // Arrow keys move along a tab list or radio group and pick what they land on (roving tabindex)
@@ -598,12 +636,22 @@
   arrows(batchRadios, RADIO_KEYS, setMode);
   deployRadios.forEach(function (b) { b.addEventListener('click', function () { setDeploy(b); }); });
   arrows(deployRadios, RADIO_KEYS, setDeploy);
+  largeRadios.forEach(function (b) { b.addEventListener('click', function () { setLarge(b); }); });
+  arrows(largeRadios, RADIO_KEYS, setLarge);
   // The output follows the slider as it moves; a redeploy waits for the change (release, or a key step),
   // since --gpu-memory-utilization is a startup flag
   kvMem.addEventListener('input', function () { kvMemOut.textContent = (+kvMem.value).toFixed(2); });
   kvMem.addEventListener('change', function () {
     kvMemOut.textContent = (+kvMem.value).toFixed(2);
     deploy('kvcache', { gpuMemUtil: +kvMem.value });
+  });
+  // Tab 04's threshold is a router setting, so it moves live on the change: requests scored from then
+  // on use it, and the sparkline marks it
+  route.addEventListener('input', function () { routeOut.textContent = (+route.value).toFixed(2); });
+  route.addEventListener('change', function () {
+    routeOut.textContent = (+route.value).toFixed(2);
+    E.setThreshold(sim, +route.value);
+    if (!raf) draw();   // frozen or stopped: show the new marker now
   });
 
   // Pause stops new arrivals and lets in-flight work drain; play (also from draining) restarts them
@@ -617,7 +665,7 @@
   // on from the warm-up, so they go off first: the button read "▶ play" and must keep meaning stopped.
   burstBtn.addEventListener('click', function () {
     if (frozen) { frozen = false; E.setArrivals(sim, false); }
-    E.sendBurst(sim, BURST, 0);   // stream 0: tab 03's 8B
+    E.sendBurst(sim, BURST, 0);   // stream 0: tab 03's 8B, and in tab 04 the System1 model, so it's routed
     renderPlay();
     wake();
   });
