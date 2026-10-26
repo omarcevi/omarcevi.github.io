@@ -235,11 +235,10 @@
   function sync(dt) {
     var k = V.place ? 1 : Math.min(1, dt / 1000 * 9), seen = {};
     function dot(r, tx, ty, lands, fade, ii) {
-      var d = V.dots[r.id], g;
-      // tab 04: a request first seen at a model's box was scored between two frames, so its dot starts at the
-      // System1 box's exit, as from there (inst 0), and takes its branch like the others
-      if (!d && !V.place && L.routing && ii > 0) { g = branch(ii); d = V.dots[r.id] = { x: g[0], y: g[1], inst: 0 }; }
-      if (!d) d = V.dots[r.id] = V.place ? { x: tx, y: ty, inst: ii } : { x: -4, y: L.top + Math.random() * (L.bot - L.top), inst: ii };
+      var d = V.dots[r.id];
+      // tab 04: a request first seen at a model's box was scored between two frames, so its dot comes in from
+      // the left as if seen at System1 (inst 0) and its hop carries it through the System1 exit down its branch
+      if (!d) d = V.dots[r.id] = V.place ? { x: tx, y: ty, inst: ii } : { x: -4, y: L.top + Math.random() * (L.bot - L.top), inst: L.routing ? 0 : ii };
       if (V.place) delete d.hop;
       else if (L.routing && d.inst === 0 && ii > 0) startHop(d, ii);   // tab 04: just scored, so off down its branch
       d.inst = ii;
@@ -759,7 +758,7 @@
     kvMem.value = String(KV_MEM);
     kvMemOut.textContent = KV_MEM.toFixed(2);
     route.value = String(ROUTE);
-    routeOut.textContent = ROUTE.toFixed(2);
+    showRoute();
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
     else deploy(id === 'mig' ? 'mig-mig' : id === 'routing' ? 'routing-onprem' : 'batching');
   }
@@ -813,9 +812,15 @@
   });
   // Tab 04's threshold is a router setting, so it moves live on the change: requests scored from then
   // on use it, and the sparkline marks it
-  route.addEventListener('input', function () { routeOut.textContent = (+route.value).toFixed(2); });
+  // At 1 nothing goes to the large model (no score is above 1), so the readout says so rather than "≥ 1.00"
+  function showRoute() {
+    var x = +route.value, none = x >= 1;
+    routeOut.textContent = x.toFixed(2) + (none ? ' (none)' : '');
+    route.setAttribute('aria-valuetext', none ? '1.00, nothing goes to the large model' : x.toFixed(2));
+  }
+  route.addEventListener('input', showRoute);
   route.addEventListener('change', function () {
-    routeOut.textContent = (+route.value).toFixed(2);
+    showRoute();
     E.setThreshold(sim, +route.value);
     if (!raf) draw();   // frozen or stopped: show the new marker now
   });

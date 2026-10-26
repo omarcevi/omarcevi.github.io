@@ -28,8 +28,8 @@ Two problems:
 
 - It isn't a benchmark and doesn't claim to predict real numbers precisely. A footnote says it's a model, not a benchmark.
 - No server, build step or framework. The site stays plain static files on GitHub Pages.
-- No model picker. Tabs 01, 02, 04 and 05 serve one model (Llama 3 8B). Tab 03 serves a fixed set of three models.
-- No cluster view beyond what tabs 03 and 05 need (a few GPUs side by side).
+- No model picker. Tabs 01, 02, 05 and 06 serve one model (Llama 3 8B). Tab 03 serves a fixed set of three models, and tab 04 a fixed System1 model, Llama 3.2 1B and Llama 3 8B (or an API model).
+- No cluster view beyond what tabs 03 and 06 need (a few GPUs side by side).
 - No sound and no saved scores across visits.
 - The other demos (hero, attention, agent replay, reading trace) are untouched.
 
@@ -101,7 +101,7 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
   - Llama 3 8B Instruct: weights ≈ 16 GB, KV ≈ 128 KiB per token (32 layers × 8 KV heads × 128 head dim × K and V × 2 bytes).
   - Llama 3.2 3B: weights ≈ 6.4 GB, KV ≈ 112 KiB per token (28 × 8 × 128 × 2 × 2).
   - Llama 3.2 1B: weights ≈ 2.5 GB, KV ≈ 32 KiB per token (16 × 8 × 64 × 2 × 2).
-  - Only tab 03 and the sandbox use the 3B and 1B.
+  - Only tab 03 and the sandbox use the 3B; tabs 03 and 04 and the sandbox use the 1B.
 - **Time-slicing (tab 03):** several processes share one GPU with no isolation. GPU time is split among the processes that have work, so each model's step time grows with its neighbours' load. The builder picks a simple model with that shape.
 - **Slices:** each MIG profile gives its slice a memory size, a share of compute and a share of memory bandwidth. Profiles used: 7g.80gb, 4g.40gb, 3g.40gb, 2g.20gb, 1g.20gb (plus 1g.10gb, mentioned only as "doesn't fit").
 - **Topology** (my call, matching real MIG serving):
@@ -132,7 +132,7 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
 - **Script:** a new script in `scripts/` downloads the conversation trace, picks a representative 5-minute window and writes `assets/sim/azure-conv.json` (arrival offset in ms, prompt tokens, output tokens), aiming for under 100 KB. The script documents why that window was chosen. It may also derive the code-like length distribution for tab 02.
   - The output is committed.
   - It doesn't run in CI (the dataset doesn't change), so it stays out of `.github/workflows/ml-figures.yml`.
-- **Credit:** the tab 04 caption credits the trace and links the dataset, for example "traffic: 5 min of Azure's production LLM requests (Microsoft, CC-BY)".
+- **Credit:** the tab 05 caption credits the trace and links the dataset, for example "traffic: 5 min of Azure's production LLM requests (Microsoft, CC-BY)".
 
 ## Code layout
 
@@ -150,14 +150,14 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
   - The lesson text and metrics are real HTML.
   - The canvas `aria-label` updates per tab.
 
-## Why MIG only appears in tab 03 (decided)
+## Why MIG only appears in the multi-model tabs, 03 and 04 (decided)
 
 With one 8B model, an honest engine makes a full GPU beat 3g+2g+2g by a wide margin:
 
 - Three copies of the weights take 48 of the 80 GB, leaving about 20 GB for KV instead of about 54 GB.
 - Every slice re-reads its 16 GB of weights at each decode step, so a 2g step takes about 19 ms against about 5 ms on the full GPU.
 
-MIG wins when several models share a card, which is how Omar got about 1.75× capacity at Trendyol. So the one-model tabs run on full GPUs, and tab 03 tells the multi-model story (Omar's call, 2026-10-25).
+MIG wins when several models share a card, which is how Omar got about 1.75× capacity at Trendyol. So the one-model tabs run on full GPUs, and tab 03 tells the multi-model story (Omar's call, 2026-10-25). Tab 04's routing also runs on MIG, since it serves three models on one H100 (amended 2026-10-26).
 
 ## Delivery
 
@@ -173,7 +173,7 @@ Six PRs, each shippable on its own. The page never looks half-built because a ta
 ## Left to the builder
 
 - **Model details:** exact constants and their sources, the activation reserve, and the random-traffic length distributions.
-- **Drawing:** canvas details beyond what's described here and in the mockup. This includes how the second GPU appears in tab 05 and how the cold start is shown (labelled if compressed).
+- **Drawing:** canvas details beyond what's described here and in the mockup. This includes how the second GPU appears in tab 06 and how the cold start is shown (labelled if compressed).
 - **Terminal:** command names and grammar. Keep it small, with `help` listing the commands.
 - **SLO challenge:** targets, and how a pass is shown.
 - **Cost meter:** the H100 price per hour. Cite a public on-demand price and show it in a tooltip.
