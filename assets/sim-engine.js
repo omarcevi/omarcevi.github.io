@@ -31,7 +31,10 @@
   var MODELS = {
     'llama-3-8b': { label: 'Llama 3 8B', short: '8B', params: 8.03e9, weightsGB: 16.06, kvBytesPerToken: 131072, contextLen: 8192 },
     'llama-3.2-3b': { label: 'Llama 3.2 3B', short: '3B', params: 3.21e9, weightsGB: 6.43, kvBytesPerToken: 114688, contextLen: 131072 },
-    'llama-3.2-1b': { label: 'Llama 3.2 1B', short: '1B', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 }
+    'llama-3.2-1b': { label: 'Llama 3.2 1B', short: '1B', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 },
+    // Tab 04's router: a 1B-class classifier, modelled with Llama 3.2 1B's numbers. It prefills the prompt
+    // and outputs one token, the score.
+    system1: { label: 'System1 model', short: 'S1', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 }
   };
 
   var GPU = { tflops: 989, tbps: 3.35, mfu: 0.5, mbu: 0.8, stepOverheadMs: 1.5 };
@@ -127,8 +130,32 @@
       { profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 },
       { profile: '2g.20gb', model: 'llama-3.2-3b', gpu: 0 },
       { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 }
-    ])
+    ]),
+    // Tab 04, on-prem: one H100 split 3g.40gb + 2g.20gb + 1g.10gb, one 1g slice left free. Every request goes
+    // first to the System1 model on 1g, which scores it; a score at or above the threshold goes on to the 8B on
+    // 3g, the rest to the 1B on 2g. The rate, hardCut, noise and threshold are starting values for the
+    // visitor-view calibration: 9 req/s is above the about 6 req/s the 8B serves alone on its slice (5.6-6.3
+    // overloaded, seeds 1-3), a difficulty of u^2 (DIFFICULTY_POWER) puts 1 - sqrt(0.55), about 26%, at or
+    // above the 0.55 hard cut, and the 0.45 threshold sits one noise sigma below it.
+    'routing-onprem': {
+      instances: [
+        { profile: '1g.10gb', model: 'system1', gpu: 0 },
+        { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 },
+        { profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 }
+      ],
+      batching: 'continuous',
+      slo: { 'llama-3-8b': 2000, api: 2000, 'llama-3.2-1b': 1000 },
+      streams: [{ model: 'system1', rate: 9, bursts: { min: 6, max: 10 }, lengths: LENGTHS }],
+      routing: { small: 'llama-3.2-1b', large: 'llama-3-8b', threshold: 0.45, hardCut: 0.55, noise: 0.1 }
+    }
   };
+
+  // Tab 04's gateway. Its router is the System1 model; a request's hidden difficulty is a uniform draw raised
+  // to DIFFICULTY_POWER, so most requests are easy. The small share and misrouted share in metrics cover the
+  // routing decisions of the last ROUTE_WINDOW_MS.
+  var SYSTEM1 = 'system1';
+  var DIFFICULTY_POWER = 2;
+  var ROUTE_WINDOW_MS = 30000;
 
   var MAX_TICK_MS = 50;         // a background tab coming back must not replay minutes at once
   var TOKLOG_KEEP_MS = 10000;   // the token log only feeds recent-throughput metrics
@@ -219,8 +246,13 @@
     };
   }
 
+  // A standard normal draw (Box-Muller)
+  function gaussian(rng) {
+    return Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
+  }
+
   function sampleLength(rng, d) {
-    var z = Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());   // Box-Muller
+    var z = gaussian(rng);
     return Math.min(d.max, Math.max(d.min, Math.round(d.median * Math.exp(d.sigma * z))));
   }
 
@@ -302,29 +334,86 @@
     return best;
   }
 
+  // Puts r in the queue of an instance serving r.model (any instance when null), or rejects it (a 503)
+  function place(sim, r) {
+    var inst = route(sim, r.prompt, r.model);
+    if (!inst) {
+      r.state = 'rejected';
+      sim.stats.rejected += 1;
+      return;
+    }
+    r.inst = sim.instances.indexOf(inst);
+    r.model = inst.model;
+    r.state = 'queued';
+    inst.queue.push(r);
+  }
+
   // A request arrives now. It's routed at once, or rejected when no instance can take it.
-  // spec = { prompt, output, model?, stream? }: without a model any instance may serve it, and it
-  // takes that instance's model. inst is an index into sim.instances; stream is the index into
-  // sim.streams it came from, null when enqueued directly.
+  // spec = { prompt, output, model?, stream? }: without a model any instance may serve it (in tab 04, the
+  // System1 model), and it takes that instance's model. inst is an index into sim.instances; stream is the
+  // index into sim.streams it came from, null when enqueued directly.
+  // In tab 04 (sim.routing set) a request also gets a hidden difficulty and the standard normal draw its
+  // score's noise scales, both drawn now, so a seed replays the same traffic whatever the threshold. Only
+  // the score and the misrouted count read them, never a scheduler. A request on the System1 model starts
+  // on its scoring hop (hop 'score'); every other request is on its serving hop. Outside tab 04 nothing more
+  // is drawn, so tabs 01-03 replay the same traffic as before, and difficulty stays null.
   function enqueue(sim, spec) {
     if (spec.model) checkModel(spec.model);
     sim.stats.arrived += 1;
     var r = {
       id: sim.stats.arrived, t0: sim.t, prompt: spec.prompt, output: spec.output,
-      model: spec.model || null, stream: spec.stream === undefined ? null : spec.stream, inst: null, state: 'queued',
+      model: spec.model || (sim.routing ? SYSTEM1 : null), stream: spec.stream === undefined ? null : spec.stream,
+      inst: null, state: 'queued',
       prefillTarget: spec.prompt, prefillDone: 0, generated: 0, kvTokens: 0,
-      tAdmit: null, tFirst: null, tDone: null, preemptions: 0
+      tAdmit: null, tFirst: null, tDone: null, preemptions: 0,
+      difficulty: null, noiseZ: null, score: null, tScored: null, hop: 'serve', target: null
     };
-    var inst = route(sim, spec.prompt, spec.model);
-    if (!inst) {
-      r.state = 'rejected';
-      sim.stats.rejected += 1;
-      return r;
+    if (sim.routing) {
+      r.difficulty = Math.pow(sim.rng(), DIFFICULTY_POWER);
+      r.noiseZ = gaussian(sim.rng);
+      if (r.model === SYSTEM1) r.hop = 'score';
     }
-    r.inst = sim.instances.indexOf(inst);
-    r.model = inst.model;
-    inst.queue.push(r);
+    place(sim, r);
     return r;
+  }
+
+  // The gateway's rule: score >= threshold goes to the large model, the rest to the small one. At threshold 1
+  // nothing goes large, not even a score of 1 (noise can clamp a score there), so 1 is the all-small end.
+  function routesLarge(routing, score) {
+    return routing.threshold < 1 && score >= routing.threshold;
+  }
+
+  // The System1 model has made r's one token, its score: the gateway counts the decision and sends r on to
+  // the small or the large model as its serving hop, which starts over (prefill, decode, KV) and is a 503 if
+  // that model can't take it. r keeps t0, so its TTFT includes the System1 hop. It runs the moment the
+  // System1 step completes, so r is never outside a queue or running list.
+  function forward(sim, r, t) {
+    var R = sim.routing, hard = r.difficulty >= R.hardCut;
+    r.score = Math.min(1, Math.max(0, r.difficulty + R.noise * r.noiseZ));
+    r.tScored = t;
+    r.target = routesLarge(R, r.score) ? 'large' : 'small';
+    if (r.target === 'large') sim.stats.routedLarge += 1;
+    else sim.stats.routedSmall += 1;
+    if (hard && r.target === 'small') sim.stats.misrouted += 1;
+    sim.routeLog.push([t, r.target, hard]);
+    trimLog(sim.routeLog, t, ROUTE_WINDOW_MS, Infinity);
+    r.hop = 'serve';
+    r.model = r.target === 'large' ? R.large : R.small;
+    r.inst = null;
+    r.prefillTarget = r.prompt;
+    r.prefillDone = 0;
+    r.generated = 0;
+    r.kvTokens = 0;
+    place(sim, r);
+  }
+
+  // Moves tab 04's threshold live and logs it in sim.events. Requests already scored keep their target;
+  // the ones the System1 model scores from now on use the new threshold.
+  function setThreshold(sim, x) {
+    if (!sim.routing) throw new Error('setThreshold needs a routing sim');
+    if (x === sim.routing.threshold) return;
+    sim.routing.threshold = x;
+    sim.events.push({ t: sim.t, label: 'threshold ' + x.toFixed(2) });
   }
 
   // ---- KV accounting ----
@@ -536,8 +625,10 @@
 
   // A sequence that reaches its length is finished and counted right then, exactly once. In a
   // request-level batch it then stays as an idle slot, and the batch ends when every slot is idle.
+  // A scoring hop isn't finished by its one token: it leaves the System1 model for its serving hop, and
+  // that token is neither a first token nor an output token.
   function finishStep(sim, inst) {
-    var t = inst.stepEnd, items = inst.step.items, made = 0, idle = 0, k, r;
+    var t = inst.stepEnd, items = inst.step.items, made = 0, idle = 0, scored = [], k, r;
     for (k = 0; k < items.length; k++) {
       r = items[k].req;
       if (items[k].chunk) {
@@ -547,6 +638,7 @@
       }
       r.generated += 1;                                  // a decode token, or the first token after prefill
       r.kvTokens += 1;
+      if (r.hop === 'score') continue;                   // the score
       if (r.tFirst === null) {
         r.tFirst = t;
         sim.ttftLog.push([t, t - r.t0, r.model]);
@@ -554,9 +646,14 @@
       made += 1;
     }
     if (inst.batch) inst.batch.steps += 1;
-    // A sequence ends at its own length (its stop token) or at max_tokens
+    // A sequence ends at its own length (its stop token) or at max_tokens; a scoring hop, at its score
     for (k = inst.running.length - 1; k >= 0; k--) {
       r = inst.running[k];
+      if (r.state === 'running' && r.hop === 'score' && r.generated >= 1) {
+        inst.running.splice(k, 1);
+        scored.unshift(r);                               // in admission order
+        continue;
+      }
       if (r.state === 'running' && r.generated >= Math.min(r.output, sim.cfg.maxTokens)) {
         r.tDone = t;
         r.kvTokens = 0;
@@ -575,6 +672,7 @@
     inst.kvUsed = kvUsedBytes(inst);
     inst.step = null;
     inst.stepEnd = null;
+    for (k = 0; k < scored.length; k++) forward(sim, scored[k], t);
   }
 
   // ---- Event loop ----
@@ -715,10 +813,20 @@
   // 1M of them at sim.gpuCount GPUs. Once drained it's 0 (the page stops the sim's clock, so the window
   // would never age out) and cost has no value; TTFT and TPOT keep their last values. Throughput, KV
   // and cost are always whole-sim. Null means no data yet.
+  // In tab 04, over the routing decisions of the last ROUTE_WINDOW_MS: smallShare is the share routed to the
+  // small model, and misroutedShare the share of hard requests routed there. Both are null outside tab 04.
   function metrics(sim, model, windowMs) {
     var win = given(windowMs) ? Math.min(windowMs, TTFT_KEEP_MS) : TTFT_WINDOW_MS;
     var cap = Math.round(TTFT_SAMPLES * win / TTFT_WINDOW_MS);
     var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r, e;
+    var routed = 0, small = 0, hard = 0, misrouted = 0;
+    for (k = sim.routeLog.length - 1; k >= 0; k--) {   // newest first; the log is in time order
+      e = sim.routeLog[k];
+      if (e[0] < sim.t - ROUTE_WINDOW_MS) break;
+      routed += 1;
+      if (e[1] === 'small') small += 1;
+      if (e[2]) { hard += 1; if (e[1] === 'small') misrouted += 1; }
+    }
     for (k = sim.ttftLog.length - 1; k >= 0 && ttfts.length < cap; k--) {   // newest first
       e = sim.ttftLog[k];
       if (e[0] < sim.t - win) break;   // the log is in time order
@@ -747,7 +855,9 @@
       tokPerSec: tokPerSec,
       kvFrac: budget > 0 ? used / budget : null,
       costPer1M: tokPerSec > 0 ? GPU_HOUR_USD * sim.gpuCount / 3600 / tokPerSec * 1e6 : null,
-      rejected: sim.stats.rejected
+      rejected: sim.stats.rejected,
+      smallShare: routed ? small / routed : null,
+      misroutedShare: hard ? misrouted / hard : null
     };
   }
 
@@ -786,9 +896,19 @@
     return inst;
   }
 
-  // opts = { seed, instances: [{ profile, model, gpu?, gpuMemUtil? }], batching, config?, slo?, and
+  // Tab 04's routing settings, copied so setThreshold leaves the preset alone: { small, large (model names),
+  // threshold, hardCut (the difficulty from which a request is hard), noise (the score's Gaussian sigma) }
+  function routingOf(spec) {
+    if (!spec) return null;
+    checkModel(spec.small);
+    checkModel(spec.large);
+    return { small: spec.small, large: spec.large, threshold: spec.threshold, hardCut: spec.hardCut, noise: spec.noise };
+  }
+
+  // opts = { seed, instances: [{ profile, model, gpu?, gpuMemUtil? }], batching, config?, slo?, routing?, and
   // streams: [{ model, rate (req/s), bursts, lengths? }] or PR 1's traffic: { rate, bursts, lengths? },
-  // one stream for instances[0].model }. sim.gpuCount is the number of distinct physical GPUs.
+  // one stream for instances[0].model }. sim.gpuCount is the number of distinct physical GPUs. sim.routing
+  // is null without routing settings, that is outside tab 04.
   function createSim(opts) {
     var cfg = {}, gpus = {};
     for (var key in DEFAULTS) cfg[key] = pick(opts.config, key);
@@ -809,14 +929,17 @@
       instances: instances,
       streams: streams.map(function (spec) { return createStream(spec); }),
       slo: opts.slo || null,
+      routing: routingOf(opts.routing),
       gpuCount: Object.keys(gpus).length,
       arrivalsOn: true,
       pending: [],     // { t, stream }, earliest first
       events: [],
       finished: [],
-      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0 },
+      // routedSmall and routedLarge count the gateway's decisions; misrouted, the hard requests sent small
+      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0, routedSmall: 0, routedLarge: 0, misrouted: 0 },
       tokLog: [],      // [time, tokens made in a step]
-      ttftLog: []      // [time of a first token, its TTFT, its model]
+      ttftLog: [],     // [time of a first token, its TTFT, its model]
+      routeLog: []     // [time scored, target ('small' or 'large'), whether hard], over the last ROUTE_WINDOW_MS
     };
     schedule(sim);
     return sim;
@@ -839,6 +962,7 @@
     stretchNow: stretchNow,
     enqueue: enqueue,
     setBatching: setBatching,
+    setThreshold: setThreshold,
     setArrivals: setArrivals,
     sendBurst: sendBurst,
     isDrained: isDrained,
