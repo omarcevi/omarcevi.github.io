@@ -190,3 +190,22 @@
 - **Replacement:** it comes up in the same box, on a new GPU number. The autoscaler replaces dead GPUs (two replicas wanted); it doesn't scale on load.
 - **Cold start:** 30 s, labelled as an assumption, so it isn't presented as compressed or measured.
 - **Billing:** a starting GPU is billed, a dead one isn't.
+
+## What changed during execution
+
+- **Calibration:** `FAILURE_RATE` is 22. At 20 and 21 the survivor reached its queue limit too late on some loads for 503s to keep coming. Measured at 22, killing at the open: p99 is red 0.3–0.6 s after the kill. With the autoscaler off, there are 0–27 503s 30 s after it and 42–188 at 60 s. With it on, the last red comes 42–47 s after the kill.
+- **Draining:** a replacement that's still starting keeps the sim awake. So after a full drain, turning the autoscaler on makes the play button read "draining…" for the 30 s cold start.
+- **Cancelled start:** it puts the dead GPU's number back on the box, and GPU ids keep counting up.
+- **Box names:** boxes are numbered whenever there are several, so tab 06 keeps "H100 1" after a kill.
+- **Review fixes:**
+  - the footer's KV share counts only GPUs that are up;
+  - a dead box stops streaming tokens at once;
+  - the kill button uses `aria-disabled` ("one GPU left"), so it keeps keyboard focus.
+
+## Follow-ups from PR 5's review
+
+- At 390px, a failed or starting box drops its GPU number, because every box takes the barest header level the survivor's red p99 needs.
+- With the autoscaler already on, the kill and start markers land at the same moment, so only "starting" shows, and the box never reads "failed".
+- `killGpu` counts up instances, not GPUs. On presets where instances share a GPU it would kill all of them. The sandbox (PR 7) must fix this before exposing it.
+- `COLD_START_NOTE` is exported but unused; the page hard-codes the note.
+- The "tabs 01–05 never see the lifecycle" test only checks freshly created sims.
