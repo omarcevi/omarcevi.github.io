@@ -502,6 +502,19 @@ class Simulator(unittest.TestCase):
         self.assertIn("E.killGpu(sim)", js)
         self.assertIn("E.setAutoscaler(sim", js)
 
+    def test_tab06_dead_box_streams_no_tokens(self):
+        # a failed or starting box makes no tokens, so its particle rate drops to 0 at once rather than decaying
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        sync = js[js.index("function sync(dt)"):js.index("function sync(dt)") + 6000]
+        self.assertIn("if (!inst.api && E.instanceStatus(sim, inst).state !== 'up') { V.rate[ii] = 0; V.acc[ii] = 0; }", sync)
+
+    def test_tab06_kill_button_keeps_focus(self):
+        # disabling a focused button drops focus to the page; aria-disabled keeps it, with the reason as its title
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertNotIn("killBtn.disabled", js)
+        self.assertIn("killBtn.setAttribute('aria-disabled', 'true')", js)
+        self.assertIn("'one GPU left'", js)
+
     def test_switch_as_tall_as_header_buttons(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
         pad = re.compile(r"padding: ([0-9.]+rem [0-9.]+rem);")

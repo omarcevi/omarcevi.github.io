@@ -1224,6 +1224,7 @@
     }
     for (k = 0; k < sim.instances.length; k++) {
       if (sim.instances[k].api) { hasApi = true; continue; }   // no GPU memory
+      if (!sim.instances[k].up) continue;   // tab 06: a dead GPU's memory is gone, and a starting one holds nothing yet
       used += sim.instances[k].kvUsed;
       budget += sim.instances[k].kvBudget;
     }

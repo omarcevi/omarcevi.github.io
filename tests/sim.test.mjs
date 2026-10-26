@@ -1288,7 +1288,8 @@ test('tab 06: killing a GPU retries its requests on the survivor', () => {
 test('tab 06: a kill cancels the step in flight', () => {
   const sim = failSim();
   runExact(sim, 20000);
-  assert.ok(sim.instances[1].running.length > 0 && sim.instances[1].stepEnd !== null);
+  const doomed = sim.instances[1].stepEnd, retried = sim.instances[1].running.concat(sim.instances[1].queue);
+  assert.ok(sim.instances[1].running.length > 0 && doomed !== null && doomed > sim.t);
   E.killGpu(sim);
   const at = sim.t, end = sim.t + 5000;
   while (sim.t < end) {
@@ -1296,8 +1297,21 @@ test('tab 06: a kill cancels the step in flight', () => {
     const dead = sim.instances[1];
     assert.deepEqual([dead.running.length, dead.queue.length, dead.kvUsed], [0, 0, 0]);
     for (const inst of sim.instances) for (const r of inst.queue.concat(inst.running)) assert.notEqual(r.inst, 1);
+    // the cancelled step never completes: nothing is logged at its end, and a retry still waiting has made nothing
+    assert.ok(!sim.ttftLog.some(e => e[0] === doomed) && !sim.tokLog.some(e => e[0] === doomed), 'logged at the dead step\'s end');
+    for (const r of retried) if (r.state === 'queued') assert.deepEqual([r.prefillDone, r.generated, r.tFirst], [0, 0, null]);
   }
   assert.ok(sim.finished.filter(r => r.tDone > at).every(r => r.inst === 0));
+});
+test('tab 06: the footer\'s KV share counts only GPUs that are up', () => {
+  const sim = failSim();
+  runExact(sim, 20000);
+  E.killGpu(sim);
+  runExact(sim, 10000);
+  const live = sim.instances[0];
+  near(E.metrics(sim).kvFrac, live.kvUsed / live.kvBudget, 1e-12);
+  E.setAutoscaler(sim, true);
+  near(E.metrics(sim).kvFrac, live.kvUsed / live.kvBudget, 1e-12);   // a starting GPU holds no cache yet either
 });
 test('tab 06: the kill button has nothing to kill with one GPU left', () => {
   const sim = failSim();

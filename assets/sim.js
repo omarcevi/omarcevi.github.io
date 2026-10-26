@@ -307,6 +307,8 @@
         if (live[row.r.id] === row.r || row.preAt !== null) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis, ii);
       }
       inst.queue.forEach(function (x, qi) { if (!seen[x.id]) { var p = qslot(b, qi); dot(x, p[0], p[1], false, false, ii); } });
+      // tab 06: a failed or starting box makes no tokens, so its particles stop at once rather than decaying
+      if (!inst.api && E.instanceStatus(sim, inst).state !== 'up') { V.rate[ii] = 0; V.acc[ii] = 0; }
       if (dt > 0) {   // token particles: scaled to the instance's tok/s, at most 30 a second
         V.rate[ii] += (made * 1000 / dt - V.rate[ii]) * Math.min(1, dt / 600);
         V.acc[ii] += Math.min(MAX_PARTICLES_PER_S, V.rate[ii] / TOKENS_PER_PARTICLE) * dt / 1000;
@@ -677,7 +679,10 @@
     // tab 06: the retries, and the kill button while there's a second GPU up to kill
     wrapRetry.hidden = preset !== 'failure';
     M.retry.textContent = sim.stats.retried.toLocaleString('en-US');
-    killBtn.disabled = preset === 'failure' && sim.instances.filter(function (inst) { return !inst.api && E.instanceStatus(sim, inst).state === 'up'; }).length < 2;
+    // aria-disabled, not disabled: disabling the focused button would drop keyboard focus to the page
+    if (preset === 'failure' && sim.instances.filter(function (inst) { return !inst.api && E.instanceStatus(sim, inst).state === 'up'; }).length < 2) {
+      killBtn.setAttribute('aria-disabled', 'true'); killBtn.title = 'one GPU left';
+    } else { killBtn.removeAttribute('aria-disabled'); killBtn.removeAttribute('title'); }
     V.spend = m.apiUsdPerHour;   // and the API box's header
     if (V.api) M.api.textContent = perHour(V.spend);
     return m;
