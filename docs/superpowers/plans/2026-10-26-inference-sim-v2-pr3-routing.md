@@ -332,3 +332,19 @@ git commit -m "Sim v2: draw the System1 hop and the API model box in tab 04"
 - **Misrouted** is shown as a share of hard requests over the last 30 s, rather than a running count, so it reacts when you move the slider.
 - **Threshold timing:** the threshold applies when the slider is released (or on each key step), and is marked on the sparkline. The on-prem/API switch keeps the current threshold.
 - **API tokens** are written into throughput as they're made, so API mode's tok/s and cost don't lag.
+
+## What changed during execution
+
+- **Canvas layout (Omar, from a mockup):** tab 04 runs left to right instead of stacking boxes. Requests queue for System1 in the middle column, two branches labelled with the live rule (`score < X → small`, `score ≥ X → large`; `all → small` / `none → large` at 1) lead to the 1B on top and the 8B or the dashed API box below.
+- **Routing rule:** `threshold < 1 && score >= threshold`, so threshold 1 sends everything small, as the spec says. The slider reads `1.00 (none)` there.
+- **API source:** Claude Sonnet 5.5's list price ($2 / $10 per 1M) and Artificial Analysis latency, cited only in the cost tooltip; the page says "API model".
+- **Visitor-view tests** use the page's real 40 s warm-up, not 8 s. Live slider moves have their own tests: after a move to 0, the 8B goes red within 20 s, and 503s grow within 2 min.
+- **Lesson copy** doesn't claim on-prem cost keeps falling: it plateaus once the 8B keeps up (from about 0.30).
+- **Blended cost** takes the API spend over the same 3 s as its tokens (not the footer's 30 s), so pausing in API mode doesn't spike it.
+- **Threshold markers:** close markers merge into one line and label. This also applies to tab 01's batching markers (newest label wins).
+
+## Follow-ups from PR 3's reviews
+
+- Tests: the page tests for tab 04's canvas are string checks (Python can't run the canvas); the prefillProgress test only checks a 0→1 ramp; no committed tests for a 503 at the serving hop, preemption mid-score, conservation with API requests in flight, or zero 503s at the default; a per-load green bar and a mid-slider misrouted check would pin the calibration better.
+- Engine: a 503 at the serving hop still counts as routed and misrouted; request-level mode's serving hop skips max-queue-delay; `apiTokens` duplicates the finish bookkeeping; `setThreshold` doesn't validate input; the `tAdmit` and `nextEvent` comments are stale; `routing-onprem` must stay after `mig-mig` for test_page.py's regex; sim-engine.js is about 1170 lines.
+- Page: at 390px the token stream is about 10 px wide; a 503's red dot spends half its life in the hop; a live move to 0 on-prem briefly shows about $12/1M while the 8B floods.
