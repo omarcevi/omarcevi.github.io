@@ -329,6 +329,7 @@
 
     #simbox { margin-top: 2.25rem; }
     #sim { display: block; width: 100%; height: 260px; cursor: default; }
+    #sim.tall { height: 320px; }   /* three instance boxes (assets/sim.js sets .tall) */
     #m-503 { color: var(--p-bad); }
     /* simulator tabs, the lesson line and its segmented switch (assets/sim.js wires them) */
     .sim-tabs {
@@ -360,11 +361,20 @@
     /* .seg and .sim-tabs clip overflow, so their focus rings sit inside the button */
     .seg button:focus-visible, .sim-tabs button:focus-visible { outline: 2px solid var(--p-accent); outline-offset: -2px; }
     .seg button[aria-checked="true"]:focus-visible { outline-color: #0f1115; }
+    /* tab 02's slider: a vllm serve flag, its range and its value. The range gives way first (120px
+       down to 72px), so flag, range and value stay on one line on a 390px phone */
+    .sim-range {
+      display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.6rem; max-width: 100%;
+      font-family: var(--mono); font-size: 0.72rem; line-height: 1.65; color: var(--p-muted);
+    }
+    .sim-range input { flex: 1 1 72px; width: 120px; min-width: 72px; max-width: 120px; margin: 0; accent-color: var(--p-accent); cursor: pointer; }
+    .sim-range output { color: var(--p-text); min-width: 2.5em; }
+    .sim-note { color: var(--p-muted); font-family: var(--mono); font-size: 0.74rem; }
     /* colour key under the canvas; each swatch is its canvas colour (COL in assets/sim.js) over the
        instance box's fill, so the alpha colours come out exactly as drawn */
     .sim-key {
       display: flex; flex-wrap: wrap; gap: 0.25rem 1.2rem; padding: 0.1rem 0.9rem 0.6rem;
-      font-family: var(--mono); font-size: 0.68rem; color: var(--p-muted);
+      font-family: var(--mono); font-size: 0.72rem; color: var(--p-muted);
     }
     .sim-key span { display: inline-flex; align-items: center; gap: 0.45rem; white-space: nowrap; }
     .sim-key i { flex: none; width: 14px; height: 4px; border-radius: 1.5px; background: linear-gradient(var(--c), var(--c)), #161920; }
@@ -372,6 +382,7 @@
     .sim-key .k-decode { --c: rgba(122, 162, 255, 0.6); }
     .sim-key .k-done { --c: #4ade80; }
     .sim-key .k-idle { --c: rgba(139, 145, 156, 0.35); }
+    .sim-key .k-pre { --c: #f5a524; }
     .sim-key .k-kv { width: 18px; height: 3px; background: linear-gradient(90deg, #7aa2ff 55%, #232830 55%); }
 
     /* agent replay */
@@ -644,6 +655,7 @@
       .topbar { padding: 0.75rem 0; }
       .topbar nav { gap: 0.9rem; }
       #sim { height: 230px; }
+      #sim.tall { height: 300px; }
       .p-title .note { display: none; }
       .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
@@ -731,8 +743,10 @@
             <button type="button" id="sim-burst">send burst</button>
           </div>
         </div>
-        <div class="sim-tabs" role="tablist" aria-label="Simulator lessons" hidden>
+        <div class="sim-tabs" role="tablist" aria-label="Simulator lessons">
           <button type="button" role="tab" id="sim-tabbtn-batching" data-tab="batching" aria-controls="sim-tab-batching" aria-selected="true"><i>01</i> batching</button>
+          <button type="button" role="tab" id="sim-tabbtn-kvcache" data-tab="kvcache" aria-controls="sim-tab-kvcache" aria-selected="false"><i>02</i> kv cache</button>
+          <button type="button" role="tab" id="sim-tabbtn-mig" data-tab="mig" aria-controls="sim-tab-mig" aria-selected="false"><i>03</i> mig layout</button>
         </div>
         <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
           <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
@@ -741,12 +755,25 @@
             <button type="button" role="radio" data-batching="continuous" aria-checked="true">continuous</button>
           </div>
         </div>
+        <div class="sim-lesson" id="sim-tab-kvcache" role="tabpanel" data-tab="kvcache" aria-labelledby="sim-tabbtn-kvcache" hidden>
+          <p><b>KV cache.</b> Every token a request holds keeps its keys and values in GPU memory. When that pool is full, the scheduler stops admitting and preempts the newest request: its KV is dropped and it redoes its prefill later. Give the server less memory and fewer requests fit at once, so preemptions start sooner and throughput drops: memory, not compute, limits how many requests run at once. <span class="sim-note">Synthetic traffic: long prompts and long replies.</span></p>
+          <label class="sim-range"><span>--gpu-memory-utilization</span> <input type="range" id="sim-kvmem" min="0.5" max="0.95" step="0.05" value="0.9"> <output id="sim-kvmem-v" for="sim-kvmem">0.90</output></label>
+        </div>
+        <div class="sim-lesson" id="sim-tab-mig" role="tabpanel" data-tab="mig" aria-labelledby="sim-tabbtn-mig" hidden>
+          <p><b>MIG.</b> Three models, each with its own traffic and latency target (p99 time to first token: 8B 2 s, 3B 500 ms, 1B 300 ms). Kubernetes hands each pod a whole GPU, so they take three underused H100s. Time-slicing shares one H100: the models take turns and every switch wastes GPU time (assumed here to be about 30%), so the 8B misses its target. MIG splits one H100 into isolated slices and meets every target with a third of the GPUs, though each slice has less headroom than a whole GPU. At Trendyol this gave about 1.75× more serving capacity.</p>
+          <div class="seg" role="radiogroup" aria-label="Deployment">
+            <button type="button" role="radio" data-deploy="gpu" aria-checked="false">GPU per model</button>
+            <button type="button" role="radio" data-deploy="time" aria-checked="false">time-slicing</button>
+            <button type="button" role="radio" data-deploy="mig" aria-checked="true">MIG</button>
+          </div>
+        </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
         <div class="sim-key">
           <span><i class="k-prefill" aria-hidden="true"></i>prefill</span>
           <span><i class="k-decode" aria-hidden="true"></i>decode, one token per step</span>
           <span><i class="k-done" aria-hidden="true"></i>finished</span>
           <span><i class="k-idle" aria-hidden="true"></i>idle slot (request-level only)</span>
+          <span><i class="k-pre" aria-hidden="true"></i>preempted</span>
           <span><i class="k-kv" aria-hidden="true"></i>KV cache</span>
         </div>
         <div class="p-foot">
@@ -755,11 +782,13 @@
           <span>TPOT <b id="m-tpot">–</b></span>
           <span title="output tokens per second">throughput <b id="m-thr">–</b></span>
           <span>KV cache <b id="m-kv">–</b></span>
+          <span>GPUs <b id="m-gpus">1</b></span>
           <span>cost <b id="m-cost">–</b></span>
+          <span id="m-pre-wrap" hidden>preempted <b id="m-pre">0</b></span>
           <span id="m-503-wrap" hidden>rejected <b id="m-503">0</b></span>
         </div>
       </div>
-      <p class="cap js-only">A model of LLM serving, not a benchmark: Llama 3 8B on one H100, step times from the H100's specs. Flip the batching mode, send a burst, then pause and watch it drain.</p>
+      <p class="cap js-only">A model of LLM serving, not a benchmark: step times come from the H100's specs and each model's real size. Pick a tab, send a burst, then pause and watch it drain.</p>
     </header>
 
     <section id="about">

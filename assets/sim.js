@@ -1,9 +1,11 @@
 // Inference simulator, page side: draws the engine in assets/sim-engine.js (window.SimEngine)
 // on the #sim canvas and wires the panel's controls. Each tab is an engine preset, rebuilt and
-// warmed up when the tab opens. The canvas shows arrivals, each instance's queue lane, its
-// running sequences (one row each) and KV cache, the token stream, and a rolling TTFT p99 line
-// with a marker for each switch the visitor makes. Animations run on the page's frame clock;
-// the sim's own clock stops once it has drained.
+// warmed up when the tab opens; tab 02's memory slider and tab 03's deployment switch redeploy the
+// same way. The canvas shows arrivals, each instance's queue lane, its running sequences (one row
+// each, flashing amber when preempted) and KV cache, the token stream, and a rolling TTFT p99 line
+// with a marker for each switch the visitor makes. In tab 03 each box also shows its model's p99 next
+// to that model's SLO (green or red, and in words in the canvas's aria-label), and a time-sliced step's
+// stretch. Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
   var E = window.SimEngine;
@@ -14,8 +16,11 @@
   function $(id) { return document.getElementById(id); }
 
   var WARMUP_TICKS = 500, TICK_MS = 16;  // 8 s of sim time, so a tab never opens empty
+  var TAB03_WARMUP_TICKS = 2500;         // 40 s in tab 03, so a deployment opens on steady state with a full 30 s p99 window
   var SAMPLE_MS = 300, SAMPLES = 110;    // footer refresh and sparkline samples, in sim time
-  var FLASH_MS = 300;                    // a finished row flashes green this long
+  var FLASH_MS = 300;                    // a finished row flashes green this long, a preempted one amber
+  var P99_WINDOW_MS = 30000;             // a box's p99 vs its SLO: its model's first tokens of the last 30 s (at most the latest 200), the footer's window
+  var TALL_AT = 3;                       // instances: from three, the canvas grows (#sim.tall) so each box draws 6 rows (5 on phones)
   var BURST = 24;
   var ROW_H = 4, ROW_GAP = 2.2, CELL = 9.5, DOT_R = 3.2, STRIP_H = 26;
   var FADE_NEAR = 18, FADE_SPAN = 40;    // a dot for a row under "+N more" is gone this close to its target (px)
@@ -25,7 +30,8 @@
     faint: '#5c626d', muted: '#8b919c', accent: '#7aa2ff', ok: '#4ade80', warn: '#f5a524', bad: '#ef4444',
     panel: '#0f1115', box: '#161920', line: '#2a2f38', track: '#232830', sep: '#1c2027',
     prefillTodo: 'rgba(122,162,255,0.22)', decode: 'rgba(122,162,255,0.6)', idle: 'rgba(139,145,156,0.35)',
-    doneDecode: 'rgba(74,222,128,0.55)', free: 'rgba(122,162,255,0.55)', lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)'
+    doneDecode: 'rgba(74,222,128,0.55)', preDecode: 'rgba(245,165,36,0.55)', free: 'rgba(122,162,255,0.55)',
+    lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)'
   };
   var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
   var PLAY = {
@@ -33,15 +39,46 @@
     draining: ['draining…', 'Draining in-flight requests. Play: start new requests again'],
     stopped: ['▶ play', 'Play: start new requests']
   };
+  // What each preset is called: the header note, the canvas's top label (narrow: 560px and under)
+  // and the canvas's aria-label
+  var VIEWS = {
+    batching: {
+      note: '· Llama 3 8B on one H100 · real time', label: 'H100 · Llama 3 8B', narrow: 'H100',
+      aria: 'Animated simulation: requests are routed to an LLM server on one H100 and batched step by step'
+    },
+    kvcache: {
+      note: '· Llama 3 8B on one 3g.40gb MIG slice · real time', label: 'MIG 3g.40gb · Llama 3 8B', narrow: '3g.40gb',
+      aria: 'Animated simulation: Llama 3 8B on one MIG slice; its KV cache fills up and the scheduler preempts requests'
+    },
+    'mig-gpu': {
+      note: '· three models on three H100s · real time', label: '3 × H100, one model each', narrow: '3 × H100',
+      aria: 'Animated simulation: three models, each on its own H100'
+    },
+    'mig-time': {
+      note: '· three models time-sharing one H100 · real time', label: 'one H100, time-sliced', narrow: 'shared H100',
+      aria: 'Animated simulation: three models sharing one H100 by time-slicing, with no isolation'
+    },
+    'mig-mig': {
+      note: '· three models on one H100 split 3g+2g+2g · real time', label: 'one H100 · MIG 3g+2g+2g', narrow: 'H100 · MIG',
+      aria: 'Animated simulation: three models on isolated MIG slices of one H100'
+    }
+  };
+  var KV_MEM = 0.9;   // tab 02's slider default, vLLM's --gpu-memory-utilization default
 
-  var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap');
-  var M = { p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'), cost: $('m-cost'), rej: $('m-503') };
+  var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap'), wrapPre = $('m-pre-wrap');
+  var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
+  var M = {
+    p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'),
+    gpus: $('m-gpus'), cost: $('m-cost'), pre: $('m-pre'), rej: $('m-503')
+  };
   var tabs = [].slice.call(box.querySelectorAll('[role=tablist] [role=tab]'));
   var panels = [].slice.call(box.querySelectorAll('[role=tabpanel]'));
-  var radios = [].slice.call(box.querySelectorAll('[role=radiogroup] [role=radio][data-batching]'));
+  // Each panel's radio group is its own roving-tabindex group
+  function group(panelId) { return [].slice.call($(panelId).querySelectorAll('[role=radiogroup] [role=radio]')); }
+  var batchRadios = group('sim-tab-batching'), deployRadios = group('sim-tab-mig');
   M.cost.parentNode.title = 'per 1M output tokens · H100 at $' + E.GPU_HOUR_USD.toFixed(2) + '/h · ' + E.GPU_HOUR_SOURCE;
 
-  var sim = null, V = null, L = null, frozen = REDUCE, shown = null;
+  var sim = null, preset = null, V = null, L = null, frozen = REDUCE, shown = null;
   var W = 0, H = 0, visible = false, raf = 0, last = 0;
 
   // ---- Drawing helpers ----
@@ -97,15 +134,18 @@
   // ---- View state: what the canvas shows, eased towards the engine's state ----
 
   function freshView() {
-    var zeros = sim.instances.map(function () { return 0; });
+    var zeros = sim.instances.map(function () { return 0; }), models = {};
+    sim.instances.forEach(function (inst) { models[inst.model] = true; });
     return {
       vt: 0,              // frame clock (ms); it runs on after the sim's clock stops
       place: true,        // the next sync puts everything at its target instead of easing there
       dots: {},           // request id -> a dot for a queued request, or one flying to its row
-      rows: sim.instances.map(function () { return []; }),   // per instance: { r, y, gen, doneAt, flew }
+      rows: sim.instances.map(function () { return []; }),   // per instance: { r, y, gen, doneAt, flew, pre, preAt }
       rate: zeros.slice(), acc: zeros.slice(),               // per instance: tok/s (smoothed), particle debt
       fly: [], toks: [], rejects: [],                        // finished requests, token particles, 503s
-      hist: [], nextSample: SAMPLE_MS, rejected: 0
+      hist: [], nextSample: SAMPLE_MS, rejected: 0,
+      multi: Object.keys(models).length > 1,                 // several models: each box names its model
+      p99: {}                                                // model -> TTFT p99 over P99_WINDOW_MS (tab 03), per footer refresh
     };
   }
 
@@ -140,24 +180,32 @@
         row = rows[j]; r = row.r;
         made += r.generated - row.gen; row.gen = r.generated;
         if (r.tDone !== null && row.doneAt === null) row.doneAt = V.vt;
+        if (r.preemptions > row.pre && row.preAt === null) {
+          if (j < vis) row.preAt = V.vt;   // preempted: a drawn row flashes amber before it leaves
+          else row.pre = r.preemptions;    // a row under "+N more" just goes (or stays, if already readmitted)
+        }
+        if (row.preAt !== null && V.vt - row.preAt >= FLASH_MS) {
+          row.pre = r.preemptions; row.preAt = null;   // flashed: it leaves below, unless already readmitted
+        }
         if (row.doneAt !== null && !row.flew && V.vt - row.doneAt >= FLASH_MS) {
           row.flew = true;
           if (j < vis) flyOut(b, row);   // a row under "+N more" was never drawn, so nothing flies out of it
         }
         if (live[r.id] === r) have[r.id] = true;              // running, or an idle slot of a request-level batch
-        else if (row.doneAt === null || row.flew) rows.splice(j, 1);   // preempted, or finished and flown out
+        else if (row.preAt === null && (row.doneAt === null || row.flew)) rows.splice(j, 1);   // preempted and flashed, or finished and flown out
       }
       inst.running.forEach(function (x) {
-        if (!have[x.id]) rows.push({ r: x, y: null, gen: x.generated, doneAt: x.tDone !== null ? -Infinity : null, flew: x.tDone !== null });
+        if (!have[x.id]) rows.push({ r: x, y: null, gen: x.generated, doneAt: x.tDone !== null ? -Infinity : null, flew: x.tDone !== null, pre: x.preemptions, preAt: null });
       });
       vis = drawn(b, rows.length);
       for (j = 0; j < rows.length; j++) {
         row = rows[j]; ty = rowY(b, j, rows.length);
         row.y = row.y === null ? ty : row.y + (ty - row.y) * k;   // a new row starts in its place
-        // a row under "+N more" isn't drawn, so its dot fades out before it reaches the box, clear of the label
-        if (live[row.r.id] === row.r) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis);
+        // a row under "+N more" isn't drawn, so its dot fades out before it reaches the box, clear of the label.
+        // A flashing preempted row keeps its dot; once the row goes, the dot eases back to the queue front.
+        if (live[row.r.id] === row.r || row.preAt !== null) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis);
       }
-      inst.queue.forEach(function (x, qi) { var p = qslot(b, qi); dot(x, p[0], p[1], false); });
+      inst.queue.forEach(function (x, qi) { if (!seen[x.id]) { var p = qslot(b, qi); dot(x, p[0], p[1], false); } });
       if (dt > 0) {   // token particles: scaled to the instance's tok/s, at most 30 a second
         V.rate[ii] += (made * 1000 / dt - V.rate[ii]) * Math.min(1, dt / 600);
         V.acc[ii] += Math.min(MAX_PARTICLES_PER_S, V.rate[ii] / TOKENS_PER_PARTICLE) * dt / 1000;
@@ -202,7 +250,10 @@
   function drawRow(inst, b, row, chunks) {
     var r = row.r, x = b.bx, y = row.y, pw = prefillW(b, r);
     var flash = row.doneAt !== null && V.vt - row.doneAt < FLASH_MS;
-    if (flash) {
+    if (row.preAt !== null) {   // preempted: its KV is gone, and it will redo its prefill from the queue
+      bar(x, y, pw, ROW_H, COL.warn);
+      bar(x + pw + 1.5, y, decodeW(b, pw, r.generated), ROW_H, COL.preDecode);
+    } else if (flash) {
       bar(x, y, pw, ROW_H, COL.ok);
       bar(x + pw + 1.5, y, decodeW(b, pw, r.generated), ROW_H, COL.doneDecode);
     } else if (r.state === 'idle') {
@@ -218,27 +269,75 @@
     }
   }
 
-  function canAdmit(inst) {
-    return sim.batching === 'continuous' && !inst.queue.length && inst.running.length < sim.cfg.maxNumSeqs && inst.kvUsed < inst.kvBudget;
+  // A box's name: a whole H100 as itself, numbered when there are several, or shared when time-sliced;
+  // a MIG slice by its profile
+  function boxName(inst) {
+    if (inst.profile !== '7g.80gb') return inst.profile;
+    return inst.timeSliced ? 'shared H100' : sim.gpuCount > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
+  }
+  function width(pieces) {
+    var w = 0;
+    for (var k = 0; k < pieces.length; k++) w += ctx.measureText(pieces[k][0]).width;
+    return w;
+  }
+  // A box's header: its name on the left; on the right a time-sliced step's stretch (×2, ×3), then in
+  // tab 03 the model's p99 against its SLO ("p99 1.84s / 2s", the p99 green or red), else the running
+  // count, then KV. levels runs from the fullest header to the barest: pieces drop from the right (KV,
+  // then "p99 " and the spaces around the slash), and last the name gives way to just the model. A
+  // time-sliced box always keeps room for its marker, so nothing shifts as it blinks.
+  function header(inst) {
+    var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0, fits;
+    var kvTxt = 'KV ' + Math.round(kv * 100) + '%', kvCol = hot ? COL.warn : COL.muted;
+    inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
+    if (sim.slo) {
+      var p = V.p99[inst.model], v = E.fmt.ms(p === undefined ? null : p), slo = E.fmt.slo(sim.slo[inst.model]);
+      var pCol = p === null || p === undefined ? COL.muted : p <= sim.slo[inst.model] ? COL.ok : COL.bad;
+      fits = [[['p99 ' + v, pCol], [' / ' + slo, COL.muted], [' · ' + kvTxt, kvCol]],
+              [['p99 ' + v, pCol], [' / ' + slo, COL.muted]],
+              [[v, pCol], ['/' + slo, COL.muted]]];
+    } else {
+      fits = [[['running ' + n + ' · ' + kvTxt, kvCol]], [[n + ' · ' + kvTxt, kvCol]]];
+    }
+    var short = E.MODELS[inst.model].short, name = V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
+    var levels = fits.map(function (f) { return [name, f]; });
+    if (V.multi) levels.push([short, fits[fits.length - 1]]);
+    ctx.font = '9px ' + FONT;
+    return {
+      kv: kv, hot: hot, levels: levels,
+      marker: inst.step && inst.step.stretch > 1 ? ['×' + inst.step.stretch + ' ', COL.warn] : null,
+      room: inst.timeSliced ? ctx.measureText('×0 ').width : 0
+    };
+  }
+  // The first level whose header fits its box (the last one if none does)
+  function fitLevel(h, b) {
+    ctx.font = '9px ' + FONT;
+    for (var k = 0; k < h.levels.length - 1; k++) {
+      if (ctx.measureText(h.levels[k][0]).width + h.room + width(h.levels[k][1]) + 24 <= b.w) return k;
+    }
+    return h.levels.length - 1;
+  }
+  function drawHeader(h, level, b) {
+    var right = (h.marker ? [h.marker] : []).concat(h.levels[level][1]), x = b.x + b.w - 7;
+    text(h.levels[level][0], b.x + 7, b.y + 12, 9, COL.muted);
+    for (var k = right.length - 1; k >= 0; k--) {   // right-aligned, last piece first
+      text(right[k][0], x, b.y + 12, 9, right[k][1], 'right');
+      x -= ctx.measureText(right[k][0]).width;
+    }
   }
 
-  function drawInstance(inst, b, rows) {
+  function drawInstance(inst, b, rows, h, level) {
     ctx.strokeStyle = COL.lane; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
     rr(L.qx0 - 6, b.y, L.qx1 - L.qx0 + 12, b.h, 6); ctx.stroke(); ctx.setLineDash([]);
 
     rr(b.x, b.y, b.w, b.h, 6); ctx.fillStyle = COL.box; ctx.fill(); ctx.strokeStyle = COL.line; ctx.stroke();
-    var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0;
-    inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
-    var tail = n + ' · KV ' + Math.round(kv * 100) + '%', right = 'running ' + tail;
-    text(inst.profile, b.x + 7, b.y + 12, 9, COL.muted);
-    if (ctx.measureText(inst.profile).width + ctx.measureText(right).width + 24 > b.w) right = tail;
-    text(right, b.x + b.w - 7, b.y + 12, 9, hot ? COL.warn : COL.muted, 'right');
+    var kv = h.kv, hot = h.hot;
+    drawHeader(h, level, b);
 
     var chunks = stepChunks(inst), show = drawn(b, rows.length);
     for (var j = 0; j < show; j++) drawRow(inst, b, rows[j], chunks);
     if (rows.length > b.cap) {   // on its own line below the last drawn row (two row lines tall)
       text('+' + (rows.length - show) + ' more', b.bx, lineY(b, show) + 7.5, 8, COL.faint);
-    } else if (rows.length < b.cap && canAdmit(inst)) {   // a free slot: the next request to arrive joins at the next step
+    } else if (rows.length < b.cap && E.canAdmit(sim, inst)) {   // a free slot: the next request to arrive joins at the next step
       ctx.strokeStyle = COL.free; ctx.setLineDash([2, 2]);
       rr(b.bx + 0.5, lineY(b, rows.length) + 0.5, b.bw * 0.22, ROW_H - 1, 1.5); ctx.stroke(); ctx.setLineDash([]);
     }
@@ -324,9 +423,12 @@
     ctx.font = '10px ' + FONT;
     text(10 + ctx.measureText('requests →').width + 6 > L.qx0 - 4 ? 'requests' : 'requests →', 10, 16, 10, COL.faint);
     text(narrow ? 'queue' : 'router · queue', L.qx0 - 4, 16, 10, COL.faint);
-    text(narrow ? 'H100' : 'H100 · ' + E.MODELS[sim.instances[0].model].label, L.gx0, 16, 10, COL.faint);
+    text(narrow ? VIEWS[preset].narrow : VIEWS[preset].label, L.gx0, 16, 10, COL.faint);
     if (W > 420) text('tokens →', L.gx1 + 10, 16, 10, COL.faint);
-    sim.instances.forEach(function (inst, ii) { drawInstance(inst, L.boxes[ii], V.rows[ii]); });
+    // every box's header at the same level, so their names and pieces match
+    var heads = sim.instances.map(header), level = 0;
+    heads.forEach(function (h, ii) { level = Math.max(level, fitLevel(h, L.boxes[ii])); });
+    sim.instances.forEach(function (inst, ii) { drawInstance(inst, L.boxes[ii], V.rows[ii], heads[ii], level); });
     drawDots();
     drawStream();
     drawStrip();
@@ -334,14 +436,30 @@
 
   // ---- Footer and play button ----
 
+  // The canvas's aria-label in tab 03: the view, then each model's p99 against its target, as the boxes show it
+  function sloLabel() {
+    return VIEWS[preset].aria + '. ' + Object.keys(sim.slo).map(function (model) {
+      var p = V.p99[model], slo = sim.slo[model];
+      return E.MODELS[model].short + ' p99 ' + E.fmt.spoken(p) + ', target ' + E.fmt.spoken(slo) +
+        (p === null ? '' : p <= slo ? ', met' : ', missed');
+    }).join('; ');
+  }
   function footer() {
     var m = E.metrics(sim), f = E.fmt;
+    if (sim.slo) {   // each box's p99 against its SLO, refreshed with the footer, and the same in words
+      Object.keys(sim.slo).forEach(function (model) { V.p99[model] = E.metrics(sim, model, P99_WINDOW_MS).ttftP99; });
+      var label = sloLabel();
+      if (cv.getAttribute('aria-label') !== label) cv.setAttribute('aria-label', label);
+    }
     M.p50.textContent = f.ms(m.ttftP50);
     M.p99.textContent = f.ms(m.ttftP99);
     M.tpot.textContent = f.ms(m.tpotMs);
     M.thr.textContent = f.tok(m.tokPerSec);
     M.kv.textContent = f.pct(m.kvFrac);
+    M.gpus.textContent = sim.gpuCount;
     M.cost.textContent = f.usd(m.costPer1M);
+    M.pre.textContent = sim.stats.preemptions.toLocaleString('en-US');
+    wrapPre.hidden = !(sim.stats.preemptions > 0);
     M.rej.textContent = m.rejected.toLocaleString('en-US');
     wrap503.hidden = !(m.rejected > 0);
     return m;
@@ -385,43 +503,54 @@
     if (!raf && visible && !document.hidden && live()) { last = 0; raf = requestAnimationFrame(frame); }
   }
 
-  function resize() {
+  // Sizes the canvas's pixels to its box; returns whether anything changed
+  function measure() {
     var r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (!r.width) return;
+    if (!r.width || (r.width === W && r.height === H && cv.width === Math.round(W * dpr))) return false;
     W = r.width; H = r.height;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!sim) return;
+    return true;
+  }
+  function resize() {
+    if (!measure() || !sim) return;
     layout(); V.place = true; sync(0); draw();
   }
 
   // ---- Tabs and controls ----
 
-  function syncRadios() {
-    radios.forEach(function (b) {
-      var on = b.getAttribute('data-batching') === sim.batching;
+  // Checks the radio that matches, and makes it the one Tab stops on in its group
+  function check(list, attr, value) {
+    list.forEach(function (b) {
+      var on = b.getAttribute(attr) === value;
       b.setAttribute('aria-checked', on ? 'true' : 'false');
       b.tabIndex = on ? 0 : -1;
     });
   }
+  // Batching follows the sim; the deployment follows the preset, MIG while tab 03 isn't open
+  function syncRadios() {
+    check(batchRadios, 'data-batching', sim.batching);
+    check(deployRadios, 'data-deploy', preset.indexOf('mig-') === 0 ? preset.slice(4) : 'mig');
+  }
 
-  // Builds the tab's preset with a fresh seed and warms it up, so it opens mid-flow
-  function switchTab(id) {
-    sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: Math.floor(Math.random() * 2147483647) }));
+  // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow (tab 03, whose
+  // boxes show a 30 s p99, for longer). Nothing of the old sim's view carries over, and frozen stays as it
+  // is (reduced motion opens every one frozen).
+  function deploy(id, config) {
+    preset = id;
+    sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: Math.floor(Math.random() * 2147483647), config: config }));
     V = freshView();
-    for (var k = 0; k < WARMUP_TICKS; k++) {
+    for (var k = 0, n = sim.slo ? TAB03_WARMUP_TICKS : WARMUP_TICKS; k < n; k++) {
       E.tick(sim, TICK_MS);
       if (sim.t >= V.nextSample) { V.nextSample += SAMPLE_MS; sample(E.metrics(sim)); }
     }
     V.rejected = sim.stats.rejected;
-    tabs.forEach(function (t) {
-      var on = t.getAttribute('data-tab') === id;
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-      t.tabIndex = on ? 0 : -1;
-    });
-    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab') !== id; });
+    note.textContent = VIEWS[id].note;
+    cv.setAttribute('aria-label', VIEWS[id].aria);
     syncRadios();
     shown = null;
+    cv.classList.toggle('tall', sim.instances.length >= TALL_AT);   // 320px (300px on phones) for three boxes
+    measure();
     L = null;
     if (W) { layout(); sync(0); }
     footer();
@@ -430,10 +559,28 @@
     wake();
   }
 
+  // Opens a tab with its controls at their defaults: continuous batching, the slider at 0.9, MIG
+  function switchTab(id) {
+    tabs.forEach(function (t) {
+      var on = t.getAttribute('data-tab') === id;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+    });
+    panels.forEach(function (p) { p.hidden = p.getAttribute('data-tab') !== id; });
+    kvMem.value = String(KV_MEM);
+    kvMemOut.textContent = KV_MEM.toFixed(2);
+    if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
+    else deploy(id === 'mig' ? 'mig-mig' : 'batching');
+  }
+
   function setMode(b) {
     E.setBatching(sim, b.getAttribute('data-batching'));
     syncRadios();
     if (!raf) draw();   // frozen or stopped: show the new marker now
+  }
+  function setDeploy(b) {
+    var id = 'mig-' + b.getAttribute('data-deploy');
+    if (id !== preset) deploy(id);
   }
 
   // Arrow keys move along a tab list or radio group and pick what they land on (roving tabindex)
@@ -455,8 +602,18 @@
     });
   });
   arrows(tabs, { ArrowLeft: -1, ArrowRight: 1 }, function (t) { switchTab(t.getAttribute('data-tab')); });
-  radios.forEach(function (b) { b.addEventListener('click', function () { setMode(b); }); });
-  arrows(radios, { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }, setMode);
+  var RADIO_KEYS = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
+  batchRadios.forEach(function (b) { b.addEventListener('click', function () { setMode(b); }); });
+  arrows(batchRadios, RADIO_KEYS, setMode);
+  deployRadios.forEach(function (b) { b.addEventListener('click', function () { setDeploy(b); }); });
+  arrows(deployRadios, RADIO_KEYS, setDeploy);
+  // The output follows the slider as it moves; a redeploy waits for the change (release, or a key step),
+  // since --gpu-memory-utilization is a startup flag
+  kvMem.addEventListener('input', function () { kvMemOut.textContent = (+kvMem.value).toFixed(2); });
+  kvMem.addEventListener('change', function () {
+    kvMemOut.textContent = (+kvMem.value).toFixed(2);
+    deploy('kvcache', { gpuMemUtil: +kvMem.value });
+  });
 
   // Pause stops new arrivals and lets in-flight work drain; play (also from draining) restarts them
   playBtn.addEventListener('click', function () {
@@ -469,7 +626,7 @@
   // on from the warm-up, so they go off first: the button read "▶ play" and must keep meaning stopped.
   burstBtn.addEventListener('click', function () {
     if (frozen) { frozen = false; E.setArrivals(sim, false); }
-    E.sendBurst(sim, BURST);
+    E.sendBurst(sim, BURST, 0);   // stream 0: tab 03's 8B
     renderPlay();
     wake();
   });

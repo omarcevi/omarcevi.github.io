@@ -130,21 +130,45 @@ class Simulator(unittest.TestCase):
         self.assertNotIn("sim-batch", page)
 
     def test_footer_metrics(self):
-        for i in ("m-ttft50", "m-ttft99", "m-tpot", "m-thr", "m-kv", "m-cost", "m-503"):
+        for i in ("m-ttft50", "m-ttft99", "m-tpot", "m-thr", "m-kv", "m-gpus", "m-cost", "m-pre", "m-503"):
             self.assertEqual(len(find_all(self.box, id=i)), 1, i)
         self.assertIn("hidden", find_all(self.box, id="m-503-wrap")[0].attrs)
+        self.assertIn("hidden", find_all(self.box, id="m-pre-wrap")[0].attrs)
 
     def test_tab_shell(self):
         lists = find_all(self.box, role="tablist")
         self.assertEqual(len(lists), 1)
+        self.assertNotIn("hidden", lists[0].attrs)
         tabs = find_all(lists[0], "button", role="tab")
-        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching"])
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig"])
+        self.assertEqual([" ".join(t.text().split()) for t in tabs], ["01 batching", "02 kv cache", "03 mig layout"])
         for t in tabs:
             panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
             self.assertEqual(panel.attrs.get("role"), "tabpanel")
-        radios = find_all(self.box, "button", role="radio")
-        self.assertEqual([r.attrs.get("data-batching") for r in radios], ["request", "continuous"])
-        self.assertEqual([r.attrs.get("aria-checked") for r in radios], ["false", "true"])
+            self.assertEqual(panel.attrs.get("data-tab"), t.attrs.get("data-tab"))
+
+    def radios(self, panel_id):
+        return find_all(find_all(self.box, id=panel_id)[0], "button", role="radio")
+
+    def test_batching_switch(self):
+        r = self.radios("sim-tab-batching")
+        self.assertEqual([b.attrs.get("data-batching") for b in r], ["request", "continuous"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["false", "true"])
+
+    def test_kvcache_slider(self):
+        panel = find_all(self.box, id="sim-tab-kvcache")[0]
+        s = find_all(panel, "input", id="sim-kvmem")[0]
+        self.assertEqual([s.attrs.get(k) for k in ("type", "min", "max", "step", "value")], ["range", "0.5", "0.95", "0.05", "0.9"])
+        self.assertEqual(find_all(panel, "output", id="sim-kvmem-v")[0].text().strip(), "0.90")
+        self.assertIn("Synthetic traffic", panel.text())
+
+    def test_mig_switch(self):
+        r = self.radios("sim-tab-mig")
+        self.assertEqual([b.attrs.get("data-deploy") for b in r], ["gpu", "time", "mig"])
+        self.assertEqual([" ".join(b.text().split()) for b in r], ["GPU per model", "time-slicing", "MIG"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["false", "false", "true"])
+        self.assertEqual({b.parent.attrs.get("aria-label") for b in r}, {"Deployment"})
+        self.assertEqual(r[0].parent.attrs.get("role"), "radiogroup")
 
     def test_controls(self):
         for i in ("sim-play", "sim-burst"):
@@ -158,9 +182,15 @@ class Simulator(unittest.TestCase):
                          ["canvas", "sim-key", "p-foot"])
         entries = keys[0].elements()
         self.assertEqual([" ".join(e.text().split()) for e in entries], [
-            "prefill", "decode, one token per step", "finished", "idle slot (request-level only)", "KV cache"])
+            "prefill", "decode, one token per step", "finished", "idle slot (request-level only)", "preempted", "KV cache"])
         for e in entries:
             self.assertEqual(len(find_all(e, "i")), 1, e.text())   # its swatch
+        self.assertEqual(find_all(entries[4], "i")[0].classes, ["k-pre"])
+
+    def test_key_text_size(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        key = re.search(r"\.sim-key \{([^}]*)\}", page).group(1)
+        self.assertIn("font-size: 0.72rem;", key)   # the footer's size, and no DOM text under 11px
 
     def test_key_colours_match_canvas(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -168,12 +198,70 @@ class Simulator(unittest.TestCase):
 
         def squash(s):
             return re.sub(r"\s+", "", s)
-        for cls, col in (("k-prefill", "accent"), ("k-decode", "decode"), ("k-done", "ok"), ("k-idle", "idle")):
+        for cls, col in (("k-prefill", "accent"), ("k-decode", "decode"), ("k-done", "ok"), ("k-idle", "idle"), ("k-pre", "warn")):
             css = re.search(r"\.sim-key \." + cls + r" \{ --c: ([^;]+); \}", page)
             canvas = re.search(r"\b" + col + r": '([^']+)'", js)
             self.assertIsNotNone(css, cls)
             self.assertIsNotNone(canvas, col)
             self.assertEqual(squash(css.group(1)), squash(canvas.group(1)), cls)
+
+    def test_caption_is_tab_neutral(self):
+        kids = self.box.parent.elements()
+        cap = kids[kids.index(self.box) + 1]
+        self.assertEqual(cap.classes, ["cap", "js-only"])
+        self.assertEqual(" ".join(cap.text().split()),
+                         "A model of LLM serving, not a benchmark: step times come from the H100's specs and each "
+                         "model's real size. Pick a tab, send a burst, then pause and watch it drain.")
+
+    def lesson(self, panel_id):
+        return " ".join(find_all(find_all(self.box, id=panel_id)[0], "p")[0].text().split())
+
+    def test_kvcache_lesson(self):
+        self.assertEqual(self.lesson("sim-tab-kvcache"),
+                         "KV cache. Every token a request holds keeps its keys and values in GPU memory. When that pool "
+                         "is full, the scheduler stops admitting and preempts the newest request: its KV is dropped and "
+                         "it redoes its prefill later. Give the server less memory and fewer requests fit at once, so "
+                         "preemptions start sooner and throughput drops: memory, not compute, limits how many requests "
+                         "run at once. Synthetic traffic: long prompts and long replies.")
+
+    def test_mig_lesson(self):
+        self.assertEqual(self.lesson("sim-tab-mig"),
+                         "MIG. Three models, each with its own traffic and latency target (p99 time to first token: 8B "
+                         "2 s, 3B 500 ms, 1B 300 ms). Kubernetes hands each pod a whole GPU, so they take three "
+                         "underused H100s. Time-slicing shares one H100: the models take turns and every switch wastes "
+                         "GPU time (assumed here to be about 30%), so the 8B misses its target. MIG splits one H100 into "
+                         "isolated slices and meets every target with a third of the GPUs, though each slice has less "
+                         "headroom than a whole GPU. At Trendyol this gave about 1.75× more serving capacity.")
+
+    def test_mig_lesson_states_the_engine_targets_and_overhead(self):
+        engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
+        slo = dict(re.findall(r"'llama-([0-9.-]+b)': (\d+)", re.search(r"slo: \{([^}]*)\}", engine).group(1)))
+        said = {"3-8b": "8B", "3.2-3b": "3B", "3.2-1b": "1B"}
+        targets = ", ".join(said[m] + " " + (str(int(ms) // 1000) + " s" if int(ms) >= 1000 else ms + " ms")
+                            for m, ms in slo.items())
+        self.assertIn("(p99 time to first token: " + targets + ")", self.lesson("sim-tab-mig"))
+        loss = float(re.search(r"var CTX_SWITCH_LOSS = ([0-9.]+);", engine).group(1))
+        self.assertIn("about %d%%" % round(loss * 100), self.lesson("sim-tab-mig"))
+
+    def test_visitor_view_tests_model_the_page(self):
+        # tests/sim.test.mjs replays what a visitor sees; its warm-ups, refresh and p99 window must be the page's
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        node = (ROOT / "tests/sim.test.mjs").read_text(encoding="utf-8")
+
+        def num(pattern, text):
+            return int(re.search(pattern, text).group(1))
+        tick = num(r"TICK_MS = (\d+);", js)
+        page = {"tickMs": tick, "warmMs": num(r"var WARMUP_TICKS = (\d+)", js) * tick,
+                "tab03WarmMs": num(r"var TAB03_WARMUP_TICKS = (\d+);", js) * tick,
+                "sampleMs": num(r"var SAMPLE_MS = (\d+)", js), "p99WindowMs": num(r"var P99_WINDOW_MS = (\d+);", js)}
+        modelled = {k: int(v) for k, v in re.findall(r"(\w+): (\d+)", re.search(r"const PAGE = \{([^}]*)\}", node).group(1))}
+        self.assertEqual(modelled, page)
+        self.assertEqual((page["warmMs"], page["tab03WarmMs"]), (8000, 40000))
+
+    def test_time_sliced_label_says_shared_on_phones(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        view = re.search(r"'mig-time': \{(.*?)\n    \}", js, re.S).group(1)
+        self.assertIn("narrow: 'shared H100'", view)
 
     def test_throughput_and_cost_say_output_tokens(self):
         thr = find_all(self.box, id="m-thr")[0].parent

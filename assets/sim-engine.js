@@ -1,10 +1,11 @@
-// Inference simulator engine: a token-level model of an LLM serving engine on
-// one H100, optionally split into MIG slices. It is a model, not a benchmark:
+// Inference simulator engine: a token-level model of LLM serving engines on
+// one or more H100s, each optionally split into MIG slices. It is a model, not a benchmark:
 // step times come from a simple roofline (compute-bound vs memory-bound) and
 // are meant to show the shape of the trade-offs, not predict real throughput.
 // Pinned numbers: NVIDIA H100 SXM datasheet (989 TFLOPS dense BF16, 3.35 TB/s,
 // 80 GB) and the Llama 3 8B config (8.03e9 params, 32 layers, 8 KV heads,
-// head dim 128, so 131072 bytes of BF16 KV per token). GB means 1e9 bytes.
+// head dim 128, so 131072 bytes of BF16 KV per token); the Llama 3.2 3B and 1B
+// numbers are cited at MODELS. GB means 1e9 bytes.
 // No DOM access: it runs in Node for tests and as window.SimEngine in the page.
 (function (root) {
   'use strict';
@@ -19,12 +20,25 @@
     '1g.10gb': { compute: 1 / 7, bw: 1 / 8, memGB: 10 }
   };
 
-  // contextLen: the model's context window (Llama 3: 8192 tokens)
+  // contextLen: the model's context window (Llama 3: 8192 tokens). short labels a small box.
+  // KV per token is layers x KV heads x head dim x 2 (K and V) x 2 bytes (BF16). The Llama 3.2 numbers
+  // come from the Hugging Face configs and BF16 safetensors, https://huggingface.co/meta-llama/Llama-3.2-3B
+  // and https://huggingface.co/meta-llama/Llama-3.2-1B (config.json; checked 2026-10-26 on the ungated
+  // unsloth/Llama-3.2-3B and unsloth/Llama-3.2-1B copies, since the meta-llama repos are gated):
+  //   3B: 28 layers, 8 KV heads, head dim 128 -> 114688 bytes; 6,425,499,648 bytes of weights (3.21e9 params)
+  //   1B: 16 layers, 8 KV heads, head dim 64 -> 32768 bytes; 2,471,645,608 bytes of weights (1.24e9 params)
+  //   both: max_position_embeddings 131072, tied embeddings
   var MODELS = {
-    'llama-3-8b': { label: 'Llama 3 8B', params: 8.03e9, weightsGB: 16.06, kvBytesPerToken: 131072, contextLen: 8192 }
+    'llama-3-8b': { label: 'Llama 3 8B', short: '8B', params: 8.03e9, weightsGB: 16.06, kvBytesPerToken: 131072, contextLen: 8192 },
+    'llama-3.2-3b': { label: 'Llama 3.2 3B', short: '3B', params: 3.21e9, weightsGB: 6.43, kvBytesPerToken: 114688, contextLen: 131072 },
+    'llama-3.2-1b': { label: 'Llama 3.2 1B', short: '1B', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 }
   };
 
   var GPU = { tflops: 989, tbps: 3.35, mfu: 0.5, mbu: 0.8, stepOverheadMs: 1.5 };
+
+  // Share of GPU time lost when time-sliced contexts alternate: the context switches themselves plus
+  // the cache and TLB thrash after each one. An assumption chosen for the lesson, not a measurement.
+  var CTX_SWITCH_LOSS = 0.3;
 
   var DEFAULTS = {
     gpuMemUtil: 0.9,
@@ -37,10 +51,6 @@
     queueCap: 128
   };
 
-  var PRESETS = {
-    batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } }
-  };
-
   // Lognormal stand-ins for the Azure LLM conversation trace (Patel et al., Splitwise,
   // ISCA 2024: median prompt 1020 tokens, median output 129). PR 3 refits these from the real trace.
   var LENGTHS = {
@@ -48,13 +58,88 @@
     output: { median: 129, sigma: 0.93, min: 1, max: 1000 }
   };
 
+  // Synthetic lengths for tab 02: long prompts and long replies, so the KV pool fills. Each request holds
+  // about 6k tokens of KV, so the 0.9 pool (~145k tokens) runs about 20-25 at once, few enough that the
+  // desktop canvas (27 rows) draws them all and the preempted one flashes; the 0.5 pool (~22k) runs 3 or 4.
+  var LONG = {
+    prompt: { median: 5500, sigma: 0.1, min: 256, max: 6000 },
+    output: { median: 400, sigma: 0.2, min: 64, max: 1000 }
+  };
+
+  // Synthetic lengths for tab 03's small models: short tasks for the 3B, tiny ones for the 1B
+  var SHORT = {
+    prompt: { median: 300, sigma: 0.6, min: 16, max: 2000 },
+    output: { median: 60, sigma: 0.6, min: 4, max: 400 }
+  };
+  var TINY = {
+    prompt: { median: 250, sigma: 0.5, min: 8, max: 1000 },
+    output: { median: 16, sigma: 0.5, min: 1, max: 120 }
+  };
+
+  // Tab 03: three models with their own traffic and TTFT p99 SLOs, on one of three deployments.
+  // The 8B is chat-like (steady, with small bursts); the 3B and 1B serve short tasks at a high rate.
+  // Time-slicing loses because CTX_SWITCH_LOSS leaves each of three busy processes 0.7 / 3 of the GPU,
+  // less than a 2g.20gb slice gets, and well under the 8B's 3g.40gb. The 8B's rate (2.5) is set where that
+  // gap shows: tests/sim.test.mjs checks the boxes as a visitor sees them (the page's 40 s warm-up, then a
+  // refresh every 300 ms on a 30 s p99). On seeds 1-20, time-slicing's 8B is red on a median 98% of the
+  // refreshes in the 30 s after a switch, and no MIG or GPU-per-model box turns red in 2 min. On seeds
+  // 1-200, no MIG box is red in the first 30 s, and MIG's 8B is red 0.83% of the time over 2 min, while
+  // time-slicing's 8B is red on at least 70% of refreshes on 79% of loads. At rate 1.5 it was red on a
+  // median 70%; at rate 3 its p99 runs away (median 9 s after 2 min). A manual burst of 24 still turns
+  // MIG's 8B red for a while, since a 3g slice has less headroom than a whole GPU.
+  function tab03(instances) {
+    return {
+      instances: instances,
+      batching: 'continuous',
+      slo: { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 },
+      streams: [
+        { model: 'llama-3-8b', rate: 2.5, bursts: { min: 6, max: 10 }, lengths: LENGTHS },
+        { model: 'llama-3.2-3b', rate: 8, bursts: false, lengths: SHORT },
+        { model: 'llama-3.2-1b', rate: 25, bursts: false, lengths: TINY }
+      ]
+    };
+  }
+
+  var PRESETS = {
+    batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
+    // Tab 02: bursts of 8-12 over a steady 0.5 req/s, so the 0.9 pool fills within 30 s of opening (and the
+    // 8 s warm-up sees no request on only 5 of 200 seeds). tests/sim.test.mjs checks what a visitor sees
+    // (8 s warm-up, then 30 s): on seeds 1-20, KV passes 90% and a preemption comes on every load (seeds
+    // 21-100: 80/80 and 76/80). Over 60 s on seeds 1-10, more memory runs more requests at once (median 3,
+    // 20 and 22 at 0.5, 0.9 and 0.95), 0.95 finishes more than 0.5 (median 40 vs 22), and preemption starts
+    // sooner at 0.5 (median 9.9 s vs 24.1 s at 0.9). The load is above what the slice serves: at 0.9 the
+    // queue holds a median 51 requests after 2 min.
+    kvcache: { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0.5, bursts: { min: 8, max: 12 }, lengths: LONG } },
+    // GPU per model: Kubernetes gives each pod a whole H100
+    'mig-gpu': tab03([
+      { profile: '7g.80gb', model: 'llama-3-8b', gpu: 0 },
+      { profile: '7g.80gb', model: 'llama-3.2-3b', gpu: 1 },
+      { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 2 }
+    ]),
+    // Time-slicing: three processes share one H100 with no isolation, splitting its memory
+    'mig-time': tab03([
+      { profile: '7g.80gb', model: 'llama-3-8b', gpu: 0, gpuMemUtil: 0.45 },
+      { profile: '7g.80gb', model: 'llama-3.2-3b', gpu: 0, gpuMemUtil: 0.25 },
+      { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 0, gpuMemUtil: 0.2 }
+    ]),
+    // MIG: one H100 split 3g.40gb + 2g.20gb + 2g.20gb, one model per isolated slice
+    'mig-mig': tab03([
+      { profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 },
+      { profile: '2g.20gb', model: 'llama-3.2-3b', gpu: 0 },
+      { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 }
+    ])
+  };
+
   var MAX_TICK_MS = 50;         // a background tab coming back must not replay minutes at once
   var TOKLOG_KEEP_MS = 10000;   // the token log only feeds recent-throughput metrics
   var TOKRATE_WINDOW_MS = 3000; // throughput is the tokens made over the last 3 s
-  var TTFT_WINDOW_MS = 30000;   // TTFT percentiles cover first tokens from the last 30 s,
-  var TTFT_SAMPLES = 200;       // and at most the last 200 of them
+  var TTFT_WINDOW_MS = 30000;   // TTFT percentiles cover first tokens from the last 30 s by default,
+  var TTFT_SAMPLES = 200;       // and at most the last 200 of them (of that model's, for one model)
+  var TTFT_KEEP_MS = 120000;    // the TTFT log keeps 120 s, the longest window metrics takes
   var FINISHED_KEEP = 500;      // sim.finished keeps only the latest requests, so memory stays bounded
   var BURST_SPREAD_MS = 450;    // a manual burst arrives over this long
+  var BURSTS = { min: 30, max: 40 };   // a stream with bursts: true gets 30-40 requests at a time,
+  var BURST_MS = 1000;                 // spread over 1 s, every 8-12 s (burstGap)
 
   // Price of one H100 80GB for an hour, on demand, in USD. Lambda lists its 1x H100 SXM
   // at $4.29 per GPU-hour on https://lambda.ai/pricing (checked 2026-10-25).
@@ -63,11 +148,28 @@
 
   var nextId = 1;
 
+  // A value is given when it's set and, if a number, finite
+  function given(v) {
+    return v !== undefined && v !== null && !(typeof v === 'number' && !isFinite(v));
+  }
+
   function pick(config, key) {
-    return config && config[key] !== undefined ? config[key] : DEFAULTS[key];
+    var v = config ? config[key] : undefined;
+    return given(v) ? v : DEFAULTS[key];
+  }
+
+  // Throws on a profile or model name that isn't in the tables
+  function checkModel(model) {
+    if (!MODELS.hasOwnProperty(model)) throw new Error('unknown model: ' + model);
+  }
+
+  function lookup(profile, model) {
+    if (!PROFILES.hasOwnProperty(profile)) throw new Error('unknown MIG profile: ' + profile);
+    checkModel(model);
   }
 
   function createInstance(profile, model, config) {
+    lookup(profile, model);
     var p = PROFILES[profile], m = MODELS[model];
     var usableGB = p.memGB * pick(config, 'gpuMemUtil') - m.weightsGB - pick(config, 'activationReserveGB');
     var kvBudget = Math.max(0, usableGB) * 1e9;
@@ -75,6 +177,8 @@
       id: nextId++,
       profile: profile,
       model: model,
+      gpu: 0,              // the physical GPU it runs on; createSim sets it from the spec
+      timeSliced: false,   // whether it time-slices a whole GPU with other processes; createSim sets it
       fits: kvBudget > 0,
       kvBudget: kvBudget,
       // Like vLLM's max-model-len: a request longer than this is refused, so any one
@@ -93,6 +197,7 @@
 
   // One engine step: the slower of the compute time and the memory time, plus fixed overhead
   function stepTimeMs(profile, model, prefillTokens, decodeSeqs, kvTokensRead) {
+    lookup(profile, model);
     var p = PROFILES[profile], m = MODELS[model];
     var flops = 2 * m.params * (prefillTokens + decodeSeqs);
     var bytes = m.weightsGB * 1e9 + kvTokensRead * m.kvBytesPerToken;
@@ -119,24 +224,57 @@
     return Math.min(d.max, Math.max(d.min, Math.round(d.median * Math.exp(d.sigma * z))));
   }
 
+  // A traffic stream from its spec { model, rate (req/s), bursts, lengths? }. bursts is true (BURSTS),
+  // { min, max } (the count range) or false; lengths defaults to LENGTHS.
+  function createStream(spec) {
+    checkModel(spec.model);
+    var b = spec.bursts, l = spec.lengths || {};
+    return {
+      model: spec.model,
+      rate: spec.rate,
+      bursts: !b ? false : typeof b === 'object' ? { min: b.min, max: b.max } : { min: BURSTS.min, max: BURSTS.max },
+      lengths: { prompt: l.prompt || LENGTHS.prompt, output: l.output || LENGTHS.output },
+      nextArrival: Infinity,
+      nextBurst: Infinity
+    };
+  }
+
   // Poisson arrivals have exponential gaps; a rate of 0 means no steady arrivals
-  function poissonGap(sim) {
-    return sim.traffic.rate > 0 ? -Math.log(1 - sim.rng()) / sim.traffic.rate * 1000 : Infinity;
+  function poissonGap(sim, stream) {
+    return stream.rate > 0 ? -Math.log(1 - sim.rng()) / stream.rate * 1000 : Infinity;
   }
 
   function burstGap(sim) {
     return 8000 + sim.rng() * 4000;
   }
 
-  // A burst: 30-40 arrival times spread over the next second
-  function addBurst(sim) {
-    var n = 30 + Math.floor(sim.rng() * 11);
-    for (var k = 0; k < n; k++) sim.pending.push(sim.t + sim.rng() * 1000);
-    sim.pending.sort(function (a, b) { return a - b; });
+  // Schedules every stream's next arrival and burst from now. A stream without bursts still draws a
+  // burst gap, so one stream gets the same traffic from a seed as the single stream before streams did.
+  function schedule(sim) {
+    for (var k = 0; k < sim.streams.length; k++) {
+      var s = sim.streams[k];
+      s.nextArrival = sim.t + poissonGap(sim, s);
+      s.nextBurst = sim.t + burstGap(sim);
+    }
   }
 
-  function arrive(sim) {
-    enqueue(sim, { prompt: sampleLength(sim.rng, LENGTHS.prompt), output: sampleLength(sim.rng, LENGTHS.output) });
+  // sim.pending holds { t, stream } arrival times, earliest first
+  function sortPending(sim) {
+    sim.pending.sort(function (a, b) { return a.t - b.t; });
+  }
+
+  // A burst on stream k: min to max arrival times spread over the next BURST_MS
+  function addBurst(sim, k) {
+    var b = sim.streams[k].bursts, n = b.min + Math.floor(sim.rng() * (b.max - b.min + 1));
+    for (var j = 0; j < n; j++) sim.pending.push({ t: sim.t + sim.rng() * BURST_MS, stream: k });
+    sortPending(sim);
+  }
+
+  // A request on stream k, with that stream's lengths and model
+  function arrive(sim, k) {
+    var s = sim.streams[k];
+    enqueue(sim, { prompt: sampleLength(sim.rng, s.lengths.prompt), output: sampleLength(sim.rng, s.lengths.output),
+                   model: s.model, stream: k });
   }
 
   // ---- Router ----
@@ -152,33 +290,39 @@
       (prompt === undefined || prompt + sim.cfg.maxTokens <= inst.maxModelLen);
   }
 
-  // Least outstanding requests among the instances that can take it, lowest index on ties.
-  // null when none can (the request gets a 503).
-  function route(sim, prompt) {
+  // Least outstanding requests among the instances that can take it and, when a model is given,
+  // serve that model; lowest index on ties. null when none can (the request gets a 503).
+  function route(sim, prompt, model) {
     var best = null;
     for (var k = 0; k < sim.instances.length; k++) {
       var inst = sim.instances[k];
-      if (canTake(sim, inst, prompt) && (!best || outstanding(inst) < outstanding(best))) best = inst;
+      if ((!model || inst.model === model) && canTake(sim, inst, prompt) &&
+          (!best || outstanding(inst) < outstanding(best))) best = inst;
     }
     return best;
   }
 
   // A request arrives now. It's routed at once, or rejected when no instance can take it.
-  // inst is an index into sim.instances.
+  // spec = { prompt, output, model?, stream? }: without a model any instance may serve it, and it
+  // takes that instance's model. inst is an index into sim.instances; stream is the index into
+  // sim.streams it came from, null when enqueued directly.
   function enqueue(sim, spec) {
+    if (spec.model) checkModel(spec.model);
     sim.stats.arrived += 1;
     var r = {
-      id: sim.stats.arrived, t0: sim.t, prompt: spec.prompt, output: spec.output, inst: null, state: 'queued',
+      id: sim.stats.arrived, t0: sim.t, prompt: spec.prompt, output: spec.output,
+      model: spec.model || null, stream: spec.stream === undefined ? null : spec.stream, inst: null, state: 'queued',
       prefillTarget: spec.prompt, prefillDone: 0, generated: 0, kvTokens: 0,
       tAdmit: null, tFirst: null, tDone: null, preemptions: 0
     };
-    var inst = route(sim, spec.prompt);
+    var inst = route(sim, spec.prompt, spec.model);
     if (!inst) {
       r.state = 'rejected';
       sim.stats.rejected += 1;
       return r;
     }
     r.inst = sim.instances.indexOf(inst);
+    r.model = inst.model;
     inst.queue.push(r);
     return r;
   }
@@ -219,7 +363,7 @@
   // With admit false, only the running sequences step (a legacy batch in request-level mode).
   function planContinuous(sim, inst, admit) {
     var cfg = sim.cfg, kv = MODELS[inst.model].kvBytesPerToken;
-    var items = [], tokens = cfg.maxNumBatchedTokens, grow = 0;
+    var items = [], tokens = cfg.maxNumBatchedTokens, grow = 0, preempted = false;
     function fits(add) { return inst.kvUsed + (grow + add) * kv <= inst.kvBudget; }
     function take(r, chunk, add) { items.push({ req: r, chunk: chunk }); tokens -= chunk || 1; grow += add; }
 
@@ -230,11 +374,12 @@
         if (chunk <= 0) continue;              // the token budget is spent; it waits a step
         add = chunk + (chunk === left ? 1 : 0);
       }
-      while (!fits(add) && inst.running.length > k) preemptNewest(sim, inst);
+      while (!fits(add) && inst.running.length > k) { preemptNewest(sim, inst); preempted = true; }
       if (inst.running.length > k) take(r, chunk, add);   // else r was the newest and is preempted
     }
 
-    while (admit && inst.queue.length && inst.running.length < cfg.maxNumSeqs && tokens > 0) {
+    // vLLM V1: a step that preempted admits nobody from the waiting queue
+    while (admit && !preempted && inst.queue.length && inst.running.length < cfg.maxNumSeqs && tokens > 0) {
       var q = inst.queue[0], qLeft = q.prefillTarget - q.prefillDone, qChunk = Math.min(qLeft, tokens);
       var qAdd = qChunk + (qChunk === qLeft ? 1 : 0);
       if (!fits(qAdd)) break;
@@ -245,6 +390,13 @@
       take(q, qChunk, qAdd);
     }
     return items;
+  }
+
+  // Whether a request arriving now would start at once: continuous mode, nothing queued ahead of it,
+  // a free max-num-seqs slot and some KV left
+  function canAdmit(sim, inst) {
+    return sim.batching === 'continuous' && inst.queue.length === 0 &&
+      inst.running.length < sim.cfg.maxNumSeqs && inst.kvUsed < inst.kvBudget;
   }
 
   // A continuous step's cost: its chunks, one token per decode, and the KV its sequences read
@@ -319,12 +471,35 @@
 
   // ---- Steps ----
 
-  // Starts a step at sim.t if the instance has work. Returns whether it did.
+  // Time-slicing: processes sharing a whole GPU split its time among those with work, so a step's
+  // stretch is 1 plus the number of the GPU's other time-sliced processes with a step in flight. It's
+  // fixed when the step starts.
+  function stretchOf(sim, inst) {
+    var stretch = 1;
+    if (!inst.timeSliced) return stretch;
+    for (var k = 0; k < sim.instances.length; k++) {
+      var o = sim.instances[k];
+      if (o !== inst && o.timeSliced && o.gpu === inst.gpu && o.stepEnd !== null) stretch += 1;
+    }
+    return stretch;
+  }
+
+  // How long a step takes at a given stretch. Alone (stretch 1) it runs at full speed. Shared, only
+  // its GPU time (not the fixed host-side overhead) is stretched, and CTX_SWITCH_LOSS of the GPU's
+  // time goes to switching between contexts.
+  function slicedMs(baseMs, stretch) {
+    if (stretch <= 1) return baseMs;
+    return GPU.stepOverheadMs + stretch * (baseMs - GPU.stepOverheadMs) / (1 - CTX_SWITCH_LOSS);
+  }
+
+  // Starts a step at sim.t if the instance has work. Returns whether it did. inst.step keeps the
+  // step's cost (prefill tokens, decodes, KV tokens read) and its time-slicing stretch.
   function startStep(sim, inst) {
     var plan = sim.batching === 'request' ? planRequest(sim, inst) : costOf(planContinuous(sim, inst, true));
     if (!plan.items.length) return false;
-    inst.step = { start: sim.t, items: plan.items };
-    inst.stepEnd = sim.t + stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead);
+    var stretch = stretchOf(sim, inst);
+    inst.step = { start: sim.t, items: plan.items, prefill: plan.prefill, decode: plan.decode, kvRead: plan.kvRead, stretch: stretch };
+    inst.stepEnd = sim.t + slicedMs(stepTimeMs(inst.profile, inst.model, plan.prefill, plan.decode, plan.kvRead), stretch);
     return true;
   }
 
@@ -348,7 +523,7 @@
       r.kvTokens += 1;
       if (r.tFirst === null) {
         r.tFirst = t;
-        sim.ttftLog.push([t, t - r.t0]);
+        sim.ttftLog.push([t, t - r.t0, r.model]);
       }
       made += 1;
     }
@@ -370,7 +545,7 @@
     if (inst.batch && idle === inst.running.length) endBatch(inst);
     if (made) sim.tokLog.push([t, made]);
     trimLog(sim.tokLog, t, TOKLOG_KEEP_MS, Infinity);
-    trimLog(sim.ttftLog, t, TTFT_WINDOW_MS, TTFT_SAMPLES);
+    trimLog(sim.ttftLog, t, TTFT_KEEP_MS, Infinity);   // metrics takes its window and sample cap, per model
     inst.kvUsed = kvUsedBytes(inst);
     inst.step = null;
     inst.stepEnd = null;
@@ -393,20 +568,23 @@
     return t;
   }
 
-  // The earliest event. Step completions win ties, so the router sees the slots they free.
+  // The earliest event. Step completions win ties, so the router sees the slots they free. An
+  // arrival or burst event carries the index of its stream.
   function nextEvent(sim) {
-    var ev = { t: Infinity, kind: null, inst: null };
-    function consider(t, kind) { if (t < ev.t) { ev.t = t; ev.kind = kind; } }
-    for (var k = 0; k < sim.instances.length; k++) {
+    var ev = { t: Infinity, kind: null, inst: null, stream: null }, k;
+    function consider(t, kind, stream) { if (t < ev.t) { ev.t = t; ev.kind = kind; ev.stream = stream; } }
+    for (k = 0; k < sim.instances.length; k++) {
       var inst = sim.instances[k];
-      if (inst.stepEnd !== null && inst.stepEnd < ev.t) { consider(inst.stepEnd, 'step'); ev.inst = inst; }
+      if (inst.stepEnd !== null && inst.stepEnd < ev.t) { consider(inst.stepEnd, 'step', null); ev.inst = inst; }
     }
-    if (sim.pending.length) consider(sim.pending[0], 'pending');
+    if (sim.pending.length) consider(sim.pending[0].t, 'pending', sim.pending[0].stream);
     if (sim.arrivalsOn) {
-      consider(sim.nextArrival, 'poisson');
-      if (sim.traffic.bursts) consider(sim.nextBurst, 'burst');
+      for (k = 0; k < sim.streams.length; k++) {
+        consider(sim.streams[k].nextArrival, 'poisson', k);
+        if (sim.streams[k].bursts) consider(sim.streams[k].nextBurst, 'burst', k);
+      }
     }
-    consider(wakeUpTime(sim), 'wake');
+    consider(wakeUpTime(sim), 'wake', null);
     return ev;
   }
 
@@ -428,10 +606,11 @@
       if (ev.t > sim.t && startIdle(sim)) continue;
       if (ev.t > end) break;
       sim.t = Math.max(sim.t, ev.t);
+      var s = ev.stream === null ? null : sim.streams[ev.stream];
       if (ev.kind === 'step') finishStep(sim, ev.inst);
-      else if (ev.kind === 'pending') { sim.pending.shift(); arrive(sim); }
-      else if (ev.kind === 'poisson') { arrive(sim); sim.nextArrival = sim.t + poissonGap(sim); }
-      else if (ev.kind === 'burst') { addBurst(sim); sim.nextBurst = sim.t + burstGap(sim); }
+      else if (ev.kind === 'pending') { sim.pending.shift(); arrive(sim, ev.stream); }
+      else if (ev.kind === 'poisson') { arrive(sim, ev.stream); s.nextArrival = sim.t + poissonGap(sim, s); }
+      else if (ev.kind === 'burst') { addBurst(sim, ev.stream); s.nextBurst = sim.t + burstGap(sim); }
       // a 'wake' needs nothing more: idle instances start on the next pass
     }
     sim.t = end;
@@ -461,23 +640,21 @@
 
   // ---- Play state ----
 
-  // Off stops steady arrivals and drops the arrival times still pending; on schedules the next
-  // arrival and burst from now. Work already queued or running carries on.
+  // Off stops steady arrivals and drops the arrival times still pending; on schedules every stream's
+  // next arrival and burst from now. Work already queued or running carries on.
   function setArrivals(sim, on) {
     if (on === sim.arrivalsOn) return;
     sim.arrivalsOn = on;
-    if (on) {
-      sim.nextArrival = sim.t + poissonGap(sim);
-      sim.nextBurst = sim.t + burstGap(sim);
-    } else {
-      sim.pending = [];
-    }
+    if (on) schedule(sim);
+    else sim.pending = [];
   }
 
-  // n arrival times over the next BURST_SPREAD_MS, whether or not arrivals are on
-  function sendBurst(sim, n) {
-    for (var k = 0; k < n; k++) sim.pending.push(sim.t + sim.rng() * BURST_SPREAD_MS);
-    sim.pending.sort(function (a, b) { return a - b; });
+  // n arrival times on stream (default 0) over the next BURST_SPREAD_MS, whether or not arrivals are on
+  function sendBurst(sim, n, stream) {
+    if (stream === undefined) stream = 0;
+    if (!sim.streams[stream]) throw new Error('unknown stream: ' + stream);
+    for (var k = 0; k < n; k++) sim.pending.push({ t: sim.t + sim.rng() * BURST_SPREAD_MS, stream: stream });
+    sortPending(sim);
   }
 
   // Nothing more will happen: arrivals off, nothing pending, every queue and running list empty
@@ -503,20 +680,28 @@
     return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)];
   }
 
-  // TTFT is tFirst - t0 over the recent first tokens (TTFT_WINDOW_MS, TTFT_SAMPLES). TPOT is the mean of
-  // (tDone - tFirst) / (generated - 1) over finished requests whose first token is in that window.
+  // TTFT is tFirst - t0 over the first tokens in the window: windowMs when given (at most TTFT_KEEP_MS),
+  // else TTFT_WINDOW_MS. It takes at most the last TTFT_SAMPLES of them per TTFT_WINDOW_MS of window, so a
+  // 120 s window takes up to 800. TPOT is the mean of (tDone - tFirst) / (generated - 1) over finished
+  // requests whose first token is in that window. With a model, both cover only that model's requests,
+  // and the sample cap counts only its first tokens.
   // Throughput is the output tokens made over the last TOKRATE_WINDOW_MS, per second, and cost is per
-  // 1M of them. Once drained it's 0 (the page stops the sim's clock, so the window would never age
-  // out) and cost has no value; TTFT and TPOT keep their last values. Null means no data yet.
-  function metrics(sim) {
-    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r;
-    for (k = 0; k < sim.ttftLog.length; k++) {
-      if (sim.ttftLog[k][0] >= sim.t - TTFT_WINDOW_MS) ttfts.push(sim.ttftLog[k][1]);
+  // 1M of them at sim.gpuCount GPUs. Once drained it's 0 (the page stops the sim's clock, so the window
+  // would never age out) and cost has no value; TTFT and TPOT keep their last values. Throughput, KV
+  // and cost are always whole-sim. Null means no data yet.
+  function metrics(sim, model, windowMs) {
+    var win = given(windowMs) ? Math.min(windowMs, TTFT_KEEP_MS) : TTFT_WINDOW_MS;
+    var cap = Math.round(TTFT_SAMPLES * win / TTFT_WINDOW_MS);
+    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r, e;
+    for (k = sim.ttftLog.length - 1; k >= 0 && ttfts.length < cap; k--) {   // newest first
+      e = sim.ttftLog[k];
+      if (e[0] < sim.t - win) break;   // the log is in time order
+      if (!model || e[2] === model) ttfts.push(e[1]);
     }
     ttfts.sort(function (a, b) { return a - b; });
     for (k = 0; k < sim.finished.length; k++) {
       r = sim.finished[k];
-      if (r.tFirst >= sim.t - TTFT_WINDOW_MS && r.generated > 1) {
+      if ((!model || r.model === model) && r.tFirst >= sim.t - win && r.generated > 1) {
         tpotSum += (r.tDone - r.tFirst) / (r.generated - 1);
         tpotN += 1;
       }
@@ -529,14 +714,13 @@
       budget += sim.instances[k].kvBudget;
     }
     var tokPerSec = isDrained(sim) ? 0 : tokens / (TOKRATE_WINDOW_MS / 1000);
-    var gpuCount = 1;   // PR 1 simulates one GPU
     return {
       ttftP50: ttfts.length ? nearestRank(ttfts, 0.5) : null,
       ttftP99: ttfts.length ? nearestRank(ttfts, 0.99) : null,
       tpotMs: tpotN ? tpotSum / tpotN : null,
       tokPerSec: tokPerSec,
       kvFrac: budget > 0 ? used / budget : null,
-      costPer1M: tokPerSec > 0 ? GPU_HOUR_USD * gpuCount / 3600 / tokPerSec * 1e6 : null,
+      costPer1M: tokPerSec > 0 ? GPU_HOUR_USD * sim.gpuCount / 3600 / tokPerSec * 1e6 : null,
       rejected: sim.stats.rejected
     };
   }
@@ -552,32 +736,63 @@
       return String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ',') + ' tok/s';
     },
     pct: function (v) { return v === null ? '\u2013' : Math.round(v * 100) + '%'; },
-    usd: function (v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + ' / 1M tok'; }
+    usd: function (v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + ' / 1M tok'; },
+    // A latency target, without trailing zeros: 2000 is '2s', 500 is '500ms'
+    slo: function (v) { return v < 1000 ? Math.round(v) + 'ms' : +(v / 1000).toFixed(2) + 's'; },
+    // A latency as a screen reader says it: '1.84 s', '85 ms'
+    spoken: function (v) {
+      if (v === null) return 'not measured yet';
+      return v < 1000 ? Math.round(v) + ' ms' : +(v / 1000).toFixed(2) + ' s';
+    }
   };
 
-  // opts = { seed, instances: [{ profile, model }], batching, traffic: { rate (req/s), bursts }, config? }
+  // An instance from its spec { profile, model, gpu?, gpuMemUtil? }: gpu is the physical GPU it runs
+  // on (default 0), and its own gpuMemUtil, when given, takes the place of the sim's
+  function specInstance(spec, cfg) {
+    var config = cfg;
+    if (given(spec.gpuMemUtil)) {
+      config = {};
+      for (var key in cfg) config[key] = cfg[key];
+      config.gpuMemUtil = spec.gpuMemUtil;
+    }
+    var inst = createInstance(spec.profile, spec.model, config);
+    inst.gpu = given(spec.gpu) ? spec.gpu : 0;
+    return inst;
+  }
+
+  // opts = { seed, instances: [{ profile, model, gpu?, gpuMemUtil? }], batching, config?, slo?, and
+  // streams: [{ model, rate (req/s), bursts, lengths? }] or PR 1's traffic: { rate, bursts, lengths? },
+  // one stream for instances[0].model }. sim.gpuCount is the number of distinct physical GPUs.
   function createSim(opts) {
-    var cfg = {};
+    var cfg = {}, gpus = {};
     for (var key in DEFAULTS) cfg[key] = pick(opts.config, key);
+    var instances = opts.instances.map(function (spec) { return specInstance(spec, cfg); });
+    var streams = opts.streams || (opts.traffic && [{ model: instances[0].model, rate: opts.traffic.rate,
+                                                       bursts: opts.traffic.bursts, lengths: opts.traffic.lengths }]);
+    if (!streams) throw new Error('createSim needs streams or traffic');
+    instances.forEach(function (inst) {
+      gpus[inst.gpu] = true;
+      // A whole GPU (no MIG) shared with another instance is time-sliced
+      inst.timeSliced = inst.profile === '7g.80gb' && instances.some(function (o) { return o !== inst && o.gpu === inst.gpu; });
+    });
     var sim = {
       t: 0,
       rng: mulberry32(opts.seed),
       cfg: cfg,
       batching: opts.batching || 'continuous',
-      traffic: { rate: opts.traffic.rate, bursts: !!opts.traffic.bursts },
-      instances: opts.instances.map(function (spec) { return createInstance(spec.profile, spec.model, cfg); }),
+      instances: instances,
+      streams: streams.map(function (spec) { return createStream(spec); }),
+      slo: opts.slo || null,
+      gpuCount: Object.keys(gpus).length,
       arrivalsOn: true,
-      pending: [],
+      pending: [],     // { t, stream }, earliest first
       events: [],
       finished: [],
       stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0 },
       tokLog: [],      // [time, tokens made in a step]
-      ttftLog: [],     // [time of a first token, its TTFT]
-      nextArrival: Infinity,
-      nextBurst: Infinity
+      ttftLog: []      // [time of a first token, its TTFT, its model]
     };
-    sim.nextArrival = poissonGap(sim);
-    sim.nextBurst = burstGap(sim);
+    schedule(sim);
     return sim;
   }
 
@@ -592,6 +807,7 @@
     createSim: createSim,
     tick: tick,
     route: route,
+    canAdmit: canAdmit,
     enqueue: enqueue,
     setBatching: setBatching,
     setArrivals: setArrivals,
