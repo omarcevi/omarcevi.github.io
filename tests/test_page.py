@@ -259,9 +259,17 @@ class Simulator(unittest.TestCase):
         # pass checks what they draw.
         head = self.js_function("header")
         self.assertIn("'System1 · scoring'", head)
-        self.assertIn("'API · '", head)
+        self.assertIn("'API model · '", head)
         self.assertIn(" in flight'", head)
         self.assertNotIn("if (sim.slo)", head)   # a target per model: the System1 model has none ("p99 – / NaNs")
+
+    def test_routing_branches_name_the_rule(self):
+        # tab 04 draws System1 in the middle with a branch to each model it routes to, labelled with the rule at
+        # the live threshold (just "< 0.45" / "≥ 0.45" where the long label doesn't fit)
+        branches = self.js_function("drawBranches")
+        for piece in ("'score < '", "'score ≥ '", "' → small'", "' → large'", "'< '", "'≥ '", "sim.routing.threshold"):
+            self.assertIn(piece, branches)
+        self.assertIn("if (sim.routing)", self.js_function("layout"))   # the routing layout is tab 04's alone
 
     def test_header_level_is_clamped(self):
         # draw() puts every box at the highest level any box needs, so a box with fewer levels stays at its barest

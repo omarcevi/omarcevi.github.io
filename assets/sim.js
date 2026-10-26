@@ -6,8 +6,9 @@
 // preempted) and KV cache, the token stream, and a rolling TTFT p99 line with a marker for each switch
 // the visitor makes. In tabs 03 and 04 each box also shows its model's p99 next to that model's SLO
 // (green or red, and in words in the canvas's aria-label), and in tab 03 a time-sliced step's stretch.
-// In tab 04 a request is scored at the System1 box first, then its dot moves on to the box it's routed to;
-// the API box has no queue lane or KV and names the API model's spend.
+// Tab 04 has its own layout, left to right: a request queues and is scored at the System1 box in the middle,
+// then its dot goes down one of two branches, labelled with the routing rule, to the small or the large model's
+// lane. In API mode the large model is a dashed box with no lane or KV that names the API model's spend.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
@@ -27,6 +28,7 @@
   var BURST = 24;
   var ROW_H = 4, ROW_GAP = 2.2, CELL = 9.5, DOT_R = 3.2, STRIP_H = 26;
   var FADE_NEAR = 18, FADE_SPAN = 40;    // a dot for a row under "+N more" is gone this close to its target (px)
+  var HOP_MS = 450;                      // tab 04: a scored request's dot goes down its branch in this long
   var TOKENS_PER_PARTICLE = 100, MAX_PARTICLES_PER_S = 30;
   var FONT = '"Geist Mono", ui-monospace, monospace';
   var COL = {
@@ -34,7 +36,7 @@
     panel: '#0f1115', box: '#161920', line: '#2a2f38', track: '#232830', sep: '#1c2027',
     prefillTodo: 'rgba(122,162,255,0.22)', decode: 'rgba(122,162,255,0.6)', idle: 'rgba(139,145,156,0.35)',
     doneDecode: 'rgba(74,222,128,0.55)', preDecode: 'rgba(245,165,36,0.55)', free: 'rgba(122,162,255,0.55)',
-    lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)'
+    lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)', branch: 'rgba(122,162,255,0.45)'
   };
   var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
   var PLAY = {
@@ -119,18 +121,67 @@
   // ---- Layout ----
 
   // Fractions of W as in the approved mockup: arrivals 0-0.19, router and queue lanes 0.19-0.44,
-  // GPU 0.49-0.84, token stream 0.84-1, and the sparkline strip along the bottom
+  // GPU 0.49-0.84, token stream 0.84-1, and the sparkline strip along the bottom. Tab 04 has its own
+  // layout (routingLayout).
   function layout() {
     var n = sim.instances.length, gap = 8, top = 26, bot = H - STRIP_H - 8, h = (bot - top - gap * (n - 1)) / n;
-    L = { top: top, bot: bot, qx0: Math.round(W * 0.19), qx1: Math.round(W * 0.44), gx0: Math.round(W * 0.49), gx1: Math.round(W * 0.84), by: H - STRIP_H, boxes: [] };
-    for (var k = 0; k < n; k++) {
-      var b = { x: L.gx0, y: top + k * (h + gap), w: L.gx1 - L.gx0, h: h };
-      b.bx = b.x + 8; b.bw = b.w - 16; b.rowTop = b.y + 18;
-      b.cap = Math.max(1, Math.floor((b.y + h - 14 - b.rowTop + ROW_GAP) / (ROW_H + ROW_GAP)));   // rows that fit
-      b.qrows = Math.max(1, Math.floor((h - 8) / CELL));
-      b.qcols = Math.max(1, Math.floor((L.qx1 - L.qx0) / CELL));
-      L.boxes.push(b);
-    }
+    L = { top: top, bot: bot, qx0: Math.round(W * 0.19), qx1: Math.round(W * 0.44), gx0: Math.round(W * 0.49), gx1: Math.round(W * 0.84), by: H - STRIP_H, boxes: [], routing: !!sim.routing };
+    if (sim.routing) { routingLayout(gap); return; }
+    for (var k = 0; k < n; k++) L.boxes.push(makeBox(L.gx0, L.gx1, top + k * (h + gap), h, L.qx0, L.qx1));
+  }
+  // Tab 04 runs left to right, as in the approved mockup: arrivals, the System1 box's queue lane, the System1
+  // box (vertically centred), its two branches, then the 1B over the 8B (or the API model), each with its lane,
+  // and the token stream. Fractions of W; on phones (560px and under) the arrivals, lanes and stream shrink, so
+  // the boxes keep room for their headers.
+  var ROUTING = {
+    wide: { q1: [0.11, 0.19], s1: [0.21, 0.39], q2: [0.52, 0.59], box: [0.61, 0.89] },
+    narrow: { q1: [0.06, 0.13], s1: [0.165, 0.4], q2: [0.535, 0.59], box: [0.625, 0.975] }
+  };
+  function routingLayout(gap) {
+    var f = ROUTING[W <= 560 ? 'narrow' : 'wide'], h = (L.bot - L.top - gap) / 2;
+    function x(v) { return Math.round(W * v); }
+    var s1 = makeBox(x(f.s1[0]), x(f.s1[1]), L.top + (h + gap) / 2, h, x(f.q1[0]), x(f.q1[1]));
+    s1.alone = true;   // its header isn't like the others', so it picks its own level
+    L.boxes.push(s1);
+    for (var k = 0; k < 2; k++) L.boxes.push(makeBox(x(f.box[0]), x(f.box[1]), L.top + k * (h + gap), h, x(f.q2[0]), x(f.q2[1])));
+    L.gx0 = L.boxes[1].x; L.gx1 = L.boxes[1].x + L.boxes[1].w;
+  }
+  // A box from x0 to x1, h tall at y, with its queue lane from qx0 to qx1
+  function makeBox(x0, x1, y, h, qx0, qx1) {
+    var b = { x: x0, y: y, w: x1 - x0, h: h, qx0: qx0, qx1: qx1 };
+    b.bx = b.x + 8; b.bw = b.w - 16; b.rowTop = b.y + 18;
+    b.cap = Math.max(1, Math.floor((b.y + h - 14 - b.rowTop + ROW_GAP) / (ROW_H + ROW_GAP)));   // rows that fit
+    b.qrows = Math.max(1, Math.floor((h - 8) / CELL));
+    b.qcols = Math.max(1, Math.floor((qx1 - qx0) / CELL));
+    return b;
+  }
+  // Tab 04's branch to box k (1 or 2): a curve from the middle of the System1 box's right edge to the door
+  // of box k's lane (or to the API box, which has none), leaving and arriving level: [x0, y0, the two control
+  // points, x1, y1], flat
+  function branch(k) {
+    var s = L.boxes[0], b = L.boxes[k], x0 = s.x + s.w, y0 = s.y + s.h / 2;
+    var x1 = sim.instances[k].api ? b.x : b.qx0 - 6, y1 = b.y + b.h / 2, c = (x1 - x0) * 0.45;
+    return [x0, y0, x0 + c, y0, x1 - c, y1, x1, y1];
+  }
+  function bezier(g, u) {
+    var v = 1 - u, a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, d = u * u * u;
+    return [a * g[0] + b * g[2] + c * g[4] + d * g[6], a * g[1] + b * g[3] + c * g[5] + d * g[7]];
+  }
+  // A scored request's trip to box k, for its dot or its 503's red dot p: straight from where p is to the
+  // System1 box's exit, then along the branch to the lane's door, HOP_MS in all
+  function startHop(p, k) {
+    var g = branch(k), a = Math.abs(g[0] - p.x) + Math.abs(g[1] - p.y), c = Math.abs(g[6] - g[0]) + Math.abs(g[7] - g[1]);
+    p.hop = { k: k, sx: p.x, sy: p.y, u: 0, split: a / (a + c) || 0 };
+  }
+  // Moves p dt further on its trip; false once it has arrived
+  function stepHop(p, dt) {
+    var h = p.hop, g = branch(h.k), pt;
+    h.u = Math.min(1, h.u + dt / HOP_MS);
+    if (h.u < h.split) pt = [h.sx + (g[0] - h.sx) * h.u / h.split, h.sy + (g[1] - h.sy) * h.u / h.split];
+    else pt = bezier(g, h.split < 1 ? (h.u - h.split) / (1 - h.split) : 1);
+    p.x = pt[0]; p.y = pt[1];
+    if (h.u >= 1) delete p.hop;
+    return !!p.hop;
   }
   // Rows drawn out of n: all of them while they fit, else all but the last two lines, which hold "+N more"
   function drawn(b, n) { return n > b.cap ? Math.max(0, b.cap - 2) : n; }
@@ -140,7 +191,7 @@
   // Queue slot i of an instance's lane, oldest first, filling columns top to bottom
   function qslot(b, i) {
     var col = Math.min(Math.floor(i / b.qrows), b.qcols - 1), row = i % b.qrows;
-    return [L.qx0 + col * CELL + CELL / 2, b.y + 4 + row * CELL + CELL / 2];
+    return [b.qx0 + col * CELL + CELL / 2, b.y + 4 + row * CELL + CELL / 2];
   }
   function prefillW(b, r) { return Math.max(3, b.bw * 0.25 * Math.min(1, r.prefillTarget / 4000)); }
   function decodeW(b, pw, tokens) { return Math.min(b.bw - pw - 1.5, b.bw * Math.min(1, tokens / 1000)); }
@@ -173,7 +224,7 @@
     V.fly.push({ x: b.bx + pw + 1.5 + decodeW(b, pw, row.r.generated), y: row.y + ROW_H / 2, vx: 170 + Math.random() * 90 });
   }
   // A 503's red dot, from (x, y) to the door of box b's queue lane, where it fades
-  function reject(x, y, b) { return { x: x, y: y, ty: b.y + 6 + Math.random() * (b.h - 12), age: 0 }; }
+  function reject(x, y, b) { return { x: x, y: y, tx: b.qx0 - 12, ty: b.y + 6 + Math.random() * (b.h - 12), age: 0 }; }
   function tokenOut(b, rows) {
     if (V.toks.length > 120) return;
     var vis = drawn(b, rows.length);   // from a drawn row, not from under "+N more"
@@ -183,12 +234,18 @@
 
   function sync(dt) {
     var k = V.place ? 1 : Math.min(1, dt / 1000 * 9), seen = {};
-    function dot(r, tx, ty, lands, fade) {
+    function dot(r, tx, ty, lands, fade, ii) {
       var d = V.dots[r.id];
-      if (!d) d = V.dots[r.id] = V.place ? { x: tx, y: ty } : { x: -4, y: L.top + Math.random() * (L.bot - L.top) };
-      d.x += (tx - d.x) * k; d.y += (ty - d.y) * k;
-      if (!lands) d.landed = false;
-      else if (d.landed || Math.abs(tx - d.x) + Math.abs(ty - d.y) < 3) { d.landed = true; d.x = tx; d.y = ty; }
+      if (!d) d = V.dots[r.id] = V.place ? { x: tx, y: ty, inst: ii } : { x: -4, y: L.top + Math.random() * (L.bot - L.top), inst: ii };
+      if (V.place) delete d.hop;
+      else if (L.routing && d.inst === 0 && ii > 0) startHop(d, ii);   // tab 04: just scored, so off down its branch
+      d.inst = ii;
+      if (d.hop && stepHop(d, dt)) d.landed = false;
+      else {
+        d.x += (tx - d.x) * k; d.y += (ty - d.y) * k;
+        if (!lands) d.landed = false;
+        else if (d.landed || Math.abs(tx - d.x) + Math.abs(ty - d.y) < 3) { d.landed = true; d.x = tx; d.y = ty; }
+      }
       d.r = r; d.tx = tx; d.ty = ty; d.fade = !!fade;
       seen[r.id] = true;
     }
@@ -224,9 +281,9 @@
         row.y = row.y === null ? ty : row.y + (ty - row.y) * k;   // a new row starts in its place
         // a row under "+N more" isn't drawn, so its dot fades out before it reaches the box, clear of the label.
         // A flashing preempted row keeps its dot; once the row goes, the dot eases back to the queue front.
-        if (live[row.r.id] === row.r || row.preAt !== null) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis);
+        if (live[row.r.id] === row.r || row.preAt !== null) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis, ii);
       }
-      inst.queue.forEach(function (x, qi) { if (!seen[x.id]) { var p = qslot(b, qi); dot(x, p[0], p[1], false); } });
+      inst.queue.forEach(function (x, qi) { if (!seen[x.id]) { var p = qslot(b, qi); dot(x, p[0], p[1], false, false, ii); } });
       if (dt > 0) {   // token particles: scaled to the instance's tok/s, at most 30 a second
         V.rate[ii] += (made * 1000 / dt - V.rate[ii]) * Math.min(1, dt / 600);
         V.acc[ii] += Math.min(MAX_PARTICLES_PER_S, V.rate[ii] / TOKENS_PER_PARTICLE) * dt / 1000;
@@ -235,8 +292,13 @@
     });
     // 503s: the router had nowhere to send them, so they stop at the first box's lane. In tab 04 a request
     // the System1 model scored can also be turned away by the model it was sent to: it goes from where its
-    // dot was to that box's lane.
-    var turnedAway = sim.stats.rejected - V.rejected, b0 = L.boxes[0], q;
+    // dot was down its branch to that box's lane.
+    var turnedAway = sim.stats.rejected - V.rejected, q, to = 0;
+    function turnAway(x, y, k) {
+      var p = reject(x, y, L.boxes[k]);
+      if (L.routing && k > 0) startHop(p, k);
+      V.rejects.push(p);
+    }
     V.rejected = sim.stats.rejected;
     for (var id in V.dots) {
       if (seen[id]) continue;
@@ -246,16 +308,21 @@
       for (q = 0; q < sim.instances.length && sim.instances[q].model !== d.r.model; q++);
       if (q === sim.instances.length) continue;
       turnedAway -= 1;
-      if (!V.place) V.rejects.push(reject(d.x, d.y, L.boxes[q]));
+      if (!V.place) turnAway(d.x, d.y, q);
     }
+    // A 503 the page never saw queue (scored and turned away between two frames) met a full queue: in tab 04,
+    // the longest one, and from a model's lane it starts down that branch
+    for (q = 1; L.routing && q < sim.instances.length; q++) if (sim.instances[q].queue.length > sim.instances[to].queue.length) to = q;
     for (q = 0; !V.place && q < Math.min(turnedAway, 8); q++) {
-      V.rejects.push(reject(-4, L.top + Math.random() * (L.bot - L.top), b0));
+      if (to) turnAway(branch(to)[0], branch(to)[1], to);
+      else turnAway(-4, L.top + Math.random() * (L.bot - L.top), 0);
     }
     var s = dt / 1000;
     V.fly = V.fly.filter(function (p) { p.x += p.vx * s; return p.x < W + 30; });
     V.toks = V.toks.filter(function (p) { p.x += p.vx * s; return p.x < W + 6; });
     V.rejects = V.rejects.filter(function (p) {
-      p.age += dt; p.x += (L.qx0 - 12 - p.x) * k; p.y += (p.ty - p.y) * k;
+      p.age += dt;
+      if (!(p.hop && stepHop(p, dt))) { p.x += (p.tx - p.x) * k; p.y += (p.ty - p.y) * k; }
       return p.age < 900;
     });
     V.place = false;
@@ -319,7 +386,7 @@
     if (inst.model === 'system1') {
       var q = inst.queue.length, brief = [['q ' + q + ' · run ' + n, COL.muted]];
       levels = [['System1 · scoring', [['queue ' + q + ' · running ' + n, COL.muted]]],
-                ['System1 · scoring', brief], ['System1', brief], [short, brief]];
+                ['System1 · scoring', brief], ['System1', brief], [short, brief], [short, [['q ' + q, COL.muted]]]];
     } else {
       var last = inst.api ? [' · ' + n + ' in flight', COL.muted] : [' · ' + kvTxt, kvCol];
       if (target !== undefined) {
@@ -331,7 +398,7 @@
       } else {
         fits = [[['running ' + n + ' · ' + kvTxt, kvCol]], [[n + ' · ' + kvTxt, kvCol]]];
       }
-      var name = inst.api ? 'API · ' + perHour(V.spend) : V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
+      var name = inst.api ? 'API model · ' + perHour(V.spend) : V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
       levels = fits.map(function (f) { return [name, f]; });
       if (inst.api) levels.push(['API ' + (V.spend === null ? '\u2013' : '$' + Math.round(V.spend) + '/h'), fits[fits.length - 1]]);
       if (V.multi) levels.push([short, fits[fits.length - 1]]);
@@ -362,16 +429,21 @@
     }
   }
 
-  // A box and its queue lane. Tab 04's API box has neither a lane nor a KV bar, and no free slot: the API
-  // model starts every request the moment it's routed there, on someone else's GPUs.
+  // A box and its queue lane. Tab 04's API box is dashed, on someone else's GPUs, with neither a lane nor a
+  // KV bar, and no free slot: the API model starts every request the moment it's routed there.
   function drawInstance(inst, b, rows, h, level) {
     ctx.lineWidth = 1;
     if (!inst.api) {
       ctx.strokeStyle = COL.lane; ctx.setLineDash([3, 4]);
-      rr(L.qx0 - 6, b.y, L.qx1 - L.qx0 + 12, b.h, 6); ctx.stroke(); ctx.setLineDash([]);
+      rr(b.qx0 - 6, b.y, b.qx1 - b.qx0 + 12, b.h, 6); ctx.stroke(); ctx.setLineDash([]);
     }
 
-    rr(b.x, b.y, b.w, b.h, 6); ctx.fillStyle = COL.box; ctx.fill(); ctx.strokeStyle = COL.line; ctx.stroke();
+    rr(b.x, b.y, b.w, b.h, 6);
+    if (inst.api) {
+      ctx.fillStyle = COL.panel; ctx.fill(); ctx.strokeStyle = COL.muted; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = COL.box; ctx.fill(); ctx.strokeStyle = COL.line; ctx.stroke();
+    }
     var kv = h.kv, hot = h.hot;
     drawHeader(h, level, b);
 
@@ -466,6 +538,35 @@
     }
   }
 
+  // Tab 04's column labels, the most telling first; one that would run into a label already drawn is left out
+  function routingLabels(narrow) {
+    var s1 = L.boxes[0], b = L.boxes[1], taken = [];
+    ctx.font = '10px ' + FONT;
+    [[narrow ? VIEWS[preset].narrow : VIEWS[preset].label, b.x], [narrow ? 'router' : 'router · ' + sim.instances[0].profile, s1.x],
+     ['queue', s1.qx0 - 4], ['queues', b.qx0 - 4], ['requests →', 10], ['tokens →', b.x + b.w + 10]].forEach(function (l) {
+      var x0 = l[1], x1 = x0 + ctx.measureText(l[0]).width;
+      if (x1 > W - 4 || taken.some(function (t) { return x0 < t[1] + 6 && t[0] < x1 + 6; })) return;
+      taken.push([x0, x1]);
+      text(l[0], x0, 16, 10, COL.faint);
+    });
+  }
+  // Tab 04's two branches out of the System1 box, labelled with the routing rule at the live threshold: above
+  // the branch to the small model and below the one to the large model, or just "< 0.45" and "≥ 0.45" where
+  // the whole rule doesn't fit between the System1 box and the lanes
+  function drawBranches() {
+    var t = sim.routing.threshold.toFixed(2), g = [branch(1), branch(2)], room = g[0][6] - g[0][0];
+    var rules = [['score < ' + t + ' → small', '< ' + t], ['score ≥ ' + t + ' → large', '≥ ' + t]];
+    ctx.strokeStyle = COL.branch; ctx.lineWidth = 1.5;
+    g.forEach(function (p) { ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.bezierCurveTo(p[2], p[3], p[4], p[5], p[6], p[7]); ctx.stroke(); });
+    ctx.lineWidth = 1;
+    ctx.font = '9px ' + FONT;
+    var whole = Math.max(ctx.measureText(rules[0][0]).width, ctx.measureText(rules[1][0]).width) + 16 <= room;
+    rules.forEach(function (rule, i) {
+      var s = whole ? rule[0] : rule[1], w = ctx.measureText(s).width;
+      text(s, g[0][0] + Math.min(8, (room - w) / 2), i ? g[1][7] + 13 : g[0][7] - 6, 9, COL.muted);
+    });
+  }
+
   function draw() {
     if (!W || !L) return;
     ctx.clearRect(0, 0, W, H);
@@ -473,14 +574,22 @@
     for (var gx = 8; gx < W; gx += 16) for (var gy = 8; gy < L.bot + 4; gy += 16) ctx.fillRect(gx, gy, 1, 1);
     var narrow = W <= 560;
     ctx.font = '10px ' + FONT;
-    text(10 + ctx.measureText('requests →').width + 6 > L.qx0 - 4 ? 'requests' : 'requests →', 10, 16, 10, COL.faint);
-    text(narrow ? 'queue' : 'router · queue', L.qx0 - 4, 16, 10, COL.faint);
-    text(narrow ? VIEWS[preset].narrow : VIEWS[preset].label, L.gx0, 16, 10, COL.faint);
-    if (W > 420) text('tokens →', L.gx1 + 10, 16, 10, COL.faint);
-    // every box's header at the same level, so their names and pieces match
+    if (L.routing) {
+      routingLabels(narrow);
+      drawBranches();
+    } else {
+      text(10 + ctx.measureText('requests →').width + 6 > L.qx0 - 4 ? 'requests' : 'requests →', 10, 16, 10, COL.faint);
+      text(narrow ? 'queue' : 'router · queue', L.qx0 - 4, 16, 10, COL.faint);
+      text(narrow ? VIEWS[preset].narrow : VIEWS[preset].label, L.gx0, 16, 10, COL.faint);
+      if (W > 420) text('tokens →', L.gx1 + 10, 16, 10, COL.faint);
+    }
+    // every box's header at the same level, so their names and pieces match (tab 04's System1 box has its own)
     var heads = sim.instances.map(header), level = 0;
-    heads.forEach(function (h, ii) { level = Math.max(level, fitLevel(h, L.boxes[ii])); });
-    sim.instances.forEach(function (inst, ii) { drawInstance(inst, L.boxes[ii], V.rows[ii], heads[ii], level); });
+    heads.forEach(function (h, ii) { if (!L.boxes[ii].alone) level = Math.max(level, fitLevel(h, L.boxes[ii])); });
+    sim.instances.forEach(function (inst, ii) {
+      var b = L.boxes[ii];
+      drawInstance(inst, b, V.rows[ii], heads[ii], b.alone ? fitLevel(heads[ii], b) : level);
+    });
     drawDots();
     drawStream();
     drawStrip();
