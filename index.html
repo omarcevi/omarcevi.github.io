@@ -328,9 +328,25 @@
     .cap a { color: var(--muted); }
 
     #simbox { margin-top: 2.25rem; }
-    #sim { display: block; width: 100%; height: 260px; cursor: default; }
-    #sim.tall { height: 320px; }   /* three instance boxes (assets/sim.js sets .tall) */
-    #m-503 { color: var(--p-bad); }
+    /* one height on every tab, so switching tabs never moves what's below */
+    #sim { display: block; width: 100%; height: 300px; cursor: default; }
+    #m-503.bad { color: var(--p-bad); }   /* red once something was turned away */
+    /* the simulator's footer: the main metrics in cells wide enough for their largest values, so a number
+       growing never pushes the others onto a new line; each tab's counters on a second row that's always there */
+    /* the header's note follows the tab and can be long: it shortens with an ellipsis rather than pushing the
+       controls onto a second line, which would move everything below */
+    #simbox .p-head { flex-wrap: nowrap; }
+    #simbox .p-title { flex-basis: 0; }
+    #simbox .p-foot { display: grid; grid-template-columns: repeat(7, auto); justify-content: space-between; gap: 0.35rem 1rem; }
+    #simbox .p-foot > span { white-space: nowrap; }
+    #simbox .p-foot b { display: inline-block; }
+    #m-ttft50, #m-ttft99, #m-tpot { min-width: 5ch; }
+    #m-thr { min-width: 11ch; }
+    #m-kv { min-width: 4ch; }
+    #m-cost { min-width: 15ch; }
+    .sim-counters { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.35rem 1.3rem; padding-top: 0.45rem; border-top: 1px dashed var(--p-line2); }
+    .sim-counters > span[hidden] { display: none; }
+    @media (max-width: 900px) { #simbox .p-foot { grid-template-columns: repeat(4, auto); } }
     /* simulator tabs, the lesson line and its segmented switch (assets/sim.js wires them) */
     .sim-tabs {
       display: flex; gap: 0.15rem; padding: 0.35rem 0.6rem 0; overflow-x: auto;
@@ -344,12 +360,32 @@
     .sim-tabs button:hover, .sim-tabs button[aria-selected="true"] { color: var(--p-text); }
     .sim-tabs button[aria-selected="true"] { border-bottom-color: var(--p-accent); }
     .sim-tabs button i { font-style: normal; color: var(--p-faint); }
+    /* every tab's lesson line: a bold title and one sentence, its "?" opening the full lesson (.sim-pop), and
+       the tab's controls. assets/sim.js gives every tab the tallest one's height, so the canvas never moves */
     .sim-lesson {
       display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1.5rem; flex-wrap: wrap;
       padding: 0.75rem 0.9rem; font-size: 0.88rem; line-height: 1.55; color: var(--p-muted); border-bottom: 1px solid var(--p-line2);
     }
-    .sim-lesson p { margin: 0; flex: 1 1 26em; max-width: 52em; }
-    .sim-lesson b { color: var(--p-text); font-weight: 500; }
+    .sim-sum { margin: 0; flex: 1 1 26em; max-width: 46em; }
+    .sim-lesson b, .sim-pop b { color: var(--p-text); font-weight: 500; }
+    .sim-more {
+      display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; margin-left: 0.25rem; padding: 0; vertical-align: 0.08em;
+      border: 1px solid #2a2f38; border-radius: 50%; background: #181b21; color: var(--p-muted);
+      font: 500 0.7rem/1 var(--mono); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .sim-more:hover, .sim-more.open { color: var(--p-accent); border-color: var(--p-accent); }
+    .sim-more:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
+    /* the full lesson, in a popover under its "?" (assets/sim.js places it) */
+    .sim-pop {
+      position: absolute; inset: auto; margin: 0; width: min(32rem, calc(100vw - 32px)); padding: 0.85rem 1rem 0.9rem;
+      background: #13161c; color: var(--p-muted); border: 1px solid #2a2f38; border-radius: 10px;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); font-size: 0.84rem; line-height: 1.6;
+    }
+    .sim-pop p { margin: 0; }
+    .pop-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem; font-family: var(--mono); font-size: 0.72rem; color: var(--p-muted); }
+    .pop-head button { background: none; border: 0; padding: 0 0.2rem; color: var(--p-muted); font: inherit; font-size: 0.9rem; line-height: 1; cursor: pointer; }
+    .pop-head button:hover { color: var(--p-accent); }
+    .sim-pop .sim-note { display: block; margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px solid #1c2027; }
     /* the header buttons' padding and line height (the body's), so the switch is exactly as tall as they are */
     .seg { display: inline-flex; border: 1px solid #2a2f38; border-radius: 999px; overflow: hidden; font-family: var(--mono); font-size: 0.72rem; line-height: 1.65; flex: none; }
     .seg button {
@@ -665,8 +701,9 @@
       html { scroll-padding-top: 2.75rem; }
       .topbar { padding: 0.75rem 0; }
       .topbar nav { gap: 0.9rem; }
-      #sim { height: 230px; }
-      #sim.tall { height: 300px; }
+      #sim { height: 290px; }
+      #simbox .p-foot { grid-template-columns: repeat(2, auto); justify-content: start; gap: 0.35rem 1.5rem; }
+      .sim-counters { min-height: 3.25rem; align-content: flex-start; }   /* two rows (with its padding and border) on every tab, however many counters */
       .p-title .note { display: none; }
       .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
@@ -763,26 +800,38 @@
           <button type="button" role="tab" id="sim-tabbtn-failure" data-tab="failure" aria-controls="sim-tab-failure" aria-selected="false"><i>06</i> failure</button>
         </div>
         <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
-          <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
+          <p class="sim-sum"><b>Continuous batching.</b> Requests join and leave at every step, so the queue drains instead of waiting on the slowest reply. <button type="button" class="sim-more" popovertarget="sim-more-batching" aria-label="More about continuous batching">?</button></p>
           <div class="seg" role="radiogroup" aria-label="Batching">
             <button type="button" role="radio" data-batching="request" aria-checked="false">request-level</button>
             <button type="button" role="radio" data-batching="continuous" aria-checked="true">continuous</button>
           </div>
+          <div class="sim-pop" id="sim-more-batching" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-batching" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
+          </div>
         </div>
         <div class="sim-lesson" id="sim-tab-kvcache" role="tabpanel" data-tab="kvcache" aria-labelledby="sim-tabbtn-kvcache" hidden>
-          <p><b>KV cache.</b> Every token a request holds keeps its keys and values in GPU memory. When that pool is full, the scheduler stops admitting and preempts the newest request: its KV is dropped and it redoes its prefill later. Give the server less memory and fewer requests fit at once, so preemptions start sooner and throughput drops: memory, not compute, limits how many requests run at once. <span class="sim-note">Synthetic traffic: long prompts and long replies.</span></p>
+          <p class="sim-sum"><b>KV cache.</b> When the KV cache fills, the scheduler stops admitting and preempts requests: memory, not compute, caps how many run at once. <button type="button" class="sim-more" popovertarget="sim-more-kvcache" aria-label="More about the KV cache">?</button></p>
           <label class="sim-range"><span>--gpu-memory-utilization</span> <input type="range" id="sim-kvmem" min="0.5" max="0.95" step="0.05" value="0.9"> <output id="sim-kvmem-v" for="sim-kvmem">0.90</output></label>
+          <div class="sim-pop" id="sim-more-kvcache" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-kvcache" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>KV cache.</b> Every token a request holds keeps its keys and values in GPU memory. When that pool is full, the scheduler stops admitting and preempts the newest request: its KV is dropped and it redoes its prefill later. Give the server less memory and fewer requests fit at once, so preemptions start sooner and throughput drops: memory, not compute, limits how many requests run at once. <span class="sim-note">Synthetic traffic: long prompts and long replies.</span></p>
+          </div>
         </div>
         <div class="sim-lesson" id="sim-tab-mig" role="tabpanel" data-tab="mig" aria-labelledby="sim-tabbtn-mig" hidden>
-          <p><b>MIG.</b> Three models, each with its own traffic and latency target (p99 time to first token: 8B 2 s, 3B 500 ms, 1B 300 ms). Kubernetes hands each pod a whole GPU, so they take three underused H100s. Time-slicing shares one H100: the models take turns and every switch wastes GPU time (assumed here to be about 30%), so the 8B misses its target. MIG splits one H100 into isolated slices and meets every target with a third of the GPUs, though each slice has less headroom than a whole GPU. At Trendyol this gave about 1.75× more serving capacity.</p>
+          <p class="sim-sum"><b>MIG.</b> Three models on one H100 split by MIG meet the same latency targets as three whole GPUs, with a third of the hardware. <button type="button" class="sim-more" popovertarget="sim-more-mig" aria-label="More about MIG">?</button></p>
           <div class="seg" role="radiogroup" aria-label="Deployment">
             <button type="button" role="radio" data-deploy="gpu" aria-checked="false">GPU per model</button>
             <button type="button" role="radio" data-deploy="time" aria-checked="false">time-slicing</button>
             <button type="button" role="radio" data-deploy="mig" aria-checked="true">MIG</button>
           </div>
+          <div class="sim-pop" id="sim-more-mig" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-mig" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>MIG.</b> Three models, each with its own traffic and latency target (p99 time to first token: 8B 2 s, 3B 500 ms, 1B 300 ms). Kubernetes hands each pod a whole GPU, so they take three underused H100s. Time-slicing shares one H100: the models take turns and every switch wastes GPU time (assumed here to be about 30%), so the 8B misses its target. MIG splits one H100 into isolated slices and meets every target with a third of the GPUs, though each slice has less headroom than a whole GPU. At Trendyol this gave about 1.75× more serving capacity.</p>
+          </div>
         </div>
         <div class="sim-lesson" id="sim-tab-routing" role="tabpanel" data-tab="routing" aria-labelledby="sim-tabbtn-routing" hidden>
-          <p><b>Model routing.</b> A small System1 model scores every request, and only the hard ones go to the large model; the rest go to a 1B model that costs a fraction as much. Raising the threshold cuts cost — on-prem by letting one H100 serve all the traffic, with the API by shrinking the bill — but push it too far and hard requests land on the small model and get worse answers. <span class="sim-note">Difficulty and answer quality are modelled, not measured.</span></p>
+          <p class="sim-sum"><b>Model routing.</b> A small System1 model sends easy requests to a 1B model and hard ones to the 8B, cutting cost until misroutes hurt answers. <button type="button" class="sim-more" popovertarget="sim-more-routing" aria-label="More about model routing">?</button></p>
           <div class="sim-ctls">
             <label class="sim-range"><span>send to the large model at score ≥</span> <input type="range" id="sim-route" min="0" max="1" step="0.05" value="0.45"> <output id="sim-route-v" for="sim-route">0.45</output></label>
             <div class="seg" role="radiogroup" aria-label="Large model">
@@ -790,22 +839,34 @@
               <button type="button" role="radio" data-large="api" aria-checked="false">API model</button>
             </div>
           </div>
+          <div class="sim-pop" id="sim-more-routing" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-routing" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>Model routing.</b> A small System1 model scores every request, and only the hard ones go to the large model; the rest go to a 1B model that costs a fraction as much. Raising the threshold cuts cost — on-prem by letting one H100 serve all the traffic, with the API by shrinking the bill — but push it too far and hard requests land on the small model and get worse answers. <span class="sim-note">Difficulty and answer quality are modelled, not measured.</span></p>
+          </div>
         </div>
         <div class="sim-lesson" id="sim-tab-traffic" role="tabpanel" data-tab="traffic" aria-labelledby="sim-tabbtn-traffic" hidden>
-          <p><b>Real traffic.</b> An hour of Azure's production LLM traffic, replayed 12× faster with every 4th request so that one H100 gets its share; each request still runs at real speed. Its busiest five minutes carry about 1.4× the hour's average, and at the peak the GPU that served the average with room to spare falls behind: the queue grows, p99 goes red and requests get 503s. Random traffic at the same average rate stays green. Size for the peak, not the average. <span class="sim-note">Traffic: <a href="https://github.com/Azure/AzurePublicDataset/blob/master/AzureLLMInferenceDataset2023.md">Azure LLM inference trace 2023</a>, conversations (Microsoft, <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>; Patel et al., Splitwise, ISCA 2024), every 4th request, 12× faster.</span></p>
+          <p class="sim-sum"><b>Real traffic.</b> Real traffic peaks well above its average, so a GPU sized for the average falls behind at the peak, which random traffic hides. <button type="button" class="sim-more" popovertarget="sim-more-traffic" aria-label="More about real traffic">?</button></p>
           <div class="seg" role="radiogroup" aria-label="Traffic">
             <button type="button" role="radio" data-traffic="random" aria-checked="false">random</button>
             <button type="button" role="radio" data-traffic="trace" aria-checked="true">Azure trace</button>
           </div>
+          <div class="sim-pop" id="sim-more-traffic" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-traffic" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>Real traffic.</b> An hour of Azure's production LLM traffic, replayed 12× faster with every 4th request so that one H100 gets its share; each request still runs at real speed. Its busiest five minutes carry about 1.4× the hour's average, and at the peak the GPU that served the average with room to spare falls behind: the queue grows, p99 goes red and requests get 503s. Random traffic at the same average rate stays green. Size for the peak, not the average. <span class="sim-note">Traffic: <a href="https://github.com/Azure/AzurePublicDataset/blob/master/AzureLLMInferenceDataset2023.md">Azure LLM inference trace 2023</a>, conversations (Microsoft, <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>; Patel et al., Splitwise, ISCA 2024), every 4th request, 12× faster.</span></p>
+          </div>
         </div>
         <div class="sim-lesson" id="sim-tab-failure" role="tabpanel" data-tab="failure" aria-labelledby="sim-tabbtn-failure" hidden>
-          <p><b>Failure.</b> Two replicas of Llama 3 8B, each on its own H100, share the traffic. Kill one and its requests come back as client retries: their KV cache died with the GPU, so each redoes its prefill and starts its reply over, and p99 spikes. The survivor can't carry both GPUs' traffic alone, so its queue grows and requests get 503s. Turn the autoscaler on and a replacement H100 comes up after a cold start, and the queues drain. <span class="sim-note">Cold start: 30 s, assumed (a warm spare node loading the weights); a fresh node takes minutes.</span></p>
+          <p class="sim-sum"><b>Failure.</b> Kill one of two replicas and its requests retry on the survivor, which falls behind until a replacement comes up. <button type="button" class="sim-more" popovertarget="sim-more-failure" aria-label="More about failure">?</button></p>
           <div class="sim-ctls">
             <div class="seg"><button type="button" id="sim-kill">kill a GPU</button></div>
             <div class="seg" role="radiogroup" aria-label="Autoscaler">
               <button type="button" role="radio" data-autoscale="off" aria-checked="true">autoscaler off</button>
               <button type="button" role="radio" data-autoscale="on" aria-checked="false">autoscaler on</button>
             </div>
+          </div>
+          <div class="sim-pop" id="sim-more-failure" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-failure" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>Failure.</b> Two replicas of Llama 3 8B, each on its own H100, share the traffic. Kill one and its requests come back as client retries: their KV cache died with the GPU, so each redoes its prefill and starts its reply over, and p99 spikes. The survivor can't carry both GPUs' traffic alone, so its queue grows and requests get 503s. Turn the autoscaler on and a replacement H100 comes up after a cold start, and the queues drain. <span class="sim-note">Cold start: 30 s, assumed (a warm spare node loading the weights); a fresh node takes minutes.</span></p>
           </div>
         </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
@@ -825,12 +886,14 @@
           <span>KV cache <b id="m-kv">–</b></span>
           <span>GPUs <b id="m-gpus">1</b></span>
           <span>cost <b id="m-cost">–</b></span>
-          <span id="m-api-wrap" title="the API model's spend over the last 30 s, per hour" hidden>API spend <b id="m-api">–</b></span>
-          <span id="m-small-wrap" title="share of requests the router sent to the small model, last 30 s" hidden>sent small <b id="m-small">–</b></span>
-          <span id="m-mis-wrap" title="share of hard requests the router sent to the small model, last 30 s" hidden>misrouted <b id="m-mis">–</b></span>
-          <span id="m-pre-wrap" hidden>preempted <b id="m-pre">0</b></span>
-          <span id="m-503-wrap" hidden>rejected <b id="m-503">0</b></span>
-          <span id="m-retry-wrap" title="requests a dead GPU sent back to the router as client retries" hidden>retried <b id="m-retry">0</b></span>
+          <div class="sim-counters">
+            <span id="m-small-wrap" title="share of requests the router sent to the small model, last 30 s" hidden>sent small <b id="m-small">–</b></span>
+            <span id="m-mis-wrap" title="share of hard requests the router sent to the small model, last 30 s" hidden>misrouted <b id="m-mis">–</b></span>
+            <span id="m-api-wrap" title="the API model's spend over the last 30 s, per hour" hidden>API spend <b id="m-api">–</b></span>
+            <span id="m-retry-wrap" title="requests a dead GPU sent back to the router as client retries" hidden>retried <b id="m-retry">0</b></span>
+            <span id="m-pre-wrap">preempted <b id="m-pre">0</b></span>
+            <span id="m-503-wrap">rejected <b id="m-503">0</b></span>
+          </div>
         </div>
       </div>
       <p class="cap js-only">A model of LLM serving, not a benchmark: step times come from the H100's specs and each model's real size. Pick a tab, send a burst, then pause and watch it drain.</p>
