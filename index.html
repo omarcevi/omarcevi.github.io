@@ -369,6 +369,10 @@
     }
     .sim-range input { flex: 1 1 72px; width: 120px; min-width: 72px; max-width: 120px; margin: 0; accent-color: var(--p-accent); cursor: pointer; }
     .sim-range output { color: var(--p-text); min-width: 2.5em; }
+    /* tab 04's two controls, the threshold slider over the large-model switch. Its label is longer than
+       tab 02's, so on a phone the label wraps and keeps the range and its value on its line */
+    .sim-ctls { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; max-width: 100%; }
+    .sim-ctls .sim-range > span { flex: 1 1 9em; }
     .sim-note { color: var(--p-muted); font-family: var(--mono); font-size: 0.74rem; }
     /* colour key under the canvas; each swatch is its canvas colour (COL in assets/sim.js) over the
        instance box's fill, so the alpha colours come out exactly as drawn */
@@ -747,6 +751,7 @@
           <button type="button" role="tab" id="sim-tabbtn-batching" data-tab="batching" aria-controls="sim-tab-batching" aria-selected="true"><i>01</i> batching</button>
           <button type="button" role="tab" id="sim-tabbtn-kvcache" data-tab="kvcache" aria-controls="sim-tab-kvcache" aria-selected="false"><i>02</i> kv cache</button>
           <button type="button" role="tab" id="sim-tabbtn-mig" data-tab="mig" aria-controls="sim-tab-mig" aria-selected="false"><i>03</i> mig layout</button>
+          <button type="button" role="tab" id="sim-tabbtn-routing" data-tab="routing" aria-controls="sim-tab-routing" aria-selected="false"><i>04</i> routing</button>
         </div>
         <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
           <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
@@ -767,6 +772,16 @@
             <button type="button" role="radio" data-deploy="mig" aria-checked="true">MIG</button>
           </div>
         </div>
+        <div class="sim-lesson" id="sim-tab-routing" role="tabpanel" data-tab="routing" aria-labelledby="sim-tabbtn-routing" hidden>
+          <p><b>Model routing.</b> A small System1 model scores every request, and only the hard ones go to the large model; the rest go to a 1B model that costs a fraction as much. Raising the threshold cuts cost — on-prem by letting one H100 serve all the traffic, with the API by shrinking the bill — but push it too far and hard requests land on the small model and get worse answers. <span class="sim-note">Difficulty and answer quality are modelled, not measured.</span></p>
+          <div class="sim-ctls">
+            <label class="sim-range"><span>send to the large model at score ≥</span> <input type="range" id="sim-route" min="0" max="1" step="0.05" value="0.45"> <output id="sim-route-v" for="sim-route">0.45</output></label>
+            <div class="seg" role="radiogroup" aria-label="Large model">
+              <button type="button" role="radio" data-large="onprem" aria-checked="true">on-prem 8B</button>
+              <button type="button" role="radio" data-large="api" aria-checked="false">API model</button>
+            </div>
+          </div>
+        </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
         <div class="sim-key">
           <span><i class="k-prefill" aria-hidden="true"></i>prefill</span>
@@ -784,6 +799,9 @@
           <span>KV cache <b id="m-kv">–</b></span>
           <span>GPUs <b id="m-gpus">1</b></span>
           <span>cost <b id="m-cost">–</b></span>
+          <span id="m-api-wrap" title="the API model's spend over the last 30 s, per hour" hidden>API spend <b id="m-api">–</b></span>
+          <span id="m-small-wrap" title="share of requests the router sent to the small model, last 30 s" hidden>sent small <b id="m-small">–</b></span>
+          <span id="m-mis-wrap" title="share of hard requests the router sent to the small model, last 30 s" hidden>misrouted <b id="m-mis">–</b></span>
           <span id="m-pre-wrap" hidden>preempted <b id="m-pre">0</b></span>
           <span id="m-503-wrap" hidden>rejected <b id="m-503">0</b></span>
         </div>

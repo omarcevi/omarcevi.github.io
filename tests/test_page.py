@@ -140,8 +140,9 @@ class Simulator(unittest.TestCase):
         self.assertEqual(len(lists), 1)
         self.assertNotIn("hidden", lists[0].attrs)
         tabs = find_all(lists[0], "button", role="tab")
-        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig"])
-        self.assertEqual([" ".join(t.text().split()) for t in tabs], ["01 batching", "02 kv cache", "03 mig layout"])
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing"])
+        self.assertEqual([" ".join(t.text().split()) for t in tabs],
+                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing"])
         for t in tabs:
             panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
             self.assertEqual(panel.attrs.get("role"), "tabpanel")
@@ -170,6 +171,65 @@ class Simulator(unittest.TestCase):
         self.assertEqual({b.parent.attrs.get("aria-label") for b in r}, {"Deployment"})
         self.assertEqual(r[0].parent.attrs.get("role"), "radiogroup")
 
+    def test_routing_slider(self):
+        panel = find_all(self.box, id="sim-tab-routing")[0]
+        s = find_all(panel, "input", id="sim-route")[0]
+        engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
+        default = re.search(r"routing: \{ small: [^}]*threshold: ([0-9.]+),", engine).group(1)   # tab04()'s default
+        self.assertEqual([s.attrs.get(k) for k in ("type", "min", "max", "step", "value")], ["range", "0", "1", "0.05", default])
+        out = find_all(panel, "output", id="sim-route-v")[0]
+        self.assertEqual(out.text().strip(), "%.2f" % float(default))
+        self.assertEqual(out.attrs.get("for"), "sim-route")
+        label = s.parent
+        self.assertEqual(label.tag, "label")   # the label text names the slider
+        self.assertEqual(" ".join(find_all(label, "span")[0].text().split()), "send to the large model at score ≥")
+
+    def test_routing_switch(self):
+        r = self.radios("sim-tab-routing")
+        self.assertEqual([b.attrs.get("data-large") for b in r], ["onprem", "api"])
+        self.assertEqual([" ".join(b.text().split()) for b in r], ["on-prem 8B", "API model"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["true", "false"])
+        self.assertEqual({b.parent.attrs.get("aria-label") for b in r}, {"Large model"})
+        self.assertEqual(r[0].parent.attrs.get("role"), "radiogroup")
+
+    def test_routing_footer_items(self):
+        # tab 04's items: hidden until assets/sim.js shows them in tab 04 (API spend only in API mode)
+        for i in ("m-small", "m-mis", "m-api"):
+            self.assertEqual(len(find_all(self.box, id=i)), 1, i)
+            wrap = find_all(self.box, id=i + "-wrap")
+            self.assertEqual(len(wrap), 1, i)
+            self.assertIn("hidden", wrap[0].attrs, i)
+            self.assertIn("p-foot", wrap[0].parent.classes, i)
+
+    def test_routing_views(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+
+        def view(key):
+            return dict(re.findall(r"(\w+): '([^']*)'", re.search(r"'" + key + r"': \{(.*?)\n    \}", js, re.S).group(1)))
+        self.assertEqual(view("routing-onprem"), {
+            "note": "· System1 model, Llama 3.2 1B and Llama 3 8B on one H100 · real time",
+            "label": "one H100 · MIG 3g+2g+1g", "narrow": "H100 · MIG",
+            "aria": "Animated simulation: a System1 model scores each request and routes it to a small or a large "
+                    "model on one H100"})
+        self.assertEqual(view("routing-api"), {
+            "note": "· System1 model and Llama 3.2 1B on one H100, large model by API · real time",
+            "label": "H100 + API model", "narrow": "H100 + API",
+            "aria": "Animated simulation: a System1 model routes each request to a small model on one H100 or to a "
+                    "large model behind an API"})
+
+    def test_box_targets_skip_models_without_a_box(self):
+        # tab 04's slo names the 8B and the API model, but each mode runs only one of them, so the p99 refresh
+        # and the aria-label go through the models that have an instance, never straight through sim.slo
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertNotRegex(js, r"Object\.keys\(sim\.slo\)\.(map|forEach)")
+        self.assertIn("targets: Object.keys(sim.slo || {}).filter(", js)
+
+    def test_cost_tooltip_cites_the_api_in_api_mode(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("E.API_SOURCE", js)
+        self.assertIn("E.API.inputPer1M", js)
+        self.assertIn("E.API.outputPer1M", js)
+
     def test_controls(self):
         for i in ("sim-play", "sim-burst"):
             self.assertEqual(len(find_all(self.box, "button", id=i)), 1, i)
@@ -186,11 +246,47 @@ class Simulator(unittest.TestCase):
         for e in entries:
             self.assertEqual(len(find_all(e, "i")), 1, e.text())   # its swatch
         self.assertEqual(find_all(entries[4], "i")[0].classes, ["k-pre"])
+        # tab 04 adds no entry: the System1 box's rows are prefill blocks, and the API box's rows are a prefill
+        # block (its wait for the first token) and decode, in the same colours
+
+    def js_function(self, name):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        return re.search(r"\n  function " + name + r"\(.*?\n  \}\n", js, re.S).group(0)
+
+    def test_routing_box_headers(self):
+        # tab 04's System1 box reads "System1 · scoring" with no p99 (its one token is a score no user sees), and
+        # the API box names its spend and its requests in flight. Python can't run the canvas, so the browser
+        # pass checks what they draw.
+        head = self.js_function("header")
+        self.assertIn("'System1 · scoring'", head)
+        self.assertIn("'API model · '", head)
+        self.assertIn(" in flight'", head)
+        self.assertNotIn("if (sim.slo)", head)   # a target per model: the System1 model has none ("p99 – / NaNs")
+
+    def test_routing_branches_name_the_rule(self):
+        # tab 04 draws System1 in the middle with a branch to each model it routes to, labelled with the rule at
+        # the live threshold (just "< 0.45" / "≥ 0.45" where the long label doesn't fit)
+        branches = self.js_function("drawBranches")
+        for piece in ("'score < '", "'score ≥ '", "' → small'", "' → large'", "'< '", "'≥ '", "sim.routing.threshold"):
+            self.assertIn(piece, branches)
+        # at 1 nothing goes large (ruling R3: threshold < 1 && score >= threshold), so the rule isn't "score ≥ 1.00"
+        for piece in ("'all → small'", "'none → large'", "'all'", "'none'", "sim.routing.threshold >= 1"):
+            self.assertIn(piece, branches)
+        self.assertIn("if (sim.routing)", self.js_function("layout"))   # the routing layout is tab 04's alone
+
+    def test_header_level_is_clamped(self):
+        # draw() puts every box at the highest level any box needs, so a box with fewer levels stays at its barest
+        self.assertIn("h.levels[Math.min(level, h.levels.length - 1)]", self.js_function("drawHeader"))
 
     def test_key_text_size(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
         key = re.search(r"\.sim-key \{([^}]*)\}", page).group(1)
         self.assertIn("font-size: 0.72rem;", key)   # the footer's size, and no DOM text under 11px
+
+    def test_page_reads_no_engine_internals(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        for bad in ("inst.step", ".stepEnd", "inst.batch", "sim.cfg"):
+            self.assertNotIn(bad, js, bad)
 
     def test_key_colours_match_canvas(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -232,6 +328,18 @@ class Simulator(unittest.TestCase):
                          "GPU time (assumed here to be about 30%), so the 8B misses its target. MIG splits one H100 into "
                          "isolated slices and meets every target with a third of the GPUs, though each slice has less "
                          "headroom than a whole GPU. At Trendyol this gave about 1.75× more serving capacity.")
+
+    def test_routing_lesson(self):
+        lesson = self.lesson("sim-tab-routing")
+        self.assertEqual(lesson,
+                         "Model routing. A small System1 model scores every request, and only the hard ones go to the "
+                         "large model; the rest go to a 1B model that costs a fraction as much. Raising the threshold "
+                         "cuts cost — on-prem by letting one H100 serve all the traffic, with the API by shrinking the "
+                         "bill — but push it too far and hard requests land on the small model and get worse answers. "
+                         "Difficulty and answer quality are modelled, not measured.")
+        note = find_all(find_all(self.box, id="sim-tab-routing")[0], "span", cls="sim-note")
+        self.assertEqual([" ".join(n.text().split()) for n in note], ["Difficulty and answer quality are modelled, not measured."])
+        self.assertNotIn("sweet spot", lesson)   # on-prem cost stops falling at about 0.30, below the default
 
     def test_mig_lesson_states_the_engine_targets_and_overhead(self):
         engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")

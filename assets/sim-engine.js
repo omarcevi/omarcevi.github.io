@@ -2,6 +2,7 @@
 // one or more H100s, each optionally split into MIG slices. It is a model, not a benchmark:
 // step times come from a simple roofline (compute-bound vs memory-bound) and
 // are meant to show the shape of the trade-offs, not predict real throughput.
+// Tab 04's large model can also be an API model, with a fixed latency and a per-token price (API).
 // Pinned numbers: NVIDIA H100 SXM datasheet (989 TFLOPS dense BF16, 3.35 TB/s,
 // 80 GB) and the Llama 3 8B config (8.03e9 params, 32 layers, 8 KV heads,
 // head dim 128, so 131072 bytes of BF16 KV per token); the Llama 3.2 3B and 1B
@@ -31,7 +32,12 @@
   var MODELS = {
     'llama-3-8b': { label: 'Llama 3 8B', short: '8B', params: 8.03e9, weightsGB: 16.06, kvBytesPerToken: 131072, contextLen: 8192 },
     'llama-3.2-3b': { label: 'Llama 3.2 3B', short: '3B', params: 3.21e9, weightsGB: 6.43, kvBytesPerToken: 114688, contextLen: 131072 },
-    'llama-3.2-1b': { label: 'Llama 3.2 1B', short: '1B', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 }
+    'llama-3.2-1b': { label: 'Llama 3.2 1B', short: '1B', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 },
+    // Tab 04's router: a 1B-class classifier, modelled with Llama 3.2 1B's numbers. It prefills the prompt
+    // and outputs one token, the score.
+    system1: { label: 'System1 model', short: 'S1', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 },
+    // Tab 04's large model behind an API: nothing runs here, so it has no weights or KV, only API's latency and price
+    api: { label: 'API model', short: 'API' }
   };
 
   var GPU = { tflops: 989, tbps: 3.35, mfu: 0.5, mbu: 0.8, stepOverheadMs: 1.5 };
@@ -100,6 +106,41 @@
     };
   }
 
+  // Tab 04: one H100 split 3g.40gb + 2g.20gb + 1g.10gb, one 1g slice left free. Every request goes first to the
+  // System1 model on 1g, which scores it; a score at or above the threshold goes on to the large model (the 8B
+  // on 3g, or the API model), the rest to the 1B on 2g. A difficulty of u^2 (DIFFICULTY_POWER) puts
+  // 1 - sqrt(0.55), about 26%, at or above the 0.55 hard cut, and the 0.45 default threshold sits one noise sigma
+  // (0.1) below it. 10 req/s, plus bursts of 4-6 every 8-12 s, is more than the 8B alone serves on its slice
+  // (5.6-6.2 req/s, seeds 1-3).
+  // The figures below are measured values on the seeds stated, as a visitor sees them (the page's 40 s warm-up,
+  // then a refresh every 300 ms on a 30 s p99); tests/sim.test.mjs asserts looser bounds on seeds 1-10.
+  // A load deployed at a threshold (opening the tab deploys at the default; a load at any other threshold only
+  // comes from a mode switch with the slider already moved), seeds 1-10:
+  // - at the default, 65-70% go small, every box is green on every refresh in both modes, and a median 1.3% of
+  //   hard requests are misrouted (on seeds 1-400, 14 loads, 3.5%, show a red box, mostly the 1B's, when a burst
+  //   of long prompts queues at the System1 model; 25 loads with 9 req/s and bursts of 6-10);
+  // - at 0 on-prem, the 8B box is red on every refresh of the first 30 s, and 503s come within 2 min on every load;
+  // - about 80% of hard requests are misrouted at 0.9, and all at 1;
+  // - on-prem cost per 1M is $0.95 at 0 and $0.58 at the default (median at 60 s); in API mode, API $/h is about
+  //   $177, $60 and $10 at 0, the default and 0.9.
+  // The slider moved live from the default to 0 at the open, on-prem: the 8B box turns red 2.6-14 s later on
+  // seeds 1-10, and within 20 s on 58 of seeds 1-60 (28 s at most). It's red on a median 80% of the next 30 s on
+  // seeds 1-10 and 71% on seeds 1-60, with a low of 6%. The first 503 comes 25-52 s after the move on seeds 1-60
+  // (within 30 s on only 5).
+  function tab04(large) {
+    return {
+      instances: [
+        { profile: '1g.10gb', model: 'system1', gpu: 0 },
+        { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 },
+        large
+      ],
+      batching: 'continuous',
+      slo: { 'llama-3-8b': 2000, api: 2000, 'llama-3.2-1b': 1000 },
+      streams: [{ model: 'system1', rate: 10, bursts: { min: 4, max: 6 }, lengths: LENGTHS }],
+      routing: { small: 'llama-3.2-1b', large: large.model, threshold: 0.45, hardCut: 0.55, noise: 0.1 }
+    };
+  }
+
   var PRESETS = {
     batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
     // Tab 02: bursts of 8-12 over a steady 0.5 req/s, so the 0.9 pool fills within 30 s of opening (and the
@@ -127,8 +168,20 @@
       { profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 },
       { profile: '2g.20gb', model: 'llama-3.2-3b', gpu: 0 },
       { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 }
-    ])
+    ]),
+    // Tab 04, on-prem: the large model is the 8B on 3g
+    'routing-onprem': tab04({ profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 }),
+    // Tab 04, API: the large model is the API model, with no GPU; the 3g slice sits idle, and the H100 is still
+    // billed in full
+    'routing-api': tab04({ profile: 'api', model: 'api' })
   };
+
+  // Tab 04's gateway. Its router is the System1 model; a request's hidden difficulty is a uniform draw raised
+  // to DIFFICULTY_POWER, so most requests are easy. The small share and misrouted share in metrics cover the
+  // routing decisions of the last ROUTE_WINDOW_MS.
+  var SYSTEM1 = 'system1';
+  var DIFFICULTY_POWER = 2;
+  var ROUTE_WINDOW_MS = 30000;
 
   var MAX_TICK_MS = 50;         // a background tab coming back must not replay minutes at once
   var TOKLOG_KEEP_MS = 10000;   // the token log only feeds recent-throughput metrics
@@ -145,6 +198,32 @@
   // at $4.29 per GPU-hour on https://lambda.ai/pricing (checked 2026-10-25).
   var GPU_HOUR_USD = 4.29;
   var GPU_HOUR_SOURCE = 'Lambda on-demand 1x H100 SXM 80GB, https://lambda.ai/pricing, checked 2026-10-25';
+
+  // Tab 04's API model: a mid-tier model behind a per-token API, on someone else's GPUs. Here it has no KV, no
+  // queue and no limit on how many requests run at once, only a fixed latency and a price. A request's first
+  // token comes baseMs plus msPerInputToken per prompt token after it enters, then one token every tpotMs; its
+  // prompt is billed at inputPer1M and each output token at outputPer1M (USD per 1M tokens).
+  // Price: Claude Sonnet 5.5 (between Haiku and Opus in Anthropic's lineup) lists at $2 per 1M input tokens and
+  // $10 per 1M output tokens on https://claude.com/pricing (checked 2026-10-26).
+  // Latency: Artificial Analysis's 72-hour medians for it at low effort on Anthropic's API, with no reasoning
+  // tokens on the benchmark, https://artificialanalysis.ai/models/claude-sonnet-5-5-low (checked 2026-10-26):
+  // the first token after 0.773 s at 1k input tokens and 1.159 s at 10k, which is a 730 ms base plus 0.043 ms
+  // per input token, and 88.0 tokens/s after it at 1k (11.4 ms per token), the workload nearest LENGTHS' prompts.
+  var API = {
+    inputPer1M: 2,
+    outputPer1M: 10,
+    baseMs: 730,
+    msPerInputToken: 0.043,
+    tpotMs: 11.4,
+    source: 'Claude Sonnet 5.5 list price, $2 / $10 per 1M input / output tokens, https://claude.com/pricing; ' +
+            'latency from Artificial Analysis, Claude Sonnet 5.5 (low effort) on Anthropic\'s API: first token ' +
+            '0.77 s at 1k input tokens and 1.16 s at 10k, 88 tokens/s, ' +
+            'https://artificialanalysis.ai/models/claude-sonnet-5-5-low; checked 2026-10-26'
+  };
+  var API_SOURCE = API.source;
+  var API_MODEL = 'api';       // the API model's name, and the profile of the instance that serves it
+  var API_FLUSH_MS = 50;       // an API instance logs its requests' tokens at least this often while they decode
+  var API_WINDOW_MS = 30000;   // API $/h is the spend over the last 30 s
 
   var nextId = 1;
 
@@ -169,6 +248,7 @@
   }
 
   function createInstance(profile, model, config) {
+    if (profile === API_MODEL || model === API_MODEL) return createApiInstance(profile, model);
     lookup(profile, model);
     var p = PROFILES[profile], m = MODELS[model];
     var usableGB = p.memGB * pick(config, 'gpuMemUtil') - m.weightsGB - pick(config, 'activationReserveGB');
@@ -177,6 +257,7 @@
       id: nextId++,
       profile: profile,
       model: model,
+      api: false,          // an API instance (createApiInstance) when true
       gpu: 0,              // the physical GPU it runs on; createSim sets it from the spec
       timeSliced: false,   // whether it time-slices a whole GPU with other processes; createSim sets it
       fits: kvBudget > 0,
@@ -192,6 +273,36 @@
       stepEnd: null,
       step: null,
       up: true
+    };
+  }
+
+  // Tab 04's API model as an instance, { profile: 'api', model: 'api' }. It's no GPU (gpu null, so gpuCount leaves
+  // it out) and holds no KV (a budget of 0, and kvFrac leaves it out). Its queue stays empty: place starts every
+  // request it takes at once, and apiTokens logs their tokens on API's fixed schedule. It never steps, preempts
+  // or batches.
+  function createApiInstance(profile, model) {
+    if (profile !== API_MODEL || model !== API_MODEL) {
+      throw new Error('the API model runs only as an API instance, { profile: \'api\', model: \'api\' }');
+    }
+    return {
+      id: nextId++,
+      profile: API_MODEL,
+      model: API_MODEL,
+      api: true,
+      gpu: null,
+      timeSliced: false,
+      fits: true,
+      kvBudget: 0,
+      maxModelLen: Infinity,
+      kvUsed: 0,
+      kvReserved: 0,
+      batch: null,
+      queue: [],
+      running: [],
+      stepEnd: null,
+      step: null,
+      up: true,
+      loggedAt: 0      // when apiTokens last logged its requests' tokens
     };
   }
 
@@ -219,8 +330,13 @@
     };
   }
 
+  // A standard normal draw (Box-Muller)
+  function gaussian(rng) {
+    return Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
+  }
+
   function sampleLength(rng, d) {
-    var z = Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());   // Box-Muller
+    var z = gaussian(rng);
     return Math.min(d.max, Math.max(d.min, Math.round(d.median * Math.exp(d.sigma * z))));
   }
 
@@ -302,29 +418,110 @@
     return best;
   }
 
+  // Puts r in the queue of an instance serving r.model (any instance when null), or rejects it (a 503). An API
+  // instance has no queue: r starts there at once.
+  function place(sim, r) {
+    var inst = route(sim, r.prompt, r.model);
+    if (!inst) {
+      r.state = 'rejected';
+      sim.stats.rejected += 1;
+      return;
+    }
+    r.inst = sim.instances.indexOf(inst);
+    r.model = inst.model;
+    if (inst.api) {
+      startApi(sim, inst, r);
+      return;
+    }
+    r.state = 'queued';
+    inst.queue.push(r);
+  }
+
+  // An API request runs the moment it enters, however many already run. Its prompt is billed now, and its first
+  // token is due API.baseMs plus API.msPerInputToken per prompt token from now.
+  function startApi(sim, inst, r) {
+    r.state = 'running';
+    if (r.tAdmit === null) r.tAdmit = sim.t;
+    r.apiStart = sim.t;
+    r.apiFirst = sim.t + API.baseMs + r.prompt * API.msPerInputToken;
+    inst.running.push(r);
+    spend(sim, r.prompt * API.inputPer1M / 1e6);
+  }
+
+  // API spend: the running total in sim.stats.apiUsd, and the log of [time, USD] that API $/h comes from
+  function spend(sim, usd) {
+    sim.stats.apiUsd += usd;
+    sim.apiLog.push([sim.t, usd]);
+    trimLog(sim.apiLog, sim.t, API_WINDOW_MS, Infinity);
+  }
+
   // A request arrives now. It's routed at once, or rejected when no instance can take it.
-  // spec = { prompt, output, model?, stream? }: without a model any instance may serve it, and it
-  // takes that instance's model. inst is an index into sim.instances; stream is the index into
-  // sim.streams it came from, null when enqueued directly.
+  // spec = { prompt, output, model?, stream? }: without a model any instance may serve it (in tab 04, the
+  // System1 model), and it takes that instance's model. inst is an index into sim.instances; stream is the
+  // index into sim.streams it came from, null when enqueued directly.
+  // In tab 04 (sim.routing set) a request also gets a hidden difficulty and the standard normal draw its
+  // score's noise scales, both drawn now, so a seed replays the same traffic whatever the threshold. Only
+  // the score and the misrouted count read them, never a scheduler. A request on the System1 model starts
+  // on its scoring hop (hop 'score'); every other request is on its serving hop. Outside tab 04 nothing more
+  // is drawn, so tabs 01-03 replay the same traffic as before, and difficulty stays null.
   function enqueue(sim, spec) {
     if (spec.model) checkModel(spec.model);
     sim.stats.arrived += 1;
     var r = {
       id: sim.stats.arrived, t0: sim.t, prompt: spec.prompt, output: spec.output,
-      model: spec.model || null, stream: spec.stream === undefined ? null : spec.stream, inst: null, state: 'queued',
+      model: spec.model || (sim.routing ? SYSTEM1 : null), stream: spec.stream === undefined ? null : spec.stream,
+      inst: null, state: 'queued',
       prefillTarget: spec.prompt, prefillDone: 0, generated: 0, kvTokens: 0,
-      tAdmit: null, tFirst: null, tDone: null, preemptions: 0
+      tAdmit: null, tFirst: null, tDone: null, preemptions: 0,
+      difficulty: null, noiseZ: null, score: null, tScored: null, hop: 'serve', target: null,
+      apiStart: null, apiFirst: null   // on an API instance: when r entered it, and when its first token is due
     };
-    var inst = route(sim, spec.prompt, spec.model);
-    if (!inst) {
-      r.state = 'rejected';
-      sim.stats.rejected += 1;
-      return r;
+    if (sim.routing) {
+      r.difficulty = Math.pow(sim.rng(), DIFFICULTY_POWER);
+      r.noiseZ = gaussian(sim.rng);
+      if (r.model === SYSTEM1) r.hop = 'score';
     }
-    r.inst = sim.instances.indexOf(inst);
-    r.model = inst.model;
-    inst.queue.push(r);
+    place(sim, r);
     return r;
+  }
+
+  // The gateway's rule: score >= threshold goes to the large model, the rest to the small one. At threshold 1
+  // nothing goes large, not even a score of 1 (noise can clamp a score there), so 1 is the all-small end.
+  function routesLarge(routing, score) {
+    return routing.threshold < 1 && score >= routing.threshold;
+  }
+
+  // The System1 model has made r's one token, its score: the gateway counts the decision and sends r on to
+  // the small or the large model as its serving hop, which starts over (prefill, decode, KV) and is a 503 if
+  // that model can't take it. r keeps t0, so its TTFT includes the System1 hop. It runs the moment the
+  // System1 step completes, so r is never outside a queue or running list.
+  function forward(sim, r, t) {
+    var R = sim.routing, hard = r.difficulty >= R.hardCut;
+    r.score = Math.min(1, Math.max(0, r.difficulty + R.noise * r.noiseZ));
+    r.tScored = t;
+    r.target = routesLarge(R, r.score) ? 'large' : 'small';
+    if (r.target === 'large') sim.stats.routedLarge += 1;
+    else sim.stats.routedSmall += 1;
+    if (hard && r.target === 'small') sim.stats.misrouted += 1;
+    sim.routeLog.push([t, r.target, hard]);
+    trimLog(sim.routeLog, t, ROUTE_WINDOW_MS, Infinity);
+    r.hop = 'serve';
+    r.model = r.target === 'large' ? R.large : R.small;
+    r.inst = null;
+    r.prefillTarget = r.prompt;
+    r.prefillDone = 0;
+    r.generated = 0;
+    r.kvTokens = 0;
+    place(sim, r);
+  }
+
+  // Moves tab 04's threshold live and logs it in sim.events. Requests already scored keep their target;
+  // the ones the System1 model scores from now on use the new threshold.
+  function setThreshold(sim, x) {
+    if (!sim.routing) throw new Error('setThreshold needs a routing sim');
+    if (x === sim.routing.threshold) return;
+    sim.routing.threshold = x;
+    sim.events.push({ t: sim.t, label: 'threshold ' + x.toFixed(2) });
   }
 
   // ---- KV accounting ----
@@ -393,9 +590,9 @@
   }
 
   // Whether a request arriving now would start at once: continuous mode, nothing queued ahead of it,
-  // a free max-num-seqs slot and some KV left
+  // a free max-num-seqs slot and some KV left. Never on an API instance, which has no slots or KV to draw.
   function canAdmit(sim, inst) {
-    return sim.batching === 'continuous' && inst.queue.length === 0 &&
+    return !inst.api && sim.batching === 'continuous' && inst.queue.length === 0 &&
       inst.running.length < sim.cfg.maxNumSeqs && inst.kvUsed < inst.kvBudget;
   }
 
@@ -503,6 +700,36 @@
     return true;
   }
 
+  // ---- What the page draws ----
+
+  // The share of r's prefill done by sim.t: what's finished, plus the in-flight share of its chunk in
+  // the instance's current step. On an API instance, the share of r's wait for its first token gone by.
+  function prefillProgress(sim, inst, r) {
+    if (inst.api) {
+      if (r.generated > 0 || !(r.apiFirst > r.apiStart)) return 1;
+      return Math.max(0, Math.min(1, (sim.t - r.apiStart) / (r.apiFirst - r.apiStart)));
+    }
+    if (!(r.prefillTarget > 0)) return 1;
+    var done = r.prefillDone, st = inst.step;
+    if (st && inst.stepEnd > st.start) {
+      var f = Math.min(1, (sim.t - st.start) / (inst.stepEnd - st.start));
+      for (var k = 0; k < st.items.length; k++) {
+        if (st.items[k].req === r && st.items[k].chunk) { done += st.items[k].chunk * f; break; }
+      }
+    }
+    return Math.min(1, done / r.prefillTarget);
+  }
+
+  // Decode steps the current request-level batch has run; 0 when there's none
+  function slotSteps(inst) {
+    return inst.batch ? inst.batch.steps : 0;
+  }
+
+  // The current step's time-slicing stretch; 1 when idle or not time-sliced
+  function stretchNow(inst) {
+    return inst.step && inst.stepEnd !== null ? inst.step.stretch : 1;
+  }
+
   // Keeps a log of [time, value] entries to its last keepMs and its last maxLen entries
   function trimLog(log, t, keepMs, maxLen) {
     while (log.length && (log.length > maxLen || log[0][0] < t - keepMs)) log.shift();
@@ -510,8 +737,10 @@
 
   // A sequence that reaches its length is finished and counted right then, exactly once. In a
   // request-level batch it then stays as an idle slot, and the batch ends when every slot is idle.
+  // A scoring hop isn't finished by its one token: it leaves the System1 model for its serving hop, and
+  // that token is neither a first token nor an output token.
   function finishStep(sim, inst) {
-    var t = inst.stepEnd, items = inst.step.items, made = 0, idle = 0, k, r;
+    var t = inst.stepEnd, items = inst.step.items, made = 0, idle = 0, scored = [], k, r;
     for (k = 0; k < items.length; k++) {
       r = items[k].req;
       if (items[k].chunk) {
@@ -521,6 +750,7 @@
       }
       r.generated += 1;                                  // a decode token, or the first token after prefill
       r.kvTokens += 1;
+      if (r.hop === 'score') continue;                   // the score
       if (r.tFirst === null) {
         r.tFirst = t;
         sim.ttftLog.push([t, t - r.t0, r.model]);
@@ -528,9 +758,14 @@
       made += 1;
     }
     if (inst.batch) inst.batch.steps += 1;
-    // A sequence ends at its own length (its stop token) or at max_tokens
+    // A sequence ends at its own length (its stop token) or at max_tokens; a scoring hop, at its score
     for (k = inst.running.length - 1; k >= 0; k--) {
       r = inst.running[k];
+      if (r.state === 'running' && r.hop === 'score' && r.generated >= 1) {
+        inst.running.splice(k, 1);
+        scored.unshift(r);                               // in admission order
+        continue;
+      }
       if (r.state === 'running' && r.generated >= Math.min(r.output, sim.cfg.maxTokens)) {
         r.tDone = t;
         r.kvTokens = 0;
@@ -549,6 +784,73 @@
     inst.kvUsed = kvUsedBytes(inst);
     inst.step = null;
     inst.stepEnd = null;
+    for (k = 0; k < scored.length; k++) forward(sim, scored[k], t);
+  }
+
+  // ---- The API model ----
+
+  // An API request's length: its own, capped at max_tokens, and at least the one token every request makes
+  function apiLength(sim, r) {
+    return Math.max(1, Math.min(r.output, sim.cfg.maxTokens));
+  }
+
+  // When an API request's last token is due
+  function apiDone(sim, r) {
+    return r.apiFirst + (apiLength(sim, r) - 1) * API.tpotMs;
+  }
+
+  // The tokens an API request has made by time t: the first at r.apiFirst, then one every API.tpotMs
+  function apiMade(sim, r, t) {
+    if (t < r.apiFirst) return 0;
+    if (t >= apiDone(sim, r)) return apiLength(sim, r);
+    return Math.min(apiLength(sim, r), 1 + Math.floor((t - r.apiFirst) / API.tpotMs));
+  }
+
+  // When an API instance next has tokens to log: the earliest first or last token due and, while any request
+  // is between the two, API_FLUSH_MS after it last logged, so throughput and spend never lag by more.
+  // Infinity with nothing in flight.
+  function apiWake(sim, inst) {
+    var t = Infinity, decoding = false;
+    for (var k = 0; k < inst.running.length; k++) {
+      var r = inst.running[k];
+      if (r.generated === 0) t = Math.min(t, r.apiFirst);
+      else { t = Math.min(t, apiDone(sim, r)); decoding = true; }
+    }
+    return decoding ? Math.min(t, inst.loggedAt + API_FLUSH_MS) : t;
+  }
+
+  // Logs what an API instance's requests have made by sim.t: each first token with its TTFT, the output tokens
+  // (in tokLog, and billed), and the requests that are done, finished as on a GPU instance. apiWake runs this at
+  // every first and last token, so those keep their exact times.
+  function apiTokens(sim, inst) {
+    var t = sim.t, made = 0, running = [];
+    for (var k = 0; k < inst.running.length; k++) {
+      var r = inst.running[k], n = apiMade(sim, r, t);
+      if (n > 0 && r.generated === 0) {
+        r.tFirst = r.apiFirst;
+        r.prefillDone = r.prefillTarget;
+        sim.ttftLog.push([r.tFirst, r.tFirst - r.t0, r.model]);
+      }
+      made += n - r.generated;
+      r.generated = n;
+      if (n < apiLength(sim, r)) {
+        running.push(r);
+        continue;
+      }
+      r.tDone = apiDone(sim, r);
+      r.state = 'done';
+      sim.finished.push(r);
+      if (sim.finished.length > FINISHED_KEEP) sim.finished.shift();
+      sim.stats.finished += 1;
+    }
+    inst.running = running;
+    inst.loggedAt = t;
+    if (made) {
+      sim.tokLog.push([t, made]);
+      spend(sim, made * API.outputPer1M / 1e6);
+    }
+    trimLog(sim.tokLog, t, TOKLOG_KEEP_MS, Infinity);
+    trimLog(sim.ttftLog, t, TTFT_KEEP_MS, Infinity);
   }
 
   // ---- Event loop ----
@@ -568,14 +870,14 @@
     return t;
   }
 
-  // The earliest event. Step completions win ties, so the router sees the slots they free. An
-  // arrival or burst event carries the index of its stream.
+  // The earliest event. Step completions (and an API instance's tokens) win ties, so the router sees the
+  // slots they free. An arrival or burst event carries the index of its stream.
   function nextEvent(sim) {
     var ev = { t: Infinity, kind: null, inst: null, stream: null }, k;
     function consider(t, kind, stream) { if (t < ev.t) { ev.t = t; ev.kind = kind; ev.stream = stream; } }
     for (k = 0; k < sim.instances.length; k++) {
-      var inst = sim.instances[k];
-      if (inst.stepEnd !== null && inst.stepEnd < ev.t) { consider(inst.stepEnd, 'step', null); ev.inst = inst; }
+      var inst = sim.instances[k], at = inst.api ? apiWake(sim, inst) : inst.stepEnd;
+      if (at !== null && at < ev.t) { consider(at, inst.api ? 'api' : 'step', null); ev.inst = inst; }
     }
     if (sim.pending.length) consider(sim.pending[0].t, 'pending', sim.pending[0].stream);
     if (sim.arrivalsOn) {
@@ -591,7 +893,8 @@
   function startIdle(sim) {
     var started = false;
     for (var k = 0; k < sim.instances.length; k++) {
-      if (sim.instances[k].stepEnd === null && startStep(sim, sim.instances[k])) started = true;
+      var inst = sim.instances[k];
+      if (!inst.api && inst.stepEnd === null && startStep(sim, inst)) started = true;
     }
     return started;
   }
@@ -608,6 +911,7 @@
       sim.t = Math.max(sim.t, ev.t);
       var s = ev.stream === null ? null : sim.streams[ev.stream];
       if (ev.kind === 'step') finishStep(sim, ev.inst);
+      else if (ev.kind === 'api') apiTokens(sim, ev.inst);
       else if (ev.kind === 'pending') { sim.pending.shift(); arrive(sim, ev.stream); }
       else if (ev.kind === 'poisson') { arrive(sim, ev.stream); s.nextArrival = sim.t + poissonGap(sim, s); }
       else if (ev.kind === 'burst') { addBurst(sim, ev.stream); s.nextBurst = sim.t + burstGap(sim); }
@@ -627,6 +931,7 @@
     if (mode !== 'continuous') return;
     for (var k = 0; k < sim.instances.length; k++) {
       var inst = sim.instances[k];
+      if (inst.api) continue;   // no batches or KV
       inst.running = inst.running.filter(function (r) {
         if (r.state !== 'idle') return true;
         r.state = 'done';
@@ -658,7 +963,8 @@
   }
 
   // Nothing more will happen: arrivals off, nothing pending, every queue and running list empty
-  // (an idle slot of a request-level batch still sits in running, so it counts as in flight)
+  // (an idle slot of a request-level batch still sits in running, so it counts as in flight, as does a
+  // request on an API instance)
   function isDrained(sim) {
     if (sim.arrivalsOn || sim.pending.length) return false;
     for (var k = 0; k < sim.instances.length; k++) {
@@ -685,14 +991,26 @@
   // 120 s window takes up to 800. TPOT is the mean of (tDone - tFirst) / (generated - 1) over finished
   // requests whose first token is in that window. With a model, both cover only that model's requests,
   // and the sample cap counts only its first tokens.
-  // Throughput is the output tokens made over the last TOKRATE_WINDOW_MS, per second, and cost is per
-  // 1M of them at sim.gpuCount GPUs. Once drained it's 0 (the page stops the sim's clock, so the window
-  // would never age out) and cost has no value; TTFT and TPOT keep their last values. Throughput, KV
-  // and cost are always whole-sim. Null means no data yet.
+  // Throughput is the output tokens made over the last TOKRATE_WINDOW_MS, per second. apiUsdPerHour is the API
+  // spend over the last API_WINDOW_MS, per hour, and null without an API instance. Cost is per 1M output tokens,
+  // blended: sim.gpuCount GPUs at GPU_HOUR_USD plus the API spend, over the throughput. Once drained,
+  // throughput and API $/h are 0 (the page stops the sim's clock, so the windows would never age out) and cost
+  // has no value; TTFT and TPOT keep their last values. Throughput, KV, API $/h and cost are always whole-sim;
+  // KV counts only the GPU instances. Null means no data yet.
+  // In tab 04, over the routing decisions of the last ROUTE_WINDOW_MS: smallShare is the share routed to the
+  // small model, and misroutedShare the share of hard requests routed there. Both are null outside tab 04.
   function metrics(sim, model, windowMs) {
     var win = given(windowMs) ? Math.min(windowMs, TTFT_KEEP_MS) : TTFT_WINDOW_MS;
     var cap = Math.round(TTFT_SAMPLES * win / TTFT_WINDOW_MS);
-    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, k, r, e;
+    var ttfts = [], tokens = 0, tpotSum = 0, tpotN = 0, used = 0, budget = 0, usd = 0, usdRecent = 0, hasApi = false, k, r, e;
+    var routed = 0, small = 0, hard = 0, misrouted = 0;
+    for (k = sim.routeLog.length - 1; k >= 0; k--) {   // newest first; the log is in time order
+      e = sim.routeLog[k];
+      if (e[0] < sim.t - ROUTE_WINDOW_MS) break;
+      routed += 1;
+      if (e[1] === 'small') small += 1;
+      if (e[2]) { hard += 1; if (e[1] === 'small') misrouted += 1; }
+    }
     for (k = sim.ttftLog.length - 1; k >= 0 && ttfts.length < cap; k--) {   // newest first
       e = sim.ttftLog[k];
       if (e[0] < sim.t - win) break;   // the log is in time order
@@ -710,18 +1028,29 @@
       if (sim.tokLog[k][0] >= sim.t - TOKRATE_WINDOW_MS) tokens += sim.tokLog[k][1];
     }
     for (k = 0; k < sim.instances.length; k++) {
+      if (sim.instances[k].api) { hasApi = true; continue; }   // no GPU memory
       used += sim.instances[k].kvUsed;
       budget += sim.instances[k].kvBudget;
     }
-    var tokPerSec = isDrained(sim) ? 0 : tokens / (TOKRATE_WINDOW_MS / 1000);
+    for (k = 0; k < sim.apiLog.length; k++) {
+      if (sim.apiLog[k][0] >= sim.t - API_WINDOW_MS) usd += sim.apiLog[k][1];
+      if (sim.apiLog[k][0] >= sim.t - TOKRATE_WINDOW_MS) usdRecent += sim.apiLog[k][1];
+    }
+    var drained = isDrained(sim), tokPerSec = drained ? 0 : tokens / (TOKRATE_WINDOW_MS / 1000);
+    var apiUsdPerHour = !hasApi ? null : drained ? 0 : usd / (API_WINDOW_MS / 1000) * 3600;
+    // cost divides spend by tokens over the same 3 s, so the API's 30 s spend can't outlive the tokens it paid for
+    var apiUsdPerSec = usdRecent / (TOKRATE_WINDOW_MS / 1000);
     return {
       ttftP50: ttfts.length ? nearestRank(ttfts, 0.5) : null,
       ttftP99: ttfts.length ? nearestRank(ttfts, 0.99) : null,
       tpotMs: tpotN ? tpotSum / tpotN : null,
       tokPerSec: tokPerSec,
       kvFrac: budget > 0 ? used / budget : null,
-      costPer1M: tokPerSec > 0 ? GPU_HOUR_USD * sim.gpuCount / 3600 / tokPerSec * 1e6 : null,
-      rejected: sim.stats.rejected
+      costPer1M: tokPerSec > 0 ? (GPU_HOUR_USD * sim.gpuCount / 3600 + apiUsdPerSec) / tokPerSec * 1e6 : null,
+      apiUsdPerHour: apiUsdPerHour,
+      rejected: sim.stats.rejected,
+      smallShare: routed ? small / routed : null,
+      misroutedShare: hard ? misrouted / hard : null
     };
   }
 
@@ -747,7 +1076,7 @@
   };
 
   // An instance from its spec { profile, model, gpu?, gpuMemUtil? }: gpu is the physical GPU it runs
-  // on (default 0), and its own gpuMemUtil, when given, takes the place of the sim's
+  // on (default 0; none for an API instance), and its own gpuMemUtil, when given, takes the place of the sim's
   function specInstance(spec, cfg) {
     var config = cfg;
     if (given(spec.gpuMemUtil)) {
@@ -756,13 +1085,23 @@
       config.gpuMemUtil = spec.gpuMemUtil;
     }
     var inst = createInstance(spec.profile, spec.model, config);
-    inst.gpu = given(spec.gpu) ? spec.gpu : 0;
+    if (!inst.api) inst.gpu = given(spec.gpu) ? spec.gpu : 0;
     return inst;
   }
 
-  // opts = { seed, instances: [{ profile, model, gpu?, gpuMemUtil? }], batching, config?, slo?, and
+  // Tab 04's routing settings, copied so setThreshold leaves the preset alone: { small, large (model names),
+  // threshold, hardCut (the difficulty from which a request is hard), noise (the score's Gaussian sigma) }
+  function routingOf(spec) {
+    if (!spec) return null;
+    checkModel(spec.small);
+    checkModel(spec.large);
+    return { small: spec.small, large: spec.large, threshold: spec.threshold, hardCut: spec.hardCut, noise: spec.noise };
+  }
+
+  // opts = { seed, instances: [{ profile, model, gpu?, gpuMemUtil? }], batching, config?, slo?, routing?, and
   // streams: [{ model, rate (req/s), bursts, lengths? }] or PR 1's traffic: { rate, bursts, lengths? },
-  // one stream for instances[0].model }. sim.gpuCount is the number of distinct physical GPUs.
+  // one stream for instances[0].model }. sim.gpuCount is the number of distinct physical GPUs, which an API
+  // instance isn't. sim.routing is null without routing settings, that is outside tab 04.
   function createSim(opts) {
     var cfg = {}, gpus = {};
     for (var key in DEFAULTS) cfg[key] = pick(opts.config, key);
@@ -771,7 +1110,7 @@
                                                        bursts: opts.traffic.bursts, lengths: opts.traffic.lengths }]);
     if (!streams) throw new Error('createSim needs streams or traffic');
     instances.forEach(function (inst) {
-      gpus[inst.gpu] = true;
+      if (!inst.api) gpus[inst.gpu] = true;
       // A whole GPU (no MIG) shared with another instance is time-sliced
       inst.timeSliced = inst.profile === '7g.80gb' && instances.some(function (o) { return o !== inst && o.gpu === inst.gpu; });
     });
@@ -783,20 +1122,25 @@
       instances: instances,
       streams: streams.map(function (spec) { return createStream(spec); }),
       slo: opts.slo || null,
+      routing: routingOf(opts.routing),
       gpuCount: Object.keys(gpus).length,
       arrivalsOn: true,
       pending: [],     // { t, stream }, earliest first
       events: [],
       finished: [],
-      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0 },
+      // routedSmall and routedLarge count the gateway's decisions; misrouted, the hard requests sent small;
+      // apiUsd, the API model's spend in USD
+      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0, routedSmall: 0, routedLarge: 0, misrouted: 0, apiUsd: 0 },
       tokLog: [],      // [time, tokens made in a step]
-      ttftLog: []      // [time of a first token, its TTFT, its model]
+      ttftLog: [],     // [time of a first token, its TTFT, its model]
+      routeLog: [],    // [time scored, target ('small' or 'large'), whether hard], over the last ROUTE_WINDOW_MS
+      apiLog: []       // [time, API spend in USD], over the last API_WINDOW_MS
     };
     schedule(sim);
     return sim;
   }
 
-  var api = {
+  var engine = {
     PROFILES: PROFILES,
     MODELS: MODELS,
     GPU: GPU,
@@ -808,8 +1152,12 @@
     tick: tick,
     route: route,
     canAdmit: canAdmit,
+    prefillProgress: prefillProgress,
+    slotSteps: slotSteps,
+    stretchNow: stretchNow,
     enqueue: enqueue,
     setBatching: setBatching,
+    setThreshold: setThreshold,
     setArrivals: setArrivals,
     sendBurst: sendBurst,
     isDrained: isDrained,
@@ -817,9 +1165,11 @@
     metrics: metrics,
     fmt: fmt,
     GPU_HOUR_USD: GPU_HOUR_USD,
-    GPU_HOUR_SOURCE: GPU_HOUR_SOURCE
+    GPU_HOUR_SOURCE: GPU_HOUR_SOURCE,
+    API: API,
+    API_SOURCE: API_SOURCE
   };
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else root.SimEngine = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = engine;
+  else root.SimEngine = engine;
 })(typeof window !== 'undefined' ? window : this);

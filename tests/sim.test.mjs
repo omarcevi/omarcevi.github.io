@@ -622,3 +622,521 @@ test('tab 03: bursts on a quiet 8B raise the 1B\'s p99 under time-slicing (≥ 1
   assert.ok(time >= 1.5, `time-slicing ×${time}`);
   assert.ok(mig <= 1.3, `MIG ×${mig}`);
 });
+
+test('prefillProgress: 0 before admission, between 0 and 1 mid-chunk, 1 after prefill', () => {
+  const sim = E.createSim({ seed: 1, instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0, bursts: false } });
+  const inst = sim.instances[0];
+  const r = E.enqueue(sim, { prompt: 4000, output: 20 });
+  assert.equal(E.prefillProgress(sim, inst, r), 0);
+  let mid = null;
+  for (let t = 0; t < 3000 && r.generated === 0; t++) {
+    E.tick(sim, 1);
+    const p = E.prefillProgress(sim, inst, r);
+    assert.ok(p >= 0 && p <= 1);
+    if (p > 0 && p < 1 && mid === null) mid = p;
+  }
+  assert.ok(mid !== null && mid > 0 && mid < 1);
+  assert.equal(E.prefillProgress(sim, inst, r), 1);
+});
+test('slotSteps counts the decode steps a request-level batch has run, 0 when none', () => {
+  const sim = E.createSim({ ...E.PRESETS.batching, seed: 1, batching: 'request', traffic: { rate: 0, bursts: false } });
+  const inst = sim.instances[0];
+  assert.equal(E.slotSteps(inst), 0);
+  E.enqueue(sim, { prompt: 100, output: 3 });
+  E.enqueue(sim, { prompt: 100, output: 300 });
+  run(sim, 600);
+  assert.ok(inst.batch && inst.batch.steps > 3);
+  assert.equal(E.slotSteps(inst), inst.batch.steps);
+  run(sim, 10000);
+  assert.equal(E.slotSteps(inst), 0);
+});
+test('stretchNow is 2 for a time-sliced instance with a busy neighbour and 1 alone or idle', () => {
+  const sim = E.createSim({ seed: 1, streams: [{ model: 'llama-3-8b', rate: 0 }, { model: 'llama-3.2-1b', rate: 0 }],
+    instances: [{ profile: '7g.80gb', model: 'llama-3-8b', gpu: 0, gpuMemUtil: 0.45 }, { profile: '7g.80gb', model: 'llama-3.2-1b', gpu: 0, gpuMemUtil: 0.2 }] });
+  const i1 = sim.instances[1];
+  assert.equal(E.stretchNow(i1), 1);
+  E.enqueue(sim, { prompt: 100, output: 400, model: 'llama-3.2-1b' });
+  E.tick(sim, 1);
+  assert.equal(E.stretchNow(i1), 1);
+  E.enqueue(sim, { prompt: 6000, output: 50, model: 'llama-3-8b' });
+  let seen = false;
+  for (let t = 0; t < 2000 && !seen; t++) {
+    E.tick(sim, 1);
+    if (E.stretchNow(i1) === 2) seen = true;
+  }
+  assert.ok(seen);
+});
+
+// ---- Tab 04: the System1 hop, hidden difficulty and the routing threshold ----
+
+const routePreset = () => E.PRESETS['routing-onprem'];
+// The on-prem routing preset with its own settings merged over the preset's routing
+function routingSim(over = {}, seed = 1, extra = {}) {
+  const p = routePreset();
+  return E.createSim(Object.assign({}, p, { seed, routing: Object.assign({}, p.routing, over) }, extra));
+}
+// The same with its stream quiet (rate 0, no bursts), so a test sends its own requests
+const quietRouting = (over = {}, seed = 1) =>
+  routingSim(over, seed, { streams: routePreset().streams.map(s => Object.assign({}, s, { rate: 0, bursts: false })) });
+
+test('tab 04: a System1 model with Llama 3.2 1B\'s numbers, on 1g next to the 1B on 2g and the 8B on 3g of one H100', () => {
+  const p = routePreset();
+  assert.deepEqual(E.MODELS.system1, { label: 'System1 model', short: 'S1', params: 1.24e9, weightsGB: 2.47, kvBytesPerToken: 32768, contextLen: 131072 });
+  assert.deepEqual(p.instances, [{ profile: '1g.10gb', model: 'system1', gpu: 0 }, { profile: '2g.20gb', model: 'llama-3.2-1b', gpu: 0 },
+                                 { profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 }]);
+  assert.deepEqual(p.slo, { 'llama-3-8b': 2000, api: 2000, 'llama-3.2-1b': 1000 });
+  assert.equal(p.streams.length, 1);
+  assert.equal(p.streams[0].model, 'system1');
+  assert.equal(p.streams[0].lengths, E.PRESETS['mig-mig'].streams[0].lengths);   // LENGTHS, the chat-like stand-in
+  assert.deepEqual([p.routing.small, p.routing.large], ['llama-3.2-1b', 'llama-3-8b']);
+  const sim = preset('routing-onprem', 1);
+  assert.equal(sim.gpuCount, 1);
+  assert.ok(sim.instances.every(i => i.fits && !i.timeSliced));
+  assert.deepEqual(sim.routing, p.routing);
+  assert.notEqual(sim.routing, p.routing);   // a copy, so moving the threshold leaves the preset alone
+  assert.equal(routingSim({ threshold: 0.8 }).routing.threshold, 0.8);   // the page's override, kept across redeploys
+  for (const id of ['batching', 'kvcache', 'mig-gpu', 'mig-time', 'mig-mig']) assert.equal(preset(id, 1).routing, null, id);
+});
+test('tab 04: the stream is more than the 8B alone serves on its 3g slice, so threshold 0 overloads it (seeds 1-3)', () => {
+  const stream = routePreset().streams[0];
+  for (const seed of [1, 2, 3]) {
+    const sim = E.createSim({ seed, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous',
+      streams: [Object.assign({}, stream, { model: 'llama-3-8b' })] });
+    run(sim, 60000);
+    const before = sim.stats.finished, backlog = sim.instances[0].queue.length;
+    run(sim, 60000);
+    // with requests waiting throughout, what it finishes over the minute is all it can serve
+    assert.ok(backlog > 0 && sim.instances[0].queue.length > 0, `seed ${seed}: queue ${backlog}, ${sim.instances[0].queue.length}`);
+    const served = (sim.stats.finished - before) / 60;
+    assert.ok(served < stream.rate, `seed ${seed}: the 8B alone serves ${served.toFixed(2)} req/s of ${stream.rate}`);
+  }
+});
+test('tab 04: TTFT runs from arrival to the answer\'s first token, so it includes the System1 hop', () => {
+  const sim = quietRouting({ threshold: 0 });   // everything to the 8B
+  const r = E.enqueue(sim, { prompt: 1000, output: 50 });
+  assert.deepEqual([r.hop, r.inst, r.score, r.target, r.tScored], ['score', 0, null, null, null]);
+  assert.ok(r.difficulty >= 0 && r.difficulty <= 1);
+  run(sim, 5000);
+  assert.equal(r.state, 'done');
+  assert.deepEqual([r.hop, r.target, r.model, r.inst], ['serve', 'large', 'llama-3-8b', 2]);
+  assert.equal(sim.stats.finished, 1);
+  const alone = E.createSim({ seed: 1, instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], traffic: { rate: 0, bursts: false } });
+  const a = E.enqueue(alone, { prompt: 1000, output: 50 });
+  run(alone, 5000);
+  assert.ok(r.t0 < r.tScored && r.tScored < r.tFirst);
+  near(r.tFirst - r.tScored, a.tFirst - a.t0, 1e-9);   // the serving hop starts the moment the score is out
+  assert.ok(r.tFirst - r.t0 > a.tFirst - a.t0, `${r.tFirst - r.t0} vs ${a.tFirst - a.t0}`);
+  assert.deepEqual(sim.ttftLog, [[r.tFirst, r.tFirst - r.t0, 'llama-3-8b']]);   // one entry, the answer's
+});
+test('tab 04: the System1 model\'s token is not an output token, so throughput counts only the answer\'s', () => {
+  const sim = quietRouting({ threshold: 1 });   // everything to the 1B
+  const r = E.enqueue(sim, { prompt: 500, output: 30 });
+  run(sim, 3000);
+  assert.equal(r.state, 'done');
+  assert.equal(r.generated, 30);
+  assert.equal(sim.tokLog.reduce((n, e) => n + e[1], 0), 30);
+});
+test('tab 04: at threshold 0 every request goes to the large model, at 1 every request to the small one', () => {
+  for (const [threshold, target, model] of [[0, 'large', 'llama-3-8b'], [1, 'small', 'llama-3.2-1b']]) {
+    const sim = routingSim({ threshold }, 2);
+    run(sim, 20000);
+    assert.ok(sim.finished.length > 50, String(sim.finished.length));
+    assert.ok(sim.finished.every(r => r.target === target && r.model === model), String(threshold));
+    assert.equal(target === 'large' ? sim.stats.routedLarge : sim.stats.routedSmall, sim.stats.routedSmall + sim.stats.routedLarge);
+    assert.equal(E.metrics(sim).smallShare, threshold);
+    assert.equal(E.metrics(sim).misroutedShare, threshold);   // hard requests: none sent small at 0, all at 1
+  }
+  // A score of 1 still goes small at threshold 1 (noise can push a score to 1; set by hand here)
+  const sim = quietRouting({ threshold: 1, noise: 0 });
+  const r = E.enqueue(sim, { prompt: 100, output: 2 });
+  r.difficulty = 1;
+  run(sim, 2000);
+  assert.deepEqual([r.score, r.target, r.model, r.state], [1, 'small', 'llama-3.2-1b', 'done']);
+});
+// Sends n short requests through the router, one every 48 ms (about 21 req/s, well within every slice), then
+// lets them finish
+function routeMany(over, n = 400, seed = 1) {
+  const sim = quietRouting(over, seed), reqs = [];
+  for (let k = 0; k < n; k++) { reqs.push(E.enqueue(sim, { prompt: 200, output: 4 })); run(sim, 48); }
+  run(sim, 10000);
+  assert.equal(sim.stats.finished, n);
+  return { sim, reqs };
+}
+test('tab 04: misrouted counts hard requests sent small: none with exact scores and the threshold at the hard cut, all at threshold 1', () => {
+  const cut = routePreset().routing.hardCut;
+  const exact = routeMany({ noise: 0, threshold: cut });
+  const hard = exact.reqs.filter(r => r.difficulty >= cut).length;
+  assert.ok(hard > 50 && hard < 350, String(hard));
+  assert.ok(exact.reqs.every(r => r.score === r.difficulty));
+  assert.equal(exact.sim.stats.misrouted, 0);
+  assert.equal(exact.sim.stats.routedLarge, hard);
+  assert.equal(E.metrics(exact.sim).misroutedShare, 0);
+  near(E.metrics(exact.sim).smallShare, 1 - hard / 400, 1e-12);
+  const all = routeMany({ noise: 0, threshold: 1 });
+  assert.equal(all.sim.stats.misrouted, all.reqs.filter(r => r.difficulty >= cut).length);
+  assert.equal(all.sim.stats.routedSmall, 400);
+  assert.equal(E.metrics(all.sim).misroutedShare, 1);
+  // both shares cover the last 30 s: once the routing decisions age out they have no value again
+  run(all.sim, 31000);
+  assert.deepEqual([E.metrics(all.sim).smallShare, E.metrics(all.sim).misroutedShare], [null, null]);
+});
+test('tab 04: small share and misrouted share are null outside tab 04 and before any request is routed', () => {
+  const mig = preset('mig-mig', 1);
+  run(mig, 5000);
+  assert.deepEqual([E.metrics(mig).smallShare, E.metrics(mig).misroutedShare], [null, null]);
+  assert.deepEqual([E.metrics(quietRouting()).smallShare, E.metrics(quietRouting()).misroutedShare], [null, null]);
+  assert.throws(() => E.setThreshold(mig, 0.5), /routing/);
+});
+test('tab 04: 20-30% of requests are hard, and every difficulty is in [0, 1] (2000 arrivals, seeds 1-5)', () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const sim = quietRouting({}, seed);
+    const d = Array.from({ length: 2000 }, () => E.enqueue(sim, { prompt: 100, output: 1 }).difficulty);
+    assert.ok(d.every(x => x >= 0 && x <= 1));
+    const share = d.filter(x => x >= routePreset().routing.hardCut).length / d.length;
+    assert.ok(share >= 0.2 && share <= 0.3, `seed ${seed}: ${share}`);
+  }
+});
+test('tab 04: the same seed gives the same difficulties and scores', () => {
+  const scores = seed => { const sim = preset('routing-onprem', seed); run(sim, 20000); return sim.finished.map(r => [r.id, r.difficulty, r.score]); };
+  const a = scores(3);
+  assert.ok(a.length > 50);
+  assert.ok(a.every(([, d, s]) => s >= 0 && s <= 1));
+  assert.ok(a.some(([, d, s]) => s !== d), 'the score is noisy');
+  assert.deepEqual(scores(3), a);
+  assert.notDeepEqual(scores(4), a);
+});
+// Every request a test can see: in a queue or running list after a tick, or finished
+function track(sim, seen) {
+  for (const inst of sim.instances) for (const r of inst.queue.concat(inst.running)) seen.set(r.id, r);
+  for (const r of sim.finished) seen.set(r.id, r);
+}
+test('tab 04: a threshold change applies to requests scored from then on, and nothing is lost or counted twice', () => {
+  const sim = routingSim({}, 5, { streams: routePreset().streams.map(s => Object.assign({}, s, { rate: 8 })) });
+  const seen = new Map(), changes = [0.2, 0.8, 0, 1, 0.45], set = [];
+  run(sim, 60000, s => {
+    track(s, seen);
+    if (set.length < changes.length && s.t >= (set.length + 1) * 10000) {
+      E.setThreshold(s, changes[set.length]);
+      set.push([s.t, changes[set.length]]);
+    }
+  });
+  assert.deepEqual(sim.events, set.map(([t, x]) => ({ t, label: 'threshold ' + x.toFixed(2) })));
+  assert.equal(sim.routing.threshold, 0.45);
+  E.setThreshold(sim, 0.45);
+  assert.equal(sim.events.length, 5);   // unchanged: no new marker
+  E.setArrivals(sim, false);
+  while (!E.isDrained(sim) && sim.t < 400000) { E.tick(sim, 16); track(sim, seen); }
+  assert.ok(E.isDrained(sim));
+  assert.equal(sim.stats.arrived, sim.stats.finished + sim.stats.rejected);
+  assert.equal(new Set(sim.finished.map(r => r.id)).size, sim.finished.length);
+  const scored = [...seen.values()].filter(r => r.tScored !== null);
+  assert.equal(scored.length, sim.stats.routedSmall + sim.stats.routedLarge);   // every routing decision, counted once
+  // The threshold in force at a time: a change made between ticks applies to scores after it
+  const inForce = t => set.reduce((x, [at, v]) => (at < t ? v : x), routePreset().routing.threshold);
+  for (const r of scored) {
+    const x = inForce(r.tScored);
+    assert.equal(r.target, x < 1 && r.score >= x ? 'large' : 'small', `request ${r.id}: score ${r.score} at ${r.tScored} under ${x}`);
+    assert.equal(r.model, r.target === 'large' ? 'llama-3-8b' : 'llama-3.2-1b');
+  }
+  assert.ok(scored.some(r => r.target === 'large') && scored.some(r => r.target === 'small'));
+});
+test('tab 04: a drain waits for requests between hops and finishes', () => {
+  const sim = preset('routing-onprem', 6);
+  run(sim, 20000);
+  E.setArrivals(sim, false);
+  E.sendBurst(sim, 30);   // a burst while paused, so the System1 model has a queue when the drain starts
+  run(sim, 500);
+  const [s1, ...serving] = sim.instances, held = i => i.queue.concat(i.running);
+  assert.ok(held(s1).length > 0 && held(s1).every(r => r.hop === 'score'));
+  assert.ok(serving.some(i => held(i).length > 0) && serving.every(i => held(i).every(r => r.hop === 'serve')));
+  let onlyServing = false;
+  while (!E.isDrained(sim) && sim.t < 200000) {
+    E.tick(sim, 16);
+    assert.equal(E.playState(sim, false), E.isDrained(sim) ? 'stopped' : 'draining');
+    if (!held(s1).length && serving.some(i => held(i).length > 0)) onlyServing = true;
+  }
+  assert.ok(E.isDrained(sim));
+  assert.ok(onlyServing, 'the System1 model emptied before the serving models');
+  assert.equal(sim.stats.arrived, sim.stats.finished + sim.stats.rejected);
+});
+
+// ---- Tab 04: the API model ----
+
+const apiPreset = () => E.PRESETS['routing-api'];
+// The API routing preset with its own routing settings merged over the preset's, and its stream quiet (rate 0,
+// no bursts) so a test sends its own requests
+function quietApi(over = {}, seed = 1, extra = {}) {
+  const p = apiPreset();
+  return E.createSim(Object.assign({}, p, { seed, routing: Object.assign({}, p.routing, over),
+    streams: p.streams.map(s => Object.assign({}, s, { rate: 0, bursts: false })) }, extra));
+}
+const logged = sim => sim.tokLog.reduce((n, e) => n + e[1], 0);
+
+test('tab 04: the API model is an instance with no GPU, no KV and no queue, and routing-api puts it in the 8B\'s place', () => {
+  assert.deepEqual(E.MODELS.api, { label: 'API model', short: 'API' });
+  const on = E.PRESETS['routing-onprem'], p = apiPreset();
+  assert.deepEqual(p.instances, [on.instances[0], on.instances[1], { profile: 'api', model: 'api' }]);
+  assert.deepEqual(p.routing, Object.assign({}, on.routing, { large: 'api' }));
+  for (const key of ['batching', 'slo', 'streams']) assert.deepEqual(p[key], on[key], key);
+  const sim = preset('routing-api', 1), a = sim.instances[2];
+  assert.deepEqual([a.api, a.fits, a.profile, a.model, a.kvBudget, a.kvUsed, a.timeSliced], [true, true, 'api', 'api', 0, 0, false]);
+  assert.ok(sim.instances.slice(0, 2).every(i => i.api === false && i.fits));
+  assert.deepEqual(sim.routing, p.routing);
+  assert.equal(E.canAdmit(sim, a), false);   // the page draws no free-slot row for it
+  assert.throws(() => E.createInstance('7g.80gb', 'api', {}), /API model/);
+  assert.throws(() => E.createInstance('api', 'llama-3-8b', {}), /API model/);
+  for (const key of ['inputPer1M', 'outputPer1M', 'baseMs', 'msPerInputToken', 'tpotMs']) assert.ok(E.API[key] > 0, key);
+  assert.equal(E.API_SOURCE, E.API.source);
+  assert.match(E.API_SOURCE, /https:\/\/\S+.*https:\/\/\S+/);   // a list price and a latency benchmark,
+  assert.match(E.API_SOURCE, /checked 2026-10-26/);             // with the date they were checked
+});
+test('tab 04: an API request\'s first token comes a fixed base plus a time per input token after it enters, then one token every tpotMs, logged as made', () => {
+  const sim = quietApi({ threshold: 0 }), A = E.API, ttft = A.baseMs + 1000 * A.msPerInputToken;   // everything to the API
+  const r = E.enqueue(sim, { prompt: 1000, output: 50 });
+  // the tokens made by time t: the first at tScored + ttft, then one every tpotMs, 50 in all
+  const due = t => r.tScored === null || t < r.tScored + ttft ? 0 : Math.min(50, 1 + Math.floor((t - r.tScored - ttft) / A.tpotMs));
+  let waited = false;
+  run(sim, 5000, s => {
+    const n = logged(s);
+    assert.ok(n <= due(s.t + 1e-6) && n >= due(s.t - 100), `${n} tokens logged at ${s.t}, ${due(s.t)} made`);
+    if (r.tScored !== null && r.tFirst === null) {   // between hops: the prefill bar fills over the first-token wait
+      near(E.prefillProgress(s, s.instances[2], r), (s.t - r.tScored) / ttft, 1e-9);
+      waited = true;
+    }
+  });
+  assert.ok(waited);
+  assert.equal(r.state, 'done');
+  assert.deepEqual([r.target, r.model, r.inst, r.generated, r.kvTokens], ['large', 'api', 2, 50, 0]);
+  near(r.tFirst - r.tScored, ttft, 1e-9);
+  near(r.tDone - r.tFirst, 49 * A.tpotMs, 1e-9);
+  assert.equal(E.prefillProgress(sim, sim.instances[2], r), 1);
+  assert.deepEqual(sim.ttftLog, [[r.tFirst, r.tFirst - r.t0, 'api']]);   // its TTFT includes the System1 hop
+  assert.equal(logged(sim), 50);
+  assert.equal(sim.stats.finished, 1);
+  near(E.metrics(sim, 'api').tpotMs, A.tpotMs, 1e-9);
+  assert.deepEqual([sim.instances[2].queue.length, sim.instances[2].running.length], [0, 0]);
+});
+test('tab 04: API spend bills the prompt when a request enters and each output token as it is made', () => {
+  const sim = quietApi({ threshold: 0 }), A = E.API;
+  const r = E.enqueue(sim, { prompt: 1000, output: 50 });
+  let entered = null;
+  run(sim, 5000, s => { if (r.tScored !== null && entered === null) entered = [s.stats.apiUsd, r.generated]; });
+  assert.ok(entered);
+  assert.equal(entered[1], 0);                          // scored, at the API, no token yet: the prompt is billed
+  near(entered[0], 1000 * A.inputPer1M / 1e6, 1e-15);
+  assert.equal(r.state, 'done');
+  near(sim.stats.apiUsd, 1000 * A.inputPer1M / 1e6 + 50 * A.outputPer1M / 1e6, 1e-15);
+  // the System1 model and the small model cost no API spend
+  const small = quietApi({ threshold: 1 });
+  E.enqueue(small, { prompt: 1000, output: 50 });
+  run(small, 5000);
+  assert.deepEqual([small.stats.finished, small.stats.apiUsd], [1, 0]);
+});
+test('tab 04: the API model never queues or rejects: 500 requests at once at threshold 0 all run there together', () => {
+  // The gateway's queue (the System1 model's) is raised to hold all 500, so every one reaches the API
+  const sim = quietApi({ threshold: 0 }, 1, { config: { queueCap: 500 } }), A = E.API, a = sim.instances[2];
+  const reqs = Array.from({ length: 500 }, () => E.enqueue(sim, { prompt: 16, output: 50 }));
+  E.setArrivals(sim, false);
+  let peak = 0;
+  while (!E.isDrained(sim) && sim.t < 60000) {
+    E.tick(sim, 16);
+    assert.equal(a.queue.length, 0);
+    peak = Math.max(peak, a.running.length);
+  }
+  assert.ok(E.isDrained(sim));
+  assert.deepEqual([sim.stats.rejected, sim.stats.finished, sim.stats.routedLarge], [0, 500, 500]);
+  assert.ok(peak >= 400, `at most ${peak} at once`);   // well past max-num-seqs (256): no concurrency limit
+  for (const r of reqs) {   // the same fixed latency at any load
+    assert.equal(r.model, 'api');
+    near(r.tFirst - r.tScored, A.baseMs + 16 * A.msPerInputToken, 1e-9);
+    near(r.tDone - r.tFirst, 49 * A.tpotMs, 1e-9);
+  }
+});
+test('tab 04: the API instance is no GPU: one H100 in both modes, and KV use counts only the GPU instances', () => {
+  for (const id of ['routing-onprem', 'routing-api']) assert.equal(preset(id, 1).gpuCount, 1, id);
+  assert.equal(E.createSim({ seed: 1, streams: [{ model: 'llama-3-8b', rate: 0 }],
+    instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }, { profile: 'api', model: 'api', gpu: 1 }] }).gpuCount, 1);
+  const sim = preset('routing-api', 2);
+  run(sim, 20000);
+  const gpus = sim.instances.filter(i => !i.api);
+  const frac = gpus.reduce((n, i) => n + i.kvUsed, 0) / gpus.reduce((n, i) => n + i.kvBudget, 0);
+  assert.ok(frac > 0 && sim.instances[2].running.length > 0);
+  near(E.metrics(sim).kvFrac, frac, 1e-12);
+  Object.assign(sim.instances[2], { kvUsed: 5e9, kvBudget: 10e9 });   // even an API instance holding KV wouldn't count
+  near(E.metrics(sim).kvFrac, frac, 1e-12);
+});
+test('tab 04: cost per 1M output tokens blends the H100 and the API spend of the same 3 s as its tokens, and API $/h is the last 30 s of spend', () => {
+  const sim = preset('routing-api', 1);
+  let at30 = null;
+  run(sim, 60000, s => { if (s.t === 30000) at30 = s.stats.apiUsd; });
+  const m = E.metrics(sim);
+  const last3s = sim.apiLog.filter(([t]) => t >= sim.t - 3000).reduce((n, [, usd]) => n + usd, 0);
+  assert.ok(at30 > 0 && last3s > 0 && m.apiUsdPerHour > 0 && m.tokPerSec > 0);
+  near(m.apiUsdPerHour, (sim.stats.apiUsd - at30) * 3600 / 30, 1e-9);
+  near(m.costPer1M, (E.GPU_HOUR_USD * sim.gpuCount / 3600 + last3s / 3) / m.tokPerSec * 1e6, 1e-9);
+  // on-prem there is no API: no API $/h, and cost is the H100's alone
+  const onprem = preset('routing-onprem', 1);
+  run(onprem, 20000);
+  const o = E.metrics(onprem);
+  assert.equal(o.apiUsdPerHour, null);
+  near(o.costPer1M, E.GPU_HOUR_USD / 3600 / o.tokPerSec * 1e6, 1e-9);
+  assert.equal(E.metrics(preset('batching', 1)).apiUsdPerHour, null);
+  // drained, nothing is being spent: 0, like throughput
+  E.setArrivals(sim, false);
+  while (!E.isDrained(sim) && sim.t < 200000) E.tick(sim, 16);
+  assert.ok(E.isDrained(sim));
+  assert.deepEqual([E.metrics(sim).apiUsdPerHour, E.metrics(sim).costPer1M], [0, null]);
+});
+test('tab 04: draining in API mode, cost never jumps above its running level, and once the API has had nothing in flight for 3 s it is the H100 alone', () => {
+  for (const seed of [1, 2, 3]) {
+    const sim = preset('routing-api', seed);
+    run(sim, 60000);
+    const steady = E.metrics(sim).costPer1M;
+    E.setArrivals(sim, false);
+    let peak = 0, idleSince = null, checked = false;
+    while (!E.isDrained(sim) && sim.t < 200000) {
+      E.tick(sim, 16);
+      const m = E.metrics(sim), api = sim.instances.find(i => i.api);
+      if (m.costPer1M !== null) peak = Math.max(peak, m.costPer1M);
+      if (api.running.length) idleSince = null;
+      else if (idleSince === null) idleSince = sim.t;
+      if (idleSince !== null && sim.t - idleSince > 3000 && m.tokPerSec > 0) {
+        near(m.costPer1M, E.GPU_HOUR_USD * sim.gpuCount / 3600 / m.tokPerSec * 1e6, 1e-9);
+        checked = true;
+      }
+    }
+    // the H100 is still billed while its slices drain, so cost rises a little, but nothing like 30 s of API spend over 3 s of tokens
+    assert.ok(peak < steady * 4, `seed ${seed}: peak $${peak.toFixed(2)} vs steady $${steady.toFixed(2)}`);
+    assert.ok(checked || E.isDrained(sim), `seed ${seed}`);
+  }
+});
+// The run whose small share after 60 s is closest to 0.75, from a bisection on the threshold. A seed's scores
+// and the times they're made don't depend on the threshold, so the small share only grows with it.
+function split75(seed) {
+  let lo = 0, hi = 1, best = null;
+  for (let k = 0; k < 12; k++) {
+    const x = (lo + hi) / 2, sim = E.createSim(Object.assign({}, apiPreset(), { seed, routing: Object.assign({}, apiPreset().routing, { threshold: x }) }));
+    run(sim, 60000);
+    const m = E.metrics(sim);
+    if (!best || Math.abs(m.smallShare - 0.75) < Math.abs(best.m.smallShare - 0.75)) best = { x, sim, m };
+    if (Math.abs(m.smallShare - 0.75) <= 0.01) break;
+    if (m.smallShare < 0.75) lo = x;
+    else hi = x;
+  }
+  return best;
+}
+test('tab 04: at a 75/25 small/large split the API bill is at least 70% of the blended cost (seeds 1-5, 60 s)', () => {
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const { x, sim, m } = split75(seed);
+    assert.ok(m.smallShare >= 0.7 && m.smallShare <= 0.8, `seed ${seed}: small share ${m.smallShare} at threshold ${x}`);
+    const gpu = E.GPU_HOUR_USD * sim.gpuCount / 3600, api = m.apiUsdPerHour / 3600;
+    assert.ok(api / (gpu + api) >= 0.7, `seed ${seed}: the API is ${(100 * api / (gpu + api)).toFixed(1)}% of the blended cost`);
+  }
+});
+
+// ---- Tab 04 as a visitor sees it ----
+
+// The page warms up every preset with an slo for TAB03_WARMUP_TICKS (PAGE.tab03WarmMs, 40 s), tab 04's too, so a
+// load opens on a full 30 s p99 window; then the footer and the boxes refresh every 300 ms. A box is red when its
+// model's TTFT p99 over P99_WINDOW_MS is over its target in sim.slo, and green when it's within it. Only the
+// models with both a target and an instance have a coloured box: the System1 box has no target, on-prem has no API
+// and the API mode no 8B.
+// A visitor reaches a threshold in one of two ways. Opening the tab deploys at the default, and the slider then
+// moves the threshold live (E.setThreshold, no redeploy): routeMove. A load deployed at another threshold only
+// comes from a mode switch with the slider already moved, since deploy keeps it: routeVisit.
+const ROUTE_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];   // the page draws a random seed, so the lesson must not hang on one
+const routeVisits = {};
+// One load of a tab 04 deployment with the slider at threshold: per refresh, its time, whether each box is red,
+// whether every box is green, and the footer's metrics
+function routeVisit(id, threshold, seed, watchMs = 30000) {
+  const key = [id, threshold, seed, watchMs].join('/');
+  if (routeVisits[key]) return routeVisits[key];
+  const p = E.PRESETS[id];
+  const sim = E.createSim(Object.assign({}, p, { seed, routing: Object.assign({}, p.routing, { threshold }) }));
+  const boxes = Object.keys(sim.slo).filter(model => sim.instances.some(i => i.model === model));
+  const refreshes = [];
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => {
+    const p99 = boxes.map(model => E.metrics(s, model, PAGE.p99WindowMs).ttftP99);
+    refreshes.push({
+      t: s.t,
+      red: p99.map((v, i) => v !== null && v > s.slo[boxes[i]]),
+      green: p99.every((v, i) => v !== null && v <= s.slo[boxes[i]]),
+      m: E.metrics(s)
+    });
+  });
+  return (routeVisits[key] = { boxes, refreshes });
+}
+// One load on-prem opened at the default, with the slider moved to `to` at the open: per refresh from the open on,
+// the time since the move, whether the 8B box is red, and the 503s so far
+function routeMove(to, seed, watchMs) {
+  const sim = E.createSim(Object.assign({}, E.PRESETS['routing-onprem'], { seed }));
+  const refreshes = [];
+  let moved = null;
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => {
+    if (moved === null) { moved = s.t; E.setThreshold(s, to); }
+    const p99 = E.metrics(s, 'llama-3-8b', PAGE.p99WindowMs).ttftP99;
+    refreshes.push({ after: s.t - moved, red: p99 !== null && p99 > s.slo['llama-3-8b'], rejected: s.stats.rejected });
+  });
+  return refreshes;
+}
+const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
+const greenShare = refreshes => refreshes.filter(r => r.green).length / refreshes.length;
+// The mean of what the footer shows for a metric over a load's refreshes, leaving out the ones that show '–' (null;
+// NaN, so the test fails, if every one does)
+const shown = (refreshes, key) => mean(refreshes.map(r => r.m[key]).filter(v => v !== null));
+const fixed = (list, digits = 2) => list.map(v => v.toFixed(digits)).join(' ');
+const defaultThreshold = () => E.PRESETS['routing-onprem'].routing.threshold;
+
+test('tab 04 as a visitor sees it: the default threshold is on the slider\'s 0.05 steps, the same in both modes', () => {
+  const x = defaultThreshold();
+  near(Math.round(x / 0.05) * 0.05, x, 1e-12);
+  assert.ok(x > 0 && x < 1);
+  assert.equal(E.PRESETS['routing-api'].routing.threshold, x);
+  assert.deepEqual(routeVisit('routing-onprem', x, 1).boxes, ['llama-3-8b', 'llama-3.2-1b']);
+  assert.deepEqual(routeVisit('routing-api', x, 1).boxes, ['api', 'llama-3.2-1b']);
+});
+test('tab 04 as a visitor sees it: moving the slider from the default to 0 on-prem turns the 8B box red within 20 s on 9 of 10 loads, and 503s start within 2 min on 8 of 10', () => {
+  const loads = ROUTE_SEEDS.map(seed => routeMove(0, seed, 120000));
+  const after = (refreshes, f) => { const r = refreshes.find(x => x.after > 0 && f(x)); return r ? r.after : Infinity; };
+  const toRed = loads.map(refreshes => after(refreshes, x => x.red));
+  const to503 = loads.map(refreshes => after(refreshes, x => x.rejected > refreshes[0].rejected));
+  const secs = list => list.map(v => (v / 1000).toFixed(1)).join(' ');
+  assert.ok(toRed.filter(v => v <= 20000).length >= 9, `the 8B turned red after (s) ${secs(toRed)}`);
+  assert.ok(to503.filter(v => v <= 120000).length >= 8, `the first 503 after (s) ${secs(to503)}`);
+});
+test('tab 04, a load deployed at threshold 0 on-prem (a mode switch with the slider at 0): the 8B box is red on 70% of refreshes in its first 30 s (median over loads), and 503s keep coming within 2 min on 8 of 10', () => {
+  const loads = ROUTE_SEEDS.map(seed => routeVisit('routing-onprem', 0, seed, 120000));
+  const large = loads[0].boxes.indexOf('llama-3-8b');
+  const shares = loads.map(({ refreshes }) => redShare(refreshes.filter(r => r.t <= refreshes[0].t + 30000).map(r => r.red[large])));
+  assert.ok(median(shares) >= 0.7, `median ${median(shares)}; per load ${fixed(shares)}`);
+  const rejected = loads.map(({ refreshes }) => [refreshes[0].m.rejected, refreshes[refreshes.length - 1].m.rejected]);
+  const growing = rejected.filter(([open, end]) => end > open).length;
+  assert.ok(growing >= 8, `503s grew on ${growing}/10 loads (at the open, 2 min later: ${rejected.map(r => r.join('/')).join(' ')})`);
+});
+test('tab 04 as a visitor sees it: at the default threshold on-prem every box is green on 95% of refreshes and at most 5% of hard requests are misrouted (median over loads)', () => {
+  const loads = ROUTE_SEEDS.map(seed => routeVisit('routing-onprem', defaultThreshold(), seed));
+  const green = loads.map(({ refreshes }) => greenShare(refreshes)), mis = loads.map(({ refreshes }) => shown(refreshes, 'misroutedShare'));
+  assert.ok(median(green) >= 0.95, `median ${median(green)}; per load ${fixed(green)}`);
+  assert.ok(median(mis) <= 0.05, `median ${median(mis)}; per load ${fixed(mis, 3)}`);
+});
+test('tab 04, a load deployed at threshold 1 on-prem: at least half the hard requests are misrouted (median over loads)', () => {
+  const mis = ROUTE_SEEDS.map(seed => shown(routeVisit('routing-onprem', 1, seed).refreshes, 'misroutedShare'));
+  assert.ok(median(mis) >= 0.5, `median ${median(mis)}; per load ${fixed(mis, 3)}`);
+});
+test('tab 04: on-prem, cost per 1M output tokens is lower at the default threshold than at 0, since the same H100 serves more (median over seeds, at 60 s)', () => {
+  const cost = threshold => ROUTE_SEEDS.map(seed => {
+    const sim = routingSim({ threshold }, seed);
+    run(sim, 60000);
+    return E.metrics(sim).costPer1M;
+  });
+  const at0 = cost(0), atDefault = cost(defaultThreshold());
+  assert.ok(median(atDefault) < median(at0), `$${median(atDefault)} vs $${median(at0)}; per seed ${fixed(atDefault)} vs ${fixed(at0)}`);
+});
+test('tab 04, loads deployed in API mode at threshold 0, the default and 0.9: API $/h falls in that order (median over loads), and every box is green on 95% of refreshes at the default', () => {
+  const thresholds = [0, defaultThreshold(), 0.9];
+  const usd = thresholds.map(x => ROUTE_SEEDS.map(seed => shown(routeVisit('routing-api', x, seed).refreshes, 'apiUsdPerHour')));
+  const medians = usd.map(median);
+  assert.ok(medians[0] > medians[1] && medians[1] > medians[2], `API $/h ${fixed(medians, 1)} at ${thresholds.join(', ')}`);
+  const green = ROUTE_SEEDS.map(seed => greenShare(routeVisit('routing-api', defaultThreshold(), seed).refreshes));
+  assert.ok(median(green) >= 0.95, `median ${median(green)}; per load ${fixed(green)}`);
+});

@@ -28,8 +28,8 @@ Two problems:
 
 - It isn't a benchmark and doesn't claim to predict real numbers precisely. A footnote says it's a model, not a benchmark.
 - No server, build step or framework. The site stays plain static files on GitHub Pages.
-- No model picker. Tabs 01, 02, 04 and 05 serve one model (Llama 3 8B). Tab 03 serves a fixed set of three models.
-- No cluster view beyond what tabs 03 and 05 need (a few GPUs side by side).
+- No model picker. Tabs 01, 02, 05 and 06 serve one model (Llama 3 8B). Tab 03 serves a fixed set of three models, and tab 04 a fixed System1 model, Llama 3.2 1B and Llama 3 8B (or an API model).
+- No cluster view beyond what tabs 03 and 06 need (a few GPUs side by side).
 - No sound and no saved scores across visits.
 - The other demos (hero, attention, agent replay, reading trace) are untouched.
 
@@ -45,7 +45,7 @@ Two problems:
 The panel stays where it is now (full container width, below the hero). From top to bottom:
 
 1. **Header row.** Live dot, `inference.sim`, and a note such as "· Llama 3 8B on one H100 · real time" that follows the current setup. Controls: play/pause, `send burst`, `config ▾`.
-2. **Tab row.** `01 batching` · `02 kv cache` · `03 mig layout` · `04 real traffic` · `05 failure` · `sandbox ›`, with sandbox set apart on the right.
+2. **Tab row.** `01 batching` · `02 kv cache` · `03 mig layout` · `04 routing` · `05 real traffic` · `06 failure` · `sandbox ›`, with sandbox set apart on the right.
 3. **Lesson line.** One or two sentences of real HTML with a bold lead-in, and the tab's single control on the right (for example a `dynamic | continuous` segmented switch).
 4. **Canvas.**
    - **Flow:** requests come in from the left and a router sends each one to a server instance. Every instance (one per MIG slice, or one for the whole GPU) has its own small queue lane next to its slice. Requests run on the slices, and tokens stream out to the right. This replaces the single shared queue drawn in the mockup, because that isn't how MIG serving works (see Engine).
@@ -68,8 +68,9 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
 | 01 batching | random traffic, one 8B instance on the full GPU (7g.80gb), continuous | `request-level \| continuous` | Request-level batching is how servers ran LLMs before vLLM (for example Hugging Face `generate()` behind Triton's dynamic batcher). It reserves KV up front for the longest prompt plus `max_tokens`, and a batch runs until its longest reply finishes, so batches stay small, finished sequences leave idle slots and the queue waits. Continuous batching with paged KV (vLLM) admits and releases sequences at every step, so p99 TTFT drops and throughput rises. The lesson names both changes honestly. |
 | 02 kv cache | one 3g.40gb instance, synthetic long prompts **and** long replies, labelled as synthetic | GPU memory for the KV cache (`--gpu-memory-utilization`, about 0.5–0.95) | KV fills up. Once it's full the scheduler stops admitting new requests and preempts one: its KV is dropped, it goes back to the front of its instance's queue and redoes prefill. Memory, not compute, limits how many requests run at once. (My call: a 3g.40gb slice serves across the whole slider range, while 2g.20gb slices wouldn't even start below about 0.85. The real code trace has tiny outputs, a median of about 13 tokens, so preemption would rarely show.) |
 | 03 mig layout | **Several models, like Omar's Trendyol setup (his call).** Three models, each with its own traffic stream: Llama 3 8B (chat-like), Llama 3.2 3B and Llama 3.2 1B (short, high-rate tasks). | `GPU per model \| time-slicing \| MIG` (my call: this replaces the layout chips, which move to the sandbox) | **GPU per model:** Kubernetes hands each pod a whole GPU, so three models take three H100s, each mostly idle. **Time-slicing:** all three share one H100 with no isolation, so a burst on one model stretches the others' step times and their p99 jumps (noisy neighbours). **MIG:** one H100 split 3g+2g+2g, one model per slice, with hardware isolation. It meets the same latency with a third of the GPUs, and the footer's GPU count and cost per 1M tokens show it. The lesson can point to Omar's own result (about 1.75× capacity); Omar approves the copy. The numbers on screen come from the engine and are never hard-coded to 1.75×. |
-| 04 real traffic | one 8B instance on the full GPU, continuous | `random \| Azure trace` | Real traffic has quiet stretches and spikes, and prompt and response lengths have a long tail. The caption credits the dataset (see Data). |
-| 05 failure | two 8B replicas, each on a full H100, behind the router, continuous, autoscaler off (my call) | `kill a GPU` button and `autoscaler on/off` | Killing a GPU fails its instance. Its running and queued requests go back to the router, as client retries, and are re-routed to the surviving instances. Their KV is gone, so they redo prefill, and p99 spikes. With the autoscaler on, another H100 comes up after a cold start (model load) and the queues drain. |
+| 04 routing | see `2026-10-26-inference-sim-v2-routing-design.md` (amended 2026-10-26) | threshold slider and `on-prem \| API` | Routing easy queries to a small model cuts GPU or API cost; route too much and hard queries get misrouted. |
+| 05 real traffic | one 8B instance on the full GPU, continuous | `random \| Azure trace` | Real traffic has quiet stretches and spikes, and prompt and response lengths have a long tail. The caption credits the dataset (see Data). |
+| 06 failure | two 8B replicas, each on a full H100, behind the router, continuous, autoscaler off (my call) | `kill a GPU` button and `autoscaler on/off` | Killing a GPU fails its instance. Its running and queued requests go back to the router, as client retries, and are re-routed to the surviving instances. Their KV is gone, so they redo prefill, and p99 spikes. With the autoscaler on, another H100 comes up after a cold start (model load) and the queues drain. |
 | sandbox | whatever the visitor sets | every knob, the terminal prompt, the SLO challenge, the cost meter | free play |
 
 ## Behaviours (on every tab)
@@ -100,7 +101,7 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
   - Llama 3 8B Instruct: weights ≈ 16 GB, KV ≈ 128 KiB per token (32 layers × 8 KV heads × 128 head dim × K and V × 2 bytes).
   - Llama 3.2 3B: weights ≈ 6.4 GB, KV ≈ 112 KiB per token (28 × 8 × 128 × 2 × 2).
   - Llama 3.2 1B: weights ≈ 2.5 GB, KV ≈ 32 KiB per token (16 × 8 × 64 × 2 × 2).
-  - Only tab 03 and the sandbox use the 3B and 1B.
+  - Only tab 03 and the sandbox use the 3B; tabs 03 and 04 and the sandbox use the 1B.
 - **Time-slicing (tab 03):** several processes share one GPU with no isolation. GPU time is split among the processes that have work, so each model's step time grows with its neighbours' load. The builder picks a simple model with that shape.
 - **Slices:** each MIG profile gives its slice a memory size, a share of compute and a share of memory bandwidth. Profiles used: 7g.80gb, 4g.40gb, 3g.40gb, 2g.20gb, 1g.20gb (plus 1g.10gb, mentioned only as "doesn't fit").
 - **Topology** (my call, matching real MIG serving):
@@ -131,7 +132,7 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
 - **Script:** a new script in `scripts/` downloads the conversation trace, picks a representative 5-minute window and writes `assets/sim/azure-conv.json` (arrival offset in ms, prompt tokens, output tokens), aiming for under 100 KB. The script documents why that window was chosen. It may also derive the code-like length distribution for tab 02.
   - The output is committed.
   - It doesn't run in CI (the dataset doesn't change), so it stays out of `.github/workflows/ml-figures.yml`.
-- **Credit:** the tab 04 caption credits the trace and links the dataset, for example "traffic: 5 min of Azure's production LLM requests (Microsoft, CC-BY)".
+- **Credit:** the tab 05 caption credits the trace and links the dataset, for example "traffic: 5 min of Azure's production LLM requests (Microsoft, CC-BY)".
 
 ## Code layout
 
@@ -149,29 +150,30 @@ Each tab is a preset: it sets up the engine and traffic, shows its lesson and ex
   - The lesson text and metrics are real HTML.
   - The canvas `aria-label` updates per tab.
 
-## Why MIG only appears in tab 03 (decided)
+## Why MIG only appears in the multi-model tabs, 03 and 04 (decided)
 
 With one 8B model, an honest engine makes a full GPU beat 3g+2g+2g by a wide margin:
 
 - Three copies of the weights take 48 of the 80 GB, leaving about 20 GB for KV instead of about 54 GB.
 - Every slice re-reads its 16 GB of weights at each decode step, so a 2g step takes about 19 ms against about 5 ms on the full GPU.
 
-MIG wins when several models share a card, which is how Omar got about 1.75× capacity at Trendyol. So the one-model tabs run on full GPUs, and tab 03 tells the multi-model story (Omar's call, 2026-10-25).
+MIG wins when several models share a card, which is how Omar got about 1.75× capacity at Trendyol. So the one-model tabs run on full GPUs, and tab 03 tells the multi-model story (Omar's call, 2026-10-25). Tab 04's routing also runs on MIG, since it serves three models on one H100 (amended 2026-10-26).
 
 ## Delivery
 
-Five PRs, each shippable on its own. The page never looks half-built because a tab that isn't built yet just doesn't appear.
+Six PRs, each shippable on its own. The page never looks half-built because a tab that isn't built yet just doesn't appear. Amended 2026-10-26: a model-routing tab joins as tab 04 (see `2026-10-26-inference-sim-v2-routing-design.md`), so the real-traffic and failure tabs become 05 and 06.
 
 1. Engine, move to `assets/sim.js`, tabs shell, tab 01, new footer metrics, pause/drain.
 2. Tabs 02 and 03.
-3. Tab 04, the trace script and its data.
-4. Tab 05, follow a request, the config drawer.
-5. Sandbox: every knob, terminal prompt, SLO challenge, cost meter.
+3. Tab 04, model routing: the System1 model routes each request to a small or large model, which can be on-prem or an API model.
+4. Tab 05 (real traffic), the trace script and its data.
+5. Tab 06 (failure), follow a request, the config drawer.
+6. Sandbox: every knob, terminal prompt, SLO challenge, cost meter.
 
 ## Left to the builder
 
 - **Model details:** exact constants and their sources, the activation reserve, and the random-traffic length distributions.
-- **Drawing:** canvas details beyond what's described here and in the mockup. This includes how the second GPU appears in tab 05 and how the cold start is shown (labelled if compressed).
+- **Drawing:** canvas details beyond what's described here and in the mockup. This includes how the second GPU appears in tab 06 and how the cold start is shown (labelled if compressed).
 - **Terminal:** command names and grammar. Keep it small, with `help` listing the commands.
 - **SLO challenge:** targets, and how a pass is shown.
 - **Cost meter:** the H100 price per hour. Cite a public on-demand price and show it in a tooltip.
