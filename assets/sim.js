@@ -11,6 +11,7 @@
 // lane. In API mode the large model is a dashed box with no lane or KV that names the API model's spend.
 // Tab 05 replays an hour of Azure's real traffic (assets/sim/azure-conv.json, fetched when the panel first
 // comes into view) or random traffic at the same load; on the trace, the arrivals label is the trace's clock.
+// Each tab's lesson line is one sentence; its "?" opens the full lesson in a popover placed under it.
 // Tab 06 serves two replicas on two H100s: killing one draws its box failed (dashed red), and with the
 // autoscaler on its replacement draws as starting (dashed, counting down its cold start) until it serves.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
@@ -28,7 +29,6 @@
   var SAMPLE_MS = 300, SAMPLES = 110;    // footer refresh and sparkline samples, in sim time
   var FLASH_MS = 300;                    // a finished row flashes green this long, a preempted one amber
   var P99_WINDOW_MS = 30000;             // a box's p99 vs its SLO: its model's first tokens of the last 30 s (at most the latest 200), the footer's window
-  var TALL_AT = 3;                       // instances: from three, the canvas grows (#sim.tall) so each box draws 6 rows (5 on phones)
   var BURST = 24;
   var ROW_H = 4, ROW_GAP = 2.2, CELL = 9.5, DOT_R = 3.2, STRIP_H = 26;
   var FADE_NEAR = 18, FADE_SPAN = 40;    // a dot for a row under "+N more" is gone this close to its target (px)
@@ -95,7 +95,7 @@
   var KV_MEM = 0.9;   // tab 02's slider default, vLLM's --gpu-memory-utilization default
   var ROUTE = E.PRESETS['routing-onprem'].routing.threshold;   // tab 04's slider default, the engine's
 
-  var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap'), wrapPre = $('m-pre-wrap');
+  var playBtn = $('sim-play'), burstBtn = $('sim-burst');
   var wrapSmall = $('m-small-wrap'), wrapMis = $('m-mis-wrap'), wrapApi = $('m-api-wrap'), wrapRetry = $('m-retry-wrap');
   var killBtn = $('sim-kill');
   var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
@@ -669,9 +669,8 @@
     M.gpus.textContent = sim.gpuCount;
     M.cost.textContent = f.usd(m.costPer1M);
     M.pre.textContent = sim.stats.preemptions.toLocaleString('en-US');
-    wrapPre.hidden = !(sim.stats.preemptions > 0);
     M.rej.textContent = m.rejected.toLocaleString('en-US');
-    wrap503.hidden = !(m.rejected > 0);
+    M.rej.classList.toggle('bad', m.rejected > 0);
     // tab 04: the routing shares, and in API mode the API model's spend
     wrapSmall.hidden = wrapMis.hidden = !sim.routing;
     wrapApi.hidden = !V.api;
@@ -735,7 +734,17 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return true;
   }
+  // Every tab's lesson line gets the tallest one's height, so the canvas sits at the same place on every tab.
+  // They wrap differently at every width (and with the web font in), so this measures them rather than guessing.
+  function evenLessons() {
+    var panels = [].slice.call(box.querySelectorAll('.sim-lesson')), hidden = panels.map(function (p) { return p.hidden; }), tallest = 0;
+    panels.forEach(function (p) { p.hidden = false; p.style.minHeight = '0px'; });
+    panels.forEach(function (p) { tallest = Math.max(tallest, p.getBoundingClientRect().height); });
+    panels.forEach(function (p, i) { p.hidden = hidden[i]; p.style.minHeight = Math.ceil(tallest) + 'px'; });
+  }
+
   function resize() {
+    evenLessons();
     if (!measure() || !sim) return;
     layout(); V.place = true; sync(0); draw();
   }
@@ -819,7 +828,6 @@
                ' per 1M input / output tokens · ' + E.API_SOURCE : '');
     syncRadios();
     shown = null;
-    cv.classList.toggle('tall', sim.instances.length >= TALL_AT);   // 320px (300px on phones) for three boxes
     measure();
     L = null;
     if (W) { layout(); sync(0); }
@@ -952,9 +960,24 @@
     wake();
   });
 
+  // Each lesson's "?" opens its full text (a popover, so the browser handles Esc, outside clicks and focus);
+  // placed under the "?" in page coordinates, so it scrolls with the page, and kept inside the viewport's width
+  [].slice.call(box.querySelectorAll('.sim-pop')).forEach(function (pop) {
+    var btn = box.querySelector('.sim-more[popovertarget="' + pop.id + '"]');
+    pop.addEventListener('toggle', function (e) {
+      var open = e.newState === 'open';
+      btn.classList.toggle('open', open);
+      if (!open) return;
+      var r = btn.getBoundingClientRect(), w = pop.offsetWidth;
+      pop.style.top = (r.bottom + window.scrollY + 8) + 'px';
+      pop.style.left = (window.scrollX + Math.max(16, Math.min(r.left - 24, document.documentElement.clientWidth - w - 16))) + 'px';
+    });
+  });
+
   traceState('loading the trace…');
   resize();
   switchTab('batching');
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(evenLessons);
   if ('ResizeObserver' in window) new ResizeObserver(resize).observe(cv);
   else window.addEventListener('resize', resize);
   if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) loadTrace(); wake(); }).observe(cv);

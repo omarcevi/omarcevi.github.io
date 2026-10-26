@@ -132,8 +132,9 @@ class Simulator(unittest.TestCase):
     def test_footer_metrics(self):
         for i in ("m-ttft50", "m-ttft99", "m-tpot", "m-thr", "m-kv", "m-gpus", "m-cost", "m-pre", "m-503"):
             self.assertEqual(len(find_all(self.box, id=i)), 1, i)
-        self.assertIn("hidden", find_all(self.box, id="m-503-wrap")[0].attrs)
-        self.assertIn("hidden", find_all(self.box, id="m-pre-wrap")[0].attrs)
+        # preempted and rejected sit on the counters row on every tab, so the footer never changes shape
+        self.assertNotIn("hidden", find_all(self.box, id="m-503-wrap")[0].attrs)
+        self.assertNotIn("hidden", find_all(self.box, id="m-pre-wrap")[0].attrs)
 
     def test_tab_shell(self):
         lists = find_all(self.box, role="tablist")
@@ -199,7 +200,7 @@ class Simulator(unittest.TestCase):
             wrap = find_all(self.box, id=i + "-wrap")
             self.assertEqual(len(wrap), 1, i)
             self.assertIn("hidden", wrap[0].attrs, i)
-            self.assertIn("p-foot", wrap[0].parent.classes, i)
+            self.assertIn("sim-counters", wrap[0].parent.classes, i)
 
     def test_routing_views(self):
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
@@ -309,8 +310,83 @@ class Simulator(unittest.TestCase):
                          "A model of LLM serving, not a benchmark: step times come from the H100's specs and each "
                          "model's real size. Pick a tab, send a burst, then pause and watch it drain.")
 
+    # A tab's full lesson lives in the window its "?" opens; the panel shows one sentence (summary)
     def lesson(self, panel_id):
-        return " ".join(find_all(find_all(self.box, id=panel_id)[0], "p")[0].text().split())
+        pop = find_all(find_all(self.box, id=panel_id)[0], cls="sim-pop")[0]
+        return " ".join(find_all(pop, "p")[0].text().split())
+
+    def summary(self, panel_id):
+        p = find_all(find_all(self.box, id=panel_id)[0], "p", cls="sim-sum")[0]
+        return " ".join(p.text().split()).removesuffix(" ?")
+
+    SUMMARIES = {
+        "batching": "Continuous batching. Requests join and leave at every step, so the queue drains instead of waiting on the slowest reply.",
+        "kvcache": "KV cache. When the KV cache fills, the scheduler stops admitting and preempts requests: memory, not compute, caps how many run at once.",
+        "mig": "MIG. Three models on one H100 split by MIG meet the same latency targets as three whole GPUs, with a third of the hardware.",
+        "routing": "Model routing. A small System1 model sends easy requests to a 1B model and hard ones to the 8B, cutting cost until misroutes hurt answers.",
+        "traffic": "Real traffic. Real traffic peaks well above its average, so a GPU sized for the average falls behind at the peak, which random traffic hides.",
+        "failure": "Failure. Kill one of two replicas and its requests retry on the survivor, which falls behind until a replacement comes up.",
+    }
+
+    def test_one_lesson_shape(self):
+        # every tab: a bold title and one sentence, then a "?" that opens its full lesson in a popover in the same panel
+        for tab, text in self.SUMMARIES.items():
+            panel = find_all(self.box, id="sim-tab-" + tab)[0]
+            sums = find_all(panel, "p", cls="sim-sum")
+            self.assertEqual(len(sums), 1, tab)
+            self.assertEqual(self.summary("sim-tab-" + tab), text)
+            self.assertEqual(sums[0].children[0].tag, "b", tab)
+            more = find_all(sums[0], "button", cls="sim-more")
+            self.assertEqual(len(more), 1, tab)
+            pop_id = more[0].attrs.get("popovertarget")
+            self.assertEqual([more[0].attrs.get("type"), more[0].text().strip()], ["button", "?"], tab)
+            self.assertTrue(more[0].attrs.get("aria-label", "").startswith("More about "), tab)
+            pops = find_all(panel, id=pop_id)
+            self.assertEqual(len(pops), 1, tab)
+            self.assertIn("popover", pops[0].attrs, tab)
+            self.assertIn("sim-pop", pops[0].classes, tab)
+            close = find_all(pops[0], "button", popovertarget=pop_id)
+            self.assertEqual([(c.attrs.get("popovertargetaction"), c.attrs.get("aria-label")) for c in close], [("hide", "Close")], tab)
+            self.assertTrue(self.lesson("sim-tab-" + tab).startswith(text.split(".")[0] + "."), tab)
+            self.assertEqual(len(find_all(panel, "p")), 2, tab)   # the sentence and the full lesson, nothing else
+
+    def test_one_lesson_height_and_canvas_height(self):
+        # the lesson lines wrap differently at every width, so the page measures them all and gives every tab the
+        # tallest one's height, on load, on resize and once the fonts are in
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("function evenLessons()", js)
+        fn = js[js.index("function evenLessons()"):]
+        fn = fn[:fn.index("\n  }\n")]
+        self.assertIn("panels.forEach", fn)
+        self.assertIn("minHeight", fn)
+        self.assertIn("evenLessons();", js[js.index("function resize("):])
+        self.assertIn("document.fonts.ready.then(", js)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("#sim { display: block; width: 100%; height: 300px;", page)
+        self.assertNotIn("#sim.tall", page)
+        self.assertNotIn("TALL_AT", js)
+        self.assertNotIn("'tall'", js)
+
+    def test_footer_fixed_cells(self):
+        foot = find_all(self.box, cls="p-foot")[0]
+        counters = find_all(foot, "div", cls="sim-counters")
+        self.assertEqual(len(counters), 1)
+        self.assertEqual([c.attrs.get("id") for c in counters[0].children if c.tag == "span"],
+                         ["m-small-wrap", "m-mis-wrap", "m-api-wrap", "m-retry-wrap", "m-pre-wrap", "m-503-wrap"])
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        for metric, width in (("ttft50", "5ch"), ("ttft99", "5ch"), ("tpot", "5ch"), ("thr", "11ch"), ("kv", "4ch"), ("cost", "15ch")):
+            self.assertRegex(page, r"#m-" + metric + r"\b[^{]*\{[^}]*min-width: " + width, metric)
+        self.assertNotIn("#m-503 { color: var(--p-bad); }", page)   # red only once something was rejected
+        self.assertIn("#simbox .p-head { flex-wrap: nowrap; }", page)   # a long note never wraps the header
+        phone = page[page.index("@media (max-width: 640px)"):]
+        self.assertIn(".sim-counters { min-height: 3.25rem;", phone[:phone.index("\n    }\n")])
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("M.rej.classList.toggle('bad', m.rejected > 0)", js)
+
+    def test_popover_placed_by_its_button(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("addEventListener('toggle'", js)
+        self.assertIn("'.sim-pop'", js)
 
     def test_kvcache_lesson(self):
         self.assertEqual(self.lesson("sim-tab-kvcache"),
@@ -482,7 +558,7 @@ class Simulator(unittest.TestCase):
         wrap = find_all(self.box, id="m-retry-wrap")
         self.assertEqual(len(wrap), 1)
         self.assertIn("hidden", wrap[0].attrs)
-        self.assertIn("p-foot", wrap[0].parent.classes)
+        self.assertIn("sim-counters", wrap[0].parent.classes)
 
     def test_tab06_lesson(self):
         self.assertEqual(self.lesson("sim-tab-failure"),
