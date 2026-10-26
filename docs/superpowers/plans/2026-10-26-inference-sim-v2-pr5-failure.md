@@ -87,10 +87,10 @@
     - Its queue and running list are empty.
     - Every request that was on it is now on instance 0 (or rejected). Each kept its `id` and `t0`, has `prefillDone === 0`, `generated === 0`, `tFirst === null` and `retries === 1`.
     - `sim.stats.retried` equals their count, and `sim.events` ends with `'H100 2 killed'`.
-  - **`tab 06: a kill cancels the step in flight`:**
-    - After the kill, run 5 s. `sim.tokLog` gets no entries from the dead instance; tag log entries by instance in the test by diffing each instance's running tokens.
-    - The dead instance's KV is 0.
-    - `isDrained` behaves: arrivals off, and run until drained within 120 s.
+  - **`tab 06: a kill cancels the step in flight`:** kill while instance 1 has a step in flight (`stepTimeMs` > 0 and running non-empty). Then, at every tick for 5 s:
+    - instance 1's `running` and `queue` stay empty and its `kvUsed` is 0;
+    - no request's `inst` is 1;
+    - `sim.stats.finished` only counts requests finished on instance 0.
   - **`tab 06: the kill button has nothing to kill with one GPU left`:** a second `killGpu` returns null, and nothing changes.
   - **`tab 06: billing follows the GPUs`:**
     - `gpuCount` is 2, then 1 after a kill.
