@@ -111,16 +111,22 @@
   // on 3g, or the API model), the rest to the 1B on 2g. A difficulty of u^2 (DIFFICULTY_POWER) puts
   // 1 - sqrt(0.55), about 26%, at or above the 0.55 hard cut, and the 0.45 default threshold sits one noise sigma
   // (0.1) below it. 10 req/s, plus bursts of 4-6 every 8-12 s, is more than the 8B alone serves on its slice
-  // (5.6-6.2 req/s, seeds 1-3). tests/sim.test.mjs checks the boxes as a visitor sees them (the page's 40 s
-  // warm-up, then a refresh every 300 ms on a 30 s p99), on seeds 1-10. At threshold 0 on-prem, the 8B box is
-  // red on every refresh of the first 30 s, and 503s come within 2 min on every load. At the default, 65-70%
-  // go small, every box is green on every refresh in both modes, and a median 1.3% of hard requests are
-  // misrouted. At 0.9 about 80% are misrouted, and at 1 all of them. On-prem cost per 1M falls from $0.95 at
-  // threshold 0 to $0.58 at the default (median at 60 s). In API mode, API $/h falls from about $177 to $60 to
-  // $10 at 0, the default and 0.9. Measured, not tested: on seeds 1-400, 14 loads (3.5%) show a red box at the
-  // default, mostly the 1B's, when a burst of long prompts queues at the System1 model (25 loads with 9 req/s and
-  // bursts of 6-10). Moved live from the default to 0 (seeds 1-10), the 8B turns red 2.6-14 s later and is red on
-  // a median 80% of the next 30 s.
+  // (5.6-6.2 req/s, seeds 1-3).
+  // The figures below are measured values on the seeds stated, as a visitor sees them (the page's 40 s warm-up,
+  // then a refresh every 300 ms on a 30 s p99); tests/sim.test.mjs asserts looser bounds on seeds 1-10.
+  // A load deployed at a threshold (opening the tab deploys at the default; a load at any other threshold only
+  // comes from a mode switch with the slider already moved), seeds 1-10:
+  // - at the default, 65-70% go small, every box is green on every refresh in both modes, and a median 1.3% of
+  //   hard requests are misrouted (on seeds 1-400, 14 loads, 3.5%, show a red box, mostly the 1B's, when a burst
+  //   of long prompts queues at the System1 model; 25 loads with 9 req/s and bursts of 6-10);
+  // - at 0 on-prem, the 8B box is red on every refresh of the first 30 s, and 503s come within 2 min on every load;
+  // - about 80% of hard requests are misrouted at 0.9, and all at 1;
+  // - on-prem cost per 1M is $0.95 at 0 and $0.58 at the default (median at 60 s); in API mode, API $/h is about
+  //   $177, $60 and $10 at 0, the default and 0.9.
+  // The slider moved live from the default to 0 at the open, on-prem: the 8B box turns red 2.6-14 s later on
+  // seeds 1-10, and within 20 s on 58 of seeds 1-60 (28 s at most). It's red on a median 80% of the next 30 s on
+  // seeds 1-10 and 71% on seeds 1-60, with a low of 6%. The first 503 comes 25-52 s after the move on seeds 1-60
+  // (within 30 s on only 5).
   function tab04(large) {
     return {
       instances: [

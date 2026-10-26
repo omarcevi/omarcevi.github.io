@@ -1017,6 +1017,9 @@ test('tab 04: at a 75/25 small/large split the API bill is at least 70% of the b
 // model's TTFT p99 over P99_WINDOW_MS is over its target in sim.slo, and green when it's within it. Only the
 // models with both a target and an instance have a coloured box: the System1 box has no target, on-prem has no API
 // and the API mode no 8B.
+// A visitor reaches a threshold in one of two ways. Opening the tab deploys at the default, and the slider then
+// moves the threshold live (E.setThreshold, no redeploy): routeMove. A load deployed at another threshold only
+// comes from a mode switch with the slider already moved, since deploy keeps it: routeVisit.
 const ROUTE_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];   // the page draws a random seed, so the lesson must not hang on one
 const routeVisits = {};
 // One load of a tab 04 deployment with the slider at threshold: per refresh, its time, whether each box is red,
@@ -1039,6 +1042,19 @@ function routeVisit(id, threshold, seed, watchMs = 30000) {
   });
   return (routeVisits[key] = { boxes, refreshes });
 }
+// One load on-prem opened at the default, with the slider moved to `to` at the open: per refresh from the open on,
+// the time since the move, whether the 8B box is red, and the 503s so far
+function routeMove(to, seed, watchMs) {
+  const sim = E.createSim(Object.assign({}, E.PRESETS['routing-onprem'], { seed }));
+  const refreshes = [];
+  let moved = null;
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => {
+    if (moved === null) { moved = s.t; E.setThreshold(s, to); }
+    const p99 = E.metrics(s, 'llama-3-8b', PAGE.p99WindowMs).ttftP99;
+    refreshes.push({ after: s.t - moved, red: p99 !== null && p99 > s.slo['llama-3-8b'], rejected: s.stats.rejected });
+  });
+  return refreshes;
+}
 const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
 const greenShare = refreshes => refreshes.filter(r => r.green).length / refreshes.length;
 // The mean of what the footer shows for a metric over a load's refreshes, leaving out the ones that show '–' (null;
@@ -1055,7 +1071,16 @@ test('tab 04 as a visitor sees it: the default threshold is on the slider\'s 0.0
   assert.deepEqual(routeVisit('routing-onprem', x, 1).boxes, ['llama-3-8b', 'llama-3.2-1b']);
   assert.deepEqual(routeVisit('routing-api', x, 1).boxes, ['api', 'llama-3.2-1b']);
 });
-test('tab 04 as a visitor sees it: at threshold 0 on-prem the 8B box is red on 70% of refreshes in the first 30 s (median over loads), and 503s keep coming within 2 min on 8 of 10', () => {
+test('tab 04 as a visitor sees it: moving the slider from the default to 0 on-prem turns the 8B box red within 20 s on 9 of 10 loads, and 503s start within 2 min on 8 of 10', () => {
+  const loads = ROUTE_SEEDS.map(seed => routeMove(0, seed, 120000));
+  const after = (refreshes, f) => { const r = refreshes.find(x => x.after > 0 && f(x)); return r ? r.after : Infinity; };
+  const toRed = loads.map(refreshes => after(refreshes, x => x.red));
+  const to503 = loads.map(refreshes => after(refreshes, x => x.rejected > refreshes[0].rejected));
+  const secs = list => list.map(v => (v / 1000).toFixed(1)).join(' ');
+  assert.ok(toRed.filter(v => v <= 20000).length >= 9, `the 8B turned red after (s) ${secs(toRed)}`);
+  assert.ok(to503.filter(v => v <= 120000).length >= 8, `the first 503 after (s) ${secs(to503)}`);
+});
+test('tab 04, a load deployed at threshold 0 on-prem (a mode switch with the slider at 0): the 8B box is red on 70% of refreshes in its first 30 s (median over loads), and 503s keep coming within 2 min on 8 of 10', () => {
   const loads = ROUTE_SEEDS.map(seed => routeVisit('routing-onprem', 0, seed, 120000));
   const large = loads[0].boxes.indexOf('llama-3-8b');
   const shares = loads.map(({ refreshes }) => redShare(refreshes.filter(r => r.t <= refreshes[0].t + 30000).map(r => r.red[large])));
@@ -1070,7 +1095,7 @@ test('tab 04 as a visitor sees it: at the default threshold on-prem every box is
   assert.ok(median(green) >= 0.95, `median ${median(green)}; per load ${fixed(green)}`);
   assert.ok(median(mis) <= 0.05, `median ${median(mis)}; per load ${fixed(mis, 3)}`);
 });
-test('tab 04 as a visitor sees it: at threshold 1 on-prem at least half the hard requests are misrouted (median over loads)', () => {
+test('tab 04, a load deployed at threshold 1 on-prem: at least half the hard requests are misrouted (median over loads)', () => {
   const mis = ROUTE_SEEDS.map(seed => shown(routeVisit('routing-onprem', 1, seed).refreshes, 'misroutedShare'));
   assert.ok(median(mis) >= 0.5, `median ${median(mis)}; per load ${fixed(mis, 3)}`);
 });
@@ -1083,7 +1108,7 @@ test('tab 04: on-prem, cost per 1M output tokens is lower at the default thresho
   const at0 = cost(0), atDefault = cost(defaultThreshold());
   assert.ok(median(atDefault) < median(at0), `$${median(atDefault)} vs $${median(at0)}; per seed ${fixed(atDefault)} vs ${fixed(at0)}`);
 });
-test('tab 04 as a visitor sees it: in API mode API $/h falls from threshold 0 to the default to 0.9 (median over loads), and every box is green on 95% of refreshes at the default', () => {
+test('tab 04, loads deployed in API mode at threshold 0, the default and 0.9: API $/h falls in that order (median over loads), and every box is green on 95% of refreshes at the default', () => {
   const thresholds = [0, defaultThreshold(), 0.9];
   const usd = thresholds.map(x => ROUTE_SEEDS.map(seed => shown(routeVisit('routing-api', x, seed).refreshes, 'apiUsdPerHour')));
   const medians = usd.map(median);
