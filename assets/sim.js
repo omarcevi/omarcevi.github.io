@@ -3,9 +3,9 @@
 // warmed up when the tab opens; tab 02's memory slider and tab 03's deployment switch redeploy the
 // same way. The canvas shows arrivals, each instance's queue lane, its running sequences (one row
 // each, flashing amber when preempted) and KV cache, the token stream, and a rolling TTFT p99 line
-// with a marker for each switch the visitor makes. In tab 03 each box also shows its model's p99
-// against that model's SLO, and a time-sliced step's stretch. Animations run on the page's frame
-// clock; the sim's own clock stops once it has drained.
+// with a marker for each switch the visitor makes. In tab 03 each box also shows its model's p99 next
+// to that model's SLO (green or red, and in words in the canvas's aria-label), and a time-sliced step's
+// stretch. Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
   var E = window.SimEngine;
@@ -16,6 +16,7 @@
   function $(id) { return document.getElementById(id); }
 
   var WARMUP_TICKS = 500, TICK_MS = 16;  // 8 s of sim time, so a tab never opens empty
+  var TAB03_WARMUP_TICKS = 2500;         // 40 s in tab 03, so a deployment opens on steady state with a full 30 s p99 window
   var SAMPLE_MS = 300, SAMPLES = 110;    // footer refresh and sparkline samples, in sim time
   var FLASH_MS = 300;                    // a finished row flashes green this long, a preempted one amber
   var P99_WINDOW_MS = 30000;             // a box's p99 vs its SLO: its model's first tokens of the last 30 s (at most the latest 200), the footer's window
@@ -54,7 +55,7 @@
       aria: 'Animated simulation: three models, each on its own H100'
     },
     'mig-time': {
-      note: '· three models time-sharing one H100 · real time', label: 'one H100, time-sliced', narrow: 'H100',
+      note: '· three models time-sharing one H100 · real time', label: 'one H100, time-sliced', narrow: 'shared H100',
       aria: 'Animated simulation: three models sharing one H100 by time-slicing, with no isolation'
     },
     'mig-mig': {
@@ -280,17 +281,20 @@
     return w;
   }
   // A box's header: its name on the left; on the right a time-sliced step's stretch (×2, ×3), then in
-  // tab 03 the model's p99 against its SLO, else the running count, then KV. levels runs from the fullest
-  // header to the barest: pieces drop from the right (KV, then "p99 "), and last the name gives way to
-  // just the model. A time-sliced box always keeps room for its marker, so nothing shifts as it blinks.
+  // tab 03 the model's p99 against its SLO ("p99 1.84s / 2s", the p99 green or red), else the running
+  // count, then KV. levels runs from the fullest header to the barest: pieces drop from the right (KV,
+  // then "p99 " and the spaces around the slash), and last the name gives way to just the model. A
+  // time-sliced box always keeps room for its marker, so nothing shifts as it blinks.
   function header(inst) {
     var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0, fits;
     var kvTxt = 'KV ' + Math.round(kv * 100) + '%', kvCol = hot ? COL.warn : COL.muted;
     inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
     if (sim.slo) {
-      var p = V.p99[inst.model], v = E.fmt.ms(p === undefined ? null : p);
+      var p = V.p99[inst.model], v = E.fmt.ms(p === undefined ? null : p), slo = E.fmt.slo(sim.slo[inst.model]);
       var pCol = p === null || p === undefined ? COL.muted : p <= sim.slo[inst.model] ? COL.ok : COL.bad;
-      fits = [[['p99 ' + v, pCol], [' · ' + kvTxt, kvCol]], [['p99 ' + v, pCol]], [[v, pCol]]];
+      fits = [[['p99 ' + v, pCol], [' / ' + slo, COL.muted], [' · ' + kvTxt, kvCol]],
+              [['p99 ' + v, pCol], [' / ' + slo, COL.muted]],
+              [[v, pCol], ['/' + slo, COL.muted]]];
     } else {
       fits = [[['running ' + n + ' · ' + kvTxt, kvCol]], [[n + ' · ' + kvTxt, kvCol]]];
     }
@@ -432,10 +436,20 @@
 
   // ---- Footer and play button ----
 
+  // The canvas's aria-label in tab 03: the view, then each model's p99 against its target, as the boxes show it
+  function sloLabel() {
+    return VIEWS[preset].aria + '. ' + Object.keys(sim.slo).map(function (model) {
+      var p = V.p99[model], slo = sim.slo[model];
+      return E.MODELS[model].short + ' p99 ' + E.fmt.spoken(p) + ', target ' + E.fmt.spoken(slo) +
+        (p === null ? '' : p <= slo ? ', met' : ', missed');
+    }).join('; ');
+  }
   function footer() {
     var m = E.metrics(sim), f = E.fmt;
-    if (sim.slo) {   // each box's p99 against its SLO, refreshed with the footer
+    if (sim.slo) {   // each box's p99 against its SLO, refreshed with the footer, and the same in words
       Object.keys(sim.slo).forEach(function (model) { V.p99[model] = E.metrics(sim, model, P99_WINDOW_MS).ttftP99; });
+      var label = sloLabel();
+      if (cv.getAttribute('aria-label') !== label) cv.setAttribute('aria-label', label);
     }
     M.p50.textContent = f.ms(m.ttftP50);
     M.p99.textContent = f.ms(m.ttftP99);
@@ -519,13 +533,14 @@
     check(deployRadios, 'data-deploy', preset.indexOf('mig-') === 0 ? preset.slice(4) : 'mig');
   }
 
-  // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow. Nothing of
-  // the old sim's view carries over, and frozen stays as it is (reduced motion opens every one frozen).
+  // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow (tab 03, whose
+  // boxes show a 30 s p99, for longer). Nothing of the old sim's view carries over, and frozen stays as it
+  // is (reduced motion opens every one frozen).
   function deploy(id, config) {
     preset = id;
     sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: Math.floor(Math.random() * 2147483647), config: config }));
     V = freshView();
-    for (var k = 0; k < WARMUP_TICKS; k++) {
+    for (var k = 0, n = sim.slo ? TAB03_WARMUP_TICKS : WARMUP_TICKS; k < n; k++) {
       E.tick(sim, TICK_MS);
       if (sim.t >= V.nextSample) { V.nextSample += SAMPLE_MS; sample(E.metrics(sim)); }
     }

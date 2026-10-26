@@ -247,6 +247,9 @@ test('formatting', () => {
   assert.equal(E.fmt.tok(6812.3), '6,812 tok/s');
   assert.equal(E.fmt.pct(0.614), '61%');
   assert.equal(E.fmt.usd(0.1234), '$0.12 / 1M tok');
+  // a target next to a p99 drops trailing zeros; spoken forms (the canvas's aria-label) have a space
+  assert.deepEqual([2000, 1500, 500, 300].map(E.fmt.slo), ['2s', '1.5s', '500ms', '300ms']);
+  assert.deepEqual([1840, 2000, 85.4, null].map(E.fmt.spoken), ['1.84 s', '2 s', '85 ms', 'not measured yet']);
 });
 test('finished requests are pruned so memory stays bounded under burst spam', () => {
   const sim = E.createSim({ ...E.PRESETS.batching, seed: 9 });
@@ -347,6 +350,10 @@ test('per-model metrics filter TTFT and TPOT by model', () => {
   run(sim, 20000);
   assert.ok(E.metrics(sim, 'llama-3.2-1b').ttftP99 < E.metrics(sim, 'llama-3-8b').ttftP99);
   assert.equal(E.metrics(sim, 'llama-3.2-3b').ttftP99, null);
+  assert.equal(E.metrics(sim, 'llama-3.2-3b').tpotMs, null);
+  // each model's TPOT is its own requests': the 8B on a 3g slice decodes slower than the 1B on a 2g slice
+  const tpot8 = E.metrics(sim, 'llama-3-8b').tpotMs, tpot1 = E.metrics(sim, 'llama-3.2-1b').tpotMs;
+  assert.ok(tpot1 > 0 && tpot8 > tpot1, `8B ${tpot8} vs 1B ${tpot1}`);
 });
 test('GPU count is the number of distinct physical GPUs, and cost scales with it', () => {
   const three = E.createSim({ seed: 1, traffic: { rate: 6, bursts: false },
@@ -426,14 +433,75 @@ test('tab 02: at the default 0.9 the KV pool fills and the scheduler preempts, o
     assert.ok(r.sim.stats.preemptions > 0, `seed ${seed}: no preemptions`);
   }
 });
-test('tab 02: less KV memory means more preemption overall and fewer requests served on every seed', () => {
-  let lo = 0, hi = 0;
+// The first 60 s at one slider position: the mean number of requests running (over 16 ms ticks), the
+// requests finished, and when the first preemption came (Infinity if none). Memoised: three tests read it.
+const kvSliderRuns = {};
+function kvSlider(util, seed) {
+  const key = util + '/' + seed;
+  if (kvSliderRuns[key]) return kvSliderRuns[key];
+  const sim = E.createSim(Object.assign({}, E.PRESETS.kvcache, { seed, config: { gpuMemUtil: util } }));
+  let sum = 0, n = 0, first = Infinity;
+  run(sim, 60000, s => {
+    sum += s.instances[0].running.length; n += 1;
+    if (first === Infinity && s.stats.preemptions > 0) first = s.t;
+  });
+  return (kvSliderRuns[key] = { running: sum / n, finished: sim.stats.finished, first });
+}
+function median(values) {
+  const s = [...values].sort((a, b) => a - b), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+test('tab 02: more KV memory fits more requests at once (0.5 < 0.9 < 0.95), on every seed', () => {
   for (const seed of KV_SEEDS) {
-    const a = kvRun(0.5, seed), b = kvRun(0.95, seed);
-    lo += a.sim.stats.preemptions; hi += b.sim.stats.preemptions;
-    assert.ok(b.sim.stats.finished > a.sim.stats.finished, `seed ${seed}: ${b.sim.stats.finished} vs ${a.sim.stats.finished}`);
+    const r = [0.5, 0.9, 0.95].map(u => kvSlider(u, seed).running);
+    assert.ok(r[0] < r[1] && r[1] < r[2], `seed ${seed}: mean running ${r.map(v => v.toFixed(1))}`);
   }
-  assert.ok(lo >= 3 * hi, `${lo} vs ${hi}`);
+});
+test('tab 02: at 0.95 the server finishes more requests than at 0.5, on every seed', () => {
+  for (const seed of KV_SEEDS) {
+    const lo = kvSlider(0.5, seed).finished, hi = kvSlider(0.95, seed).finished;
+    assert.ok(hi > lo, `seed ${seed}: ${hi} vs ${lo}`);
+  }
+});
+test('tab 02: with less KV memory preemption starts sooner (median over seeds)', () => {
+  const lo = median(KV_SEEDS.map(seed => kvSlider(0.5, seed).first)), hi = median(KV_SEEDS.map(seed => kvSlider(0.9, seed).first));
+  assert.ok(lo < hi, `first preemption at 0.5 ${lo} ms vs 0.9 ${hi} ms`);
+});
+
+// What a visitor sees after opening a tab or switching a deployment, as assets/sim.js does it: the warm-up
+// (WARMUP_TICKS or TAB03_WARMUP_TICKS x TICK_MS), then a footer refresh every SAMPLE_MS of sim time on the
+// same schedule, with each box's p99 over P99_WINDOW_MS. tests/test_page.py checks these against sim.js.
+const PAGE = { tickMs: 16, warmMs: 8000, tab03WarmMs: 40000, sampleMs: 300, p99WindowMs: 30000 };
+const VIEW_SEEDS = Array.from({ length: 20 }, (_, k) => k + 1);
+// Warms the sim up like the page, then calls look(sim) at the footer refresh right after the warm-up and
+// at every refresh over the next watchMs
+function visit(sim, warmMs, watchMs, look) {
+  let next = PAGE.sampleMs;
+  for (let k = 0; k < warmMs / PAGE.tickMs; k++) {
+    E.tick(sim, PAGE.tickMs);
+    if (sim.t >= next) next += PAGE.sampleMs;
+  }
+  const end = sim.t + watchMs;
+  look(sim);
+  while (sim.t < end) {
+    E.tick(sim, PAGE.tickMs);
+    if (sim.t >= next) { next += PAGE.sampleMs; look(sim); }
+  }
+}
+test('tab 02 as a visitor sees it: in the 30 s after opening at 0.9, KV passes 90% on 90% of loads and a preemption comes on 80%', () => {
+  let full = 0, preempted = 0;
+  for (const seed of VIEW_SEEDS) {
+    const sim = E.createSim(Object.assign({}, E.PRESETS.kvcache, { seed, config: { gpuMemUtil: 0.9 } }));
+    let kv = 0, opened = null;
+    visit(sim, PAGE.warmMs, 30000, s => {
+      if (opened === null) opened = s.stats.preemptions;
+      kv = Math.max(kv, E.metrics(s).kvFrac);
+    });
+    if (kv > 0.9) full += 1;
+    if (sim.stats.preemptions > opened) preempted += 1;
+  }
+  assert.ok(full >= 0.9 * VIEW_SEEDS.length, `KV above 90% on ${full}/${VIEW_SEEDS.length} loads`);
+  assert.ok(preempted >= 0.8 * VIEW_SEEDS.length, `a preemption on ${preempted}/${VIEW_SEEDS.length} loads`);
 });
 
 const preset = (id, seed) => E.createSim(Object.assign({}, E.PRESETS[id], { seed }));
@@ -506,4 +574,51 @@ test('tab 03: time-slicing is slower than MIG for every model (median p99 over s
 test('tab 03: time-slicing misses at least one model\'s SLO (median p99 over seeds)', () => {
   const slo = E.PRESETS['mig-time'].slo, time = tab3Medians('mig-time');
   assert.ok(Object.keys(slo).some((model, i) => time[i] > slo[model]), `time-slicing medians ${time} all within ${Object.values(slo)}`);
+});
+// Each box as a visitor sees it after switching to a deployment: the tab 03 warm-up, then a refresh every
+// 300 ms for watchMs. Per model, in sim.slo's order, whether each refresh showed the box red (p99 over its SLO).
+function boxesRed(id, seed, watchMs) {
+  const sim = preset(id, seed), models = Object.keys(sim.slo), red = models.map(() => []);
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => models.forEach((model, i) => {
+    const p99 = E.metrics(s, model, PAGE.p99WindowMs).ttftP99;
+    red[i].push(p99 !== null && p99 > s.slo[model]);
+  }));
+  return red;
+}
+const redShare = list => list.filter(Boolean).length / list.length;
+test('tab 03 as a visitor sees it: in the 30 s after a switch to time-slicing, the 8B box is red on 70% of refreshes (median over loads)', () => {
+  const shares = VIEW_SEEDS.map(seed => redShare(boxesRed('mig-time', seed, 30000)[0]));
+  assert.ok(median(shares) >= 0.7, `median ${median(shares)}; per load ${shares.map(v => v.toFixed(2))}`);
+});
+test('tab 03 as a visitor sees it: under MIG and GPU per model every box is red on at most 1% of refreshes over 2 min, with no manual burst', () => {
+  for (const id of ['mig-mig', 'mig-gpu']) {
+    const loads = VIEW_SEEDS.map(seed => boxesRed(id, seed, 120000));
+    Object.keys(E.PRESETS[id].slo).forEach((model, i) => {
+      const share = redShare(loads.flatMap(red => red[i]));
+      assert.ok(share <= 0.01, `${id} ${model}: red on ${(100 * share).toFixed(2)}% of refreshes`);
+    });
+  }
+});
+// The spec's noisy neighbour, with the 8B quiet (rate 0, no automatic bursts): after 40 s, four bursts of 40
+// requests on the 8B, each followed by 5 s. The 1B's p99 just before against the highest it shows at the
+// page's 300 ms refreshes during the bursts.
+function neighbourEffect(id, seed) {
+  const p = E.PRESETS[id];
+  const sim = E.createSim(Object.assign({}, p, { seed, streams: p.streams.map((s, i) => i === 0 ? Object.assign({}, s, { rate: 0, bursts: false }) : s) }));
+  run(sim, 40000);
+  const before = E.metrics(sim, 'llama-3.2-1b', PAGE.p99WindowMs).ttftP99;
+  let peak = 0, next = sim.t + PAGE.sampleMs;
+  for (let k = 0; k < 4; k++) {
+    E.sendBurst(sim, 40, 0);
+    run(sim, 5000, s => {
+      if (s.t >= next) { next += PAGE.sampleMs; peak = Math.max(peak, E.metrics(s, 'llama-3.2-1b', PAGE.p99WindowMs).ttftP99); }
+    });
+  }
+  return peak / before;
+}
+test('tab 03: bursts on a quiet 8B raise the 1B\'s p99 under time-slicing (≥ 1.5×), not under MIG (≤ 1.3×), median over seeds', () => {
+  const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const time = median(seeds.map(seed => neighbourEffect('mig-time', seed))), mig = median(seeds.map(seed => neighbourEffect('mig-mig', seed)));
+  assert.ok(time >= 1.5, `time-slicing ×${time}`);
+  assert.ok(mig <= 1.3, `MIG ×${mig}`);
 });

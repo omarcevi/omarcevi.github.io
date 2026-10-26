@@ -58,13 +58,12 @@
     output: { median: 129, sigma: 0.93, min: 1, max: 1000 }
   };
 
-  // Synthetic lengths for tab 02: long prompts and long replies, so the KV pool fills.
-  // Tuned on seeds 1-10 (tests/sim.test.mjs): a burst of 35-40 such requests needs roughly the
-  // 0.9 pool (~19 GB, ~145k tokens), fits the 0.95 pool (~21 GB) with little preemption, and
-  // overflows the 0.5 pool (~3 GB, ~22k tokens) many times over. Bursts dominate the load.
+  // Synthetic lengths for tab 02: long prompts and long replies, so the KV pool fills. Each request holds
+  // about 6k tokens of KV, so the 0.9 pool (~145k tokens) runs about 20-25 at once, few enough that the
+  // desktop canvas (27 rows) draws them all and the preempted one flashes; the 0.5 pool (~22k) runs 3 or 4.
   var LONG = {
-    prompt: { median: 1100, sigma: 0.5, min: 256, max: 6000 },
-    output: { median: 450, sigma: 0.2, min: 64, max: 1000 }
+    prompt: { median: 5500, sigma: 0.1, min: 256, max: 6000 },
+    output: { median: 400, sigma: 0.2, min: 64, max: 1000 }
   };
 
   // Synthetic lengths for tab 03's small models: short tasks for the 3B, tiny ones for the 1B
@@ -79,21 +78,22 @@
 
   // Tab 03: three models with their own traffic and TTFT p99 SLOs, on one of three deployments.
   // The 8B is chat-like (steady, with small bursts); the 3B and 1B serve short tasks at a high rate.
-  // The 3B and 1B rates and the 1B's prompt length are tuned so that, at 120 s on seeds 1-5
-  // (tests/sim.test.mjs), GPU per model and MIG meet every SLO, and time-slicing's median p99 is above
-  // MIG's for every model and above the 8B's SLO. The 8B's bursts (6-10 requests) are sized so MIG's
-  // 8B box, coloured on a 30 s p99 as on the page, stays green with no manual burst: red 0% of the time
-  // on seeds 1-60 (8 s warm-up, then 120 s). Bursts of 10-16 left it red 4.6% of the time, and bursts
-  // of 6-12 on 2 of 60 seeds. A manual burst of 24 still turns it red for about 30 s, since a 3g slice
-  // has less headroom than a whole GPU. Time-slicing loses because CTX_SWITCH_LOSS leaves each of three
-  // busy processes 0.7 / 3 of the GPU, less than a 2g.20gb slice gets, and well under the 8B's 3g.40gb.
+  // Time-slicing loses because CTX_SWITCH_LOSS leaves each of three busy processes 0.7 / 3 of the GPU,
+  // less than a 2g.20gb slice gets, and well under the 8B's 3g.40gb. The 8B's rate (2.5) is set where that
+  // gap shows: tests/sim.test.mjs checks the boxes as a visitor sees them (the page's 40 s warm-up, then a
+  // refresh every 300 ms on a 30 s p99). On seeds 1-20, time-slicing's 8B is red on a median 98% of the
+  // refreshes in the 30 s after a switch, and no MIG or GPU-per-model box turns red in 2 min. On seeds
+  // 1-200, no MIG box is red in the first 30 s, and MIG's 8B is red 0.83% of the time over 2 min, while
+  // time-slicing's 8B is red on at least 70% of refreshes on 79% of loads. At rate 1.5 it was red on a
+  // median 70%; at rate 3 its p99 runs away (median 9 s after 2 min). A manual burst of 24 still turns
+  // MIG's 8B red for a while, since a 3g slice has less headroom than a whole GPU.
   function tab03(instances) {
     return {
       instances: instances,
       batching: 'continuous',
       slo: { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 },
       streams: [
-        { model: 'llama-3-8b', rate: 1.5, bursts: { min: 6, max: 10 }, lengths: LENGTHS },
+        { model: 'llama-3-8b', rate: 2.5, bursts: { min: 6, max: 10 }, lengths: LENGTHS },
         { model: 'llama-3.2-3b', rate: 8, bursts: false, lengths: SHORT },
         { model: 'llama-3.2-1b', rate: 25, bursts: false, lengths: TINY }
       ]
@@ -102,7 +102,14 @@
 
   var PRESETS = {
     batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
-    kvcache: { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0.5, bursts: { min: 35, max: 40 }, lengths: LONG } },
+    // Tab 02: bursts of 8-12 over a steady 0.5 req/s, so the 0.9 pool fills within 30 s of opening (and the
+    // 8 s warm-up sees no request on only 5 of 200 seeds). tests/sim.test.mjs checks what a visitor sees
+    // (8 s warm-up, then 30 s): on seeds 1-20, KV passes 90% and a preemption comes on every load (seeds
+    // 21-100: 80/80 and 76/80). Over 60 s on seeds 1-10, more memory runs more requests at once (median 3,
+    // 20 and 22 at 0.5, 0.9 and 0.95), 0.95 finishes more than 0.5 (median 40 vs 22), and preemption starts
+    // sooner at 0.5 (median 9.9 s vs 24.1 s at 0.9). The load is above what the slice serves: at 0.9 the
+    // queue holds a median 51 requests after 2 min.
+    kvcache: { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 0.5, bursts: { min: 8, max: 12 }, lengths: LONG } },
     // GPU per model: Kubernetes gives each pod a whole H100
     'mig-gpu': tab03([
       { profile: '7g.80gb', model: 'llama-3-8b', gpu: 0 },
@@ -729,7 +736,14 @@
       return String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ',') + ' tok/s';
     },
     pct: function (v) { return v === null ? '\u2013' : Math.round(v * 100) + '%'; },
-    usd: function (v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + ' / 1M tok'; }
+    usd: function (v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + ' / 1M tok'; },
+    // A latency target, without trailing zeros: 2000 is '2s', 500 is '500ms'
+    slo: function (v) { return v < 1000 ? Math.round(v) + 'ms' : +(v / 1000).toFixed(2) + 's'; },
+    // A latency as a screen reader says it: '1.84 s', '85 ms'
+    spoken: function (v) {
+      if (v === null) return 'not measured yet';
+      return v < 1000 ? Math.round(v) + ' ms' : +(v / 1000).toFixed(2) + ' s';
+    }
   };
 
   // An instance from its spec { profile, model, gpu?, gpuMemUtil? }: gpu is the physical GPU it runs

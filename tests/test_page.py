@@ -213,6 +213,56 @@ class Simulator(unittest.TestCase):
                          "A model of LLM serving, not a benchmark: step times come from the H100's specs and each "
                          "model's real size. Pick a tab, send a burst, then pause and watch it drain.")
 
+    def lesson(self, panel_id):
+        return " ".join(find_all(find_all(self.box, id=panel_id)[0], "p")[0].text().split())
+
+    def test_kvcache_lesson(self):
+        self.assertEqual(self.lesson("sim-tab-kvcache"),
+                         "KV cache. Every token a request holds keeps its keys and values in GPU memory. When that pool "
+                         "is full, the scheduler stops admitting and preempts the newest request: its KV is dropped and "
+                         "it redoes its prefill later. Give the server less memory and fewer requests fit at once, so "
+                         "preemptions start sooner and throughput drops: memory, not compute, limits how many requests "
+                         "run at once. Synthetic traffic: long prompts and long replies.")
+
+    def test_mig_lesson(self):
+        self.assertEqual(self.lesson("sim-tab-mig"),
+                         "MIG. Three models, each with its own traffic and latency target (p99 time to first token: 8B "
+                         "2 s, 3B 500 ms, 1B 300 ms). Kubernetes hands each pod a whole GPU, so they take three "
+                         "underused H100s. Time-slicing shares one H100: the models take turns and every switch wastes "
+                         "GPU time (assumed here to be about 30%), so the 8B misses its target. MIG splits one H100 into "
+                         "isolated slices and meets every target with a third of the GPUs, though each slice has less "
+                         "headroom than a whole GPU. At Trendyol this gave about 1.75× more serving capacity.")
+
+    def test_mig_lesson_states_the_engine_targets_and_overhead(self):
+        engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
+        slo = dict(re.findall(r"'llama-([0-9.-]+b)': (\d+)", re.search(r"slo: \{([^}]*)\}", engine).group(1)))
+        said = {"3-8b": "8B", "3.2-3b": "3B", "3.2-1b": "1B"}
+        targets = ", ".join(said[m] + " " + (str(int(ms) // 1000) + " s" if int(ms) >= 1000 else ms + " ms")
+                            for m, ms in slo.items())
+        self.assertIn("(p99 time to first token: " + targets + ")", self.lesson("sim-tab-mig"))
+        loss = float(re.search(r"var CTX_SWITCH_LOSS = ([0-9.]+);", engine).group(1))
+        self.assertIn("about %d%%" % round(loss * 100), self.lesson("sim-tab-mig"))
+
+    def test_visitor_view_tests_model_the_page(self):
+        # tests/sim.test.mjs replays what a visitor sees; its warm-ups, refresh and p99 window must be the page's
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        node = (ROOT / "tests/sim.test.mjs").read_text(encoding="utf-8")
+
+        def num(pattern, text):
+            return int(re.search(pattern, text).group(1))
+        tick = num(r"TICK_MS = (\d+);", js)
+        page = {"tickMs": tick, "warmMs": num(r"var WARMUP_TICKS = (\d+)", js) * tick,
+                "tab03WarmMs": num(r"var TAB03_WARMUP_TICKS = (\d+);", js) * tick,
+                "sampleMs": num(r"var SAMPLE_MS = (\d+)", js), "p99WindowMs": num(r"var P99_WINDOW_MS = (\d+);", js)}
+        modelled = {k: int(v) for k, v in re.findall(r"(\w+): (\d+)", re.search(r"const PAGE = \{([^}]*)\}", node).group(1))}
+        self.assertEqual(modelled, page)
+        self.assertEqual((page["warmMs"], page["tab03WarmMs"]), (8000, 40000))
+
+    def test_time_sliced_label_says_shared_on_phones(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        view = re.search(r"'mig-time': \{(.*?)\n    \}", js, re.S).group(1)
+        self.assertIn("narrow: 'shared H100'", view)
+
     def test_throughput_and_cost_say_output_tokens(self):
         thr = find_all(self.box, id="m-thr")[0].parent
         self.assertEqual(thr.attrs.get("title"), "output tokens per second")
