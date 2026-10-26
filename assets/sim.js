@@ -6,6 +6,8 @@
 // preempted) and KV cache, the token stream, and a rolling TTFT p99 line with a marker for each switch
 // the visitor makes. In tabs 03 and 04 each box also shows its model's p99 next to that model's SLO
 // (green or red, and in words in the canvas's aria-label), and in tab 03 a time-sliced step's stretch.
+// In tab 04 a request is scored at the System1 box first, then its dot moves on to the box it's routed to;
+// the API box has no queue lane or KV and names the API model's spend.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
@@ -160,7 +162,8 @@
       fly: [], toks: [], rejects: [],                        // finished requests, token particles, 503s
       hist: [], nextSample: SAMPLE_MS, rejected: 0,
       multi: Object.keys(models).length > 1,                 // several models: each box names its model
-      p99: {}                                                // model -> TTFT p99 over P99_WINDOW_MS (tabs 03, 04), per footer refresh
+      p99: {},                                               // model -> TTFT p99 over P99_WINDOW_MS (tabs 03, 04), per footer refresh
+      spend: null                                            // tab 04's API mode: the API model's $/h, per footer refresh
     };
   }
 
@@ -169,6 +172,8 @@
     var pw = prefillW(b, row.r);
     V.fly.push({ x: b.bx + pw + 1.5 + decodeW(b, pw, row.r.generated), y: row.y + ROW_H / 2, vx: 170 + Math.random() * 90 });
   }
+  // A 503's red dot, from (x, y) to the door of box b's queue lane, where it fades
+  function reject(x, y, b) { return { x: x, y: y, ty: b.y + 6 + Math.random() * (b.h - 12), age: 0 }; }
   function tokenOut(b, rows) {
     if (V.toks.length > 120) return;
     var vis = drawn(b, rows.length);   // from a drawn row, not from under "+N more"
@@ -193,7 +198,8 @@
       inst.running.forEach(function (x) { live[x.id] = x; });
       for (j = rows.length - 1; j >= 0; j--) {
         row = rows[j]; r = row.r;
-        made += r.generated - row.gen; row.gen = r.generated;
+        if (r.inst === ii) made += r.generated - row.gen;   // tab 04: a scored request's tokens are its next box's
+        row.gen = r.generated;
         if (r.tDone !== null && row.doneAt === null) row.doneAt = V.vt;
         if (r.preemptions > row.pre && row.preAt === null) {
           if (j < vis) row.preAt = V.vt;   // preempted: a drawn row flashes amber before it leaves
@@ -227,12 +233,23 @@
         for (; V.acc[ii] >= 1; V.acc[ii] -= 1) tokenOut(b, rows);
       }
     });
-    for (var id in V.dots) if (!seen[id]) delete V.dots[id];
-
-    var turnedAway = sim.stats.rejected - V.rejected, b0 = L.boxes[0];   // 503s: the router had nowhere to send them
+    // 503s: the router had nowhere to send them, so they stop at the first box's lane. In tab 04 a request
+    // the System1 model scored can also be turned away by the model it was sent to: it goes from where its
+    // dot was to that box's lane.
+    var turnedAway = sim.stats.rejected - V.rejected, b0 = L.boxes[0], q;
     V.rejected = sim.stats.rejected;
-    for (var q = 0; !V.place && q < Math.min(turnedAway, 8); q++) {
-      V.rejects.push({ x: -4, y: L.top + Math.random() * (L.bot - L.top), ty: b0.y + 6 + Math.random() * (b0.h - 12), age: 0 });
+    for (var id in V.dots) {
+      if (seen[id]) continue;
+      var d = V.dots[id];
+      delete V.dots[id];
+      if (d.r.state !== 'rejected') continue;
+      for (q = 0; q < sim.instances.length && sim.instances[q].model !== d.r.model; q++);
+      if (q === sim.instances.length) continue;
+      turnedAway -= 1;
+      if (!V.place) V.rejects.push(reject(d.x, d.y, L.boxes[q]));
+    }
+    for (q = 0; !V.place && q < Math.min(turnedAway, 8); q++) {
+      V.rejects.push(reject(-4, L.top + Math.random() * (L.bot - L.top), b0));
     }
     var s = dt / 1000;
     V.fly = V.fly.filter(function (p) { p.x += p.vx * s; return p.x < W + 30; });
@@ -287,26 +304,38 @@
     return w;
   }
   // A box's header: its name on the left; on the right a time-sliced step's stretch (×2, ×3), then in
-  // tab 03 the model's p99 against its SLO ("p99 1.84s / 2s", the p99 green or red), else the running
-  // count, then KV. levels runs from the fullest header to the barest: pieces drop from the right (KV,
-  // then "p99 " and the spaces around the slash), and last the name gives way to just the model. A
+  // tabs 03 and 04 the model's p99 against its SLO ("p99 1.84s / 2s", the p99 green or red), else the
+  // running count, then KV. levels runs from the fullest header to the barest: pieces drop from the right
+  // (KV, then "p99 " and the spaces around the slash), and last the name gives way to just the model. A
   // time-sliced box always keeps room for its marker, so nothing shifts as it blinks.
+  // In tab 04 the System1 box reads "System1 · scoring" with its queue and running counts and no p99, since
+  // its one token is a score no user sees; the API box names the API model's spend (in whole dollars on
+  // phones, before it gives way to just "API"), and shows its requests in flight where the others show KV.
   function header(inst) {
-    var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0, fits;
+    var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0, fits, levels;
     var kvTxt = 'KV ' + Math.round(kv * 100) + '%', kvCol = hot ? COL.warn : COL.muted;
+    var short = E.MODELS[inst.model].short, target = sim.slo ? sim.slo[inst.model] : undefined;
     inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
-    if (sim.slo) {
-      var p = V.p99[inst.model], v = E.fmt.ms(p === undefined ? null : p), slo = E.fmt.slo(sim.slo[inst.model]);
-      var pCol = p === null || p === undefined ? COL.muted : p <= sim.slo[inst.model] ? COL.ok : COL.bad;
-      fits = [[['p99 ' + v, pCol], [' / ' + slo, COL.muted], [' · ' + kvTxt, kvCol]],
-              [['p99 ' + v, pCol], [' / ' + slo, COL.muted]],
-              [[v, pCol], ['/' + slo, COL.muted]]];
+    if (inst.model === 'system1') {
+      var q = inst.queue.length, brief = [['q ' + q + ' · run ' + n, COL.muted]];
+      levels = [['System1 · scoring', [['queue ' + q + ' · running ' + n, COL.muted]]],
+                ['System1 · scoring', brief], ['System1', brief], [short, brief]];
     } else {
-      fits = [[['running ' + n + ' · ' + kvTxt, kvCol]], [[n + ' · ' + kvTxt, kvCol]]];
+      var last = inst.api ? [' · ' + n + ' in flight', COL.muted] : [' · ' + kvTxt, kvCol];
+      if (target !== undefined) {
+        var p = V.p99[inst.model], v = E.fmt.ms(p === undefined ? null : p), slo = E.fmt.slo(target);
+        var pCol = p === null || p === undefined ? COL.muted : p <= target ? COL.ok : COL.bad;
+        fits = [[['p99 ' + v, pCol], [' / ' + slo, COL.muted], last],
+                [['p99 ' + v, pCol], [' / ' + slo, COL.muted]],
+                [[v, pCol], ['/' + slo, COL.muted]]];
+      } else {
+        fits = [[['running ' + n + ' · ' + kvTxt, kvCol]], [[n + ' · ' + kvTxt, kvCol]]];
+      }
+      var name = inst.api ? 'API · ' + perHour(V.spend) : V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
+      levels = fits.map(function (f) { return [name, f]; });
+      if (inst.api) levels.push(['API ' + (V.spend === null ? '\u2013' : '$' + Math.round(V.spend) + '/h'), fits[fits.length - 1]]);
+      if (V.multi) levels.push([short, fits[fits.length - 1]]);
     }
-    var short = E.MODELS[inst.model].short, name = V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
-    var levels = fits.map(function (f) { return [name, f]; });
-    if (V.multi) levels.push([short, fits[fits.length - 1]]);
     ctx.font = '9px ' + FONT;
     return {
       kv: kv, hot: hot, levels: levels,
@@ -322,18 +351,25 @@
     }
     return h.levels.length - 1;
   }
+  // At the level draw() picks for every box; a box with fewer levels stays at its barest
   function drawHeader(h, level, b) {
-    var right = (h.marker ? [h.marker] : []).concat(h.levels[level][1]), x = b.x + b.w - 7;
-    text(h.levels[level][0], b.x + 7, b.y + 12, 9, COL.muted);
+    var lv = h.levels[Math.min(level, h.levels.length - 1)];
+    var right = (h.marker ? [h.marker] : []).concat(lv[1]), x = b.x + b.w - 7;
+    text(lv[0], b.x + 7, b.y + 12, 9, COL.muted);
     for (var k = right.length - 1; k >= 0; k--) {   // right-aligned, last piece first
       text(right[k][0], x, b.y + 12, 9, right[k][1], 'right');
       x -= ctx.measureText(right[k][0]).width;
     }
   }
 
+  // A box and its queue lane. Tab 04's API box has neither a lane nor a KV bar, and no free slot: the API
+  // model starts every request the moment it's routed there, on someone else's GPUs.
   function drawInstance(inst, b, rows, h, level) {
-    ctx.strokeStyle = COL.lane; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
-    rr(L.qx0 - 6, b.y, L.qx1 - L.qx0 + 12, b.h, 6); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+    if (!inst.api) {
+      ctx.strokeStyle = COL.lane; ctx.setLineDash([3, 4]);
+      rr(L.qx0 - 6, b.y, L.qx1 - L.qx0 + 12, b.h, 6); ctx.stroke(); ctx.setLineDash([]);
+    }
 
     rr(b.x, b.y, b.w, b.h, 6); ctx.fillStyle = COL.box; ctx.fill(); ctx.strokeStyle = COL.line; ctx.stroke();
     var kv = h.kv, hot = h.hot;
@@ -343,11 +379,12 @@
     for (var j = 0; j < show; j++) drawRow(inst, b, rows[j]);
     if (rows.length > b.cap) {   // on its own line below the last drawn row (two row lines tall)
       text('+' + (rows.length - show) + ' more', b.bx, lineY(b, show) + 7.5, 8, COL.faint);
-    } else if (rows.length < b.cap && E.canAdmit(sim, inst)) {   // a free slot: the next request to arrive joins at the next step
+    } else if (!inst.api && rows.length < b.cap && E.canAdmit(sim, inst)) {   // a free slot: the next request to arrive joins at the next step
       ctx.strokeStyle = COL.free; ctx.setLineDash([2, 2]);
       rr(b.bx + 0.5, lineY(b, rows.length) + 0.5, b.bw * 0.22, ROW_H - 1, 1.5); ctx.stroke(); ctx.setLineDash([]);
     }
 
+    if (inst.api) return;
     var ky = b.y + b.h - 8;
     bar(b.bx, ky, b.bw, 3, COL.track);
     bar(b.bx, ky, b.bw * Math.min(1, kv), 3, hot ? COL.warn : COL.accent);
@@ -405,19 +442,28 @@
     }
     ctx.strokeStyle = COL.accent; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1;
 
-    ctx.strokeStyle = COL.ok; ctx.setLineDash([2, 2]);
+    // The markers' lines, then their labels on top. Markers close enough for their labels to collide (tab 04's
+    // slider stepped key by key) form a run, and only the run's newest label shows.
+    var marks = [], placed = [];
+    ctx.font = '8px ' + FONT;
     sim.events.forEach(function (ev) {
       if (ev.t < h[0].t) return;   // scrolled off the left
       for (i = 0; i < n && h[i].t < ev.t; i++);
-      var x = Math.round(xs(Math.min(i, n - 1))) + 0.5;
-      ctx.beginPath(); ctx.moveTo(x, by + 3); ctx.lineTo(x, by + 25); ctx.stroke();
-      ctx.font = '8px ' + FONT;
-      var w = ctx.measureText(ev.label).width, left = x + 5 + w > x1, lx = left ? x - 5 - w : x + 5;
-      ctx.fillStyle = COL.panel;   // the label sits on a patch of panel, so the line never runs through it
-      ctx.fillRect(lx - 2, by + 4, w + 4, 9);
-      text(ev.label, lx, by + 11, 8, COL.ok);
+      var x = Math.round(xs(Math.min(i, n - 1))) + 0.5, w = ctx.measureText(ev.label).width;
+      marks.push({ label: ev.label, x: x, w: w, lx: x + 5 + w > x1 ? x - 5 - w : x + 5 });
     });
+    ctx.strokeStyle = COL.ok; ctx.setLineDash([2, 2]);
+    marks.forEach(function (m) { ctx.beginPath(); ctx.moveTo(m.x, by + 3); ctx.lineTo(m.x, by + 25); ctx.stroke(); });
     ctx.setLineDash([]);
+    function clash(a, b) { return a.lx < b.lx + b.w + 8 && b.lx < a.lx + a.w + 8; }
+    for (i = marks.length - 1; i >= 0; i--) {
+      var m = marks[i];
+      if ((i + 1 < marks.length && clash(m, marks[i + 1])) || placed.some(function (p) { return clash(m, p); })) continue;
+      placed.push(m);
+      ctx.fillStyle = COL.panel;   // the label sits on a patch of panel, so no line runs through it
+      ctx.fillRect(m.lx - 2, by + 4, m.w + 4, 9);
+      text(m.label, m.lx, by + 11, 8, COL.ok);
+    }
   }
 
   function draw() {
@@ -450,6 +496,8 @@
         (p === null ? '' : p <= slo ? ', met' : ', missed');
     }).join('; ');
   }
+  // A spend per hour, as the footer and the API box show it: '$60.12/h', or a dash with no API model
+  function perHour(v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + '/h'; }
   function footer() {
     var m = E.metrics(sim), f = E.fmt;
     if (sim.slo) {   // each box's p99 against its SLO, refreshed with the footer, and the same in words
@@ -472,7 +520,8 @@
     wrapSmall.hidden = wrapMis.hidden = !sim.routing;
     wrapApi.hidden = !V.api;
     if (sim.routing) { M.small.textContent = f.pct(m.smallShare); M.mis.textContent = f.pct(m.misroutedShare); }
-    if (V.api) M.api.textContent = m.apiUsdPerHour === null ? '\u2013' : '$' + m.apiUsdPerHour.toFixed(2) + '/h';
+    V.spend = m.apiUsdPerHour;   // and the API box's header
+    if (V.api) M.api.textContent = perHour(V.spend);
     return m;
   }
   function sample(m) {

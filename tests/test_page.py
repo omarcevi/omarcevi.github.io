@@ -246,6 +246,26 @@ class Simulator(unittest.TestCase):
         for e in entries:
             self.assertEqual(len(find_all(e, "i")), 1, e.text())   # its swatch
         self.assertEqual(find_all(entries[4], "i")[0].classes, ["k-pre"])
+        # tab 04 adds no entry: the System1 box's rows are prefill blocks, and the API box's rows are a prefill
+        # block (its wait for the first token) and decode, in the same colours
+
+    def js_function(self, name):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        return re.search(r"\n  function " + name + r"\(.*?\n  \}\n", js, re.S).group(0)
+
+    def test_routing_box_headers(self):
+        # tab 04's System1 box reads "System1 · scoring" with no p99 (its one token is a score no user sees), and
+        # the API box names its spend and its requests in flight. Python can't run the canvas, so the browser
+        # pass checks what they draw.
+        head = self.js_function("header")
+        self.assertIn("'System1 · scoring'", head)
+        self.assertIn("'API · '", head)
+        self.assertIn(" in flight'", head)
+        self.assertNotIn("if (sim.slo)", head)   # a target per model: the System1 model has none ("p99 – / NaNs")
+
+    def test_header_level_is_clamped(self):
+        # draw() puts every box at the highest level any box needs, so a box with fewer levels stays at its barest
+        self.assertIn("h.levels[Math.min(level, h.levels.length - 1)]", self.js_function("drawHeader"))
 
     def test_key_text_size(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")
