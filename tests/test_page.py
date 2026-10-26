@@ -140,9 +140,9 @@ class Simulator(unittest.TestCase):
         self.assertEqual(len(lists), 1)
         self.assertNotIn("hidden", lists[0].attrs)
         tabs = find_all(lists[0], "button", role="tab")
-        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing"])
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing", "traffic"])
         self.assertEqual([" ".join(t.text().split()) for t in tabs],
-                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing"])
+                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing", "05 real traffic"])
         for t in tabs:
             panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
             self.assertEqual(panel.attrs.get("role"), "tabpanel")
@@ -376,6 +376,83 @@ class Simulator(unittest.TestCase):
         self.assertEqual(thr.attrs.get("title"), "output tokens per second")
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
         self.assertIn("M.cost.parentNode.title = 'per 1M output tokens · H100 at $'", js)
+
+    def test_tab05_exists(self):
+        tab = find_all(self.box, "button", id="sim-tabbtn-traffic")[0]
+        self.assertEqual([tab.attrs.get(k) for k in ("role", "data-tab", "aria-controls", "aria-selected")],
+                         ["tab", "traffic", "sim-tab-traffic", "false"])
+        panel = find_all(self.box, id="sim-tab-traffic")[0]
+        self.assertEqual([panel.attrs.get(k) for k in ("role", "data-tab", "aria-labelledby")],
+                         ["tabpanel", "traffic", "sim-tabbtn-traffic"])
+        self.assertIn("hidden", panel.attrs)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertLess(page.index('id="sim-tab-routing"'), page.index('id="sim-tab-traffic"'))
+
+    def test_tab05_traffic_switch(self):
+        r = self.radios("sim-tab-traffic")
+        self.assertEqual([b.attrs.get("data-traffic") for b in r], ["random", "trace"])
+        self.assertEqual([" ".join(b.text().split()) for b in r], ["random", "Azure trace"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["false", "true"])
+        self.assertEqual({b.parent.attrs.get("aria-label") for b in r}, {"Traffic"})
+        self.assertEqual(r[0].parent.attrs.get("role"), "radiogroup")
+
+    def test_tab05_credits_the_trace(self):
+        panel = find_all(self.box, id="sim-tab-traffic")[0]
+        hrefs = [a.attrs.get("href", "") for a in find_all(panel, "a")]
+        self.assertTrue(any("github.com/Azure/AzurePublicDataset" in h for h in hrefs), hrefs)
+        self.assertTrue(any("creativecommons.org/licenses/by/4.0" in h for h in hrefs), hrefs)
+        text = " ".join(panel.text().split())
+        for words in ("every 4th request", "12×", "Microsoft", "Splitwise"):
+            self.assertIn(words, text)
+
+    def test_tab05_lesson_states_the_measured_peak(self):
+        import json
+        d = json.loads((ROOT / "assets/sim/azure-conv.json").read_text())
+        lesson = self.lesson("sim-tab-traffic")
+        self.assertIn("about %.1f× the hour's average" % d["peakRatio"], lesson)
+        self.assertIn("Size for the peak, not the average.", lesson)
+
+    def test_tab05_fetches_its_trace_and_survives_failure(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("fetch('assets/sim/azure-conv.json')", js)
+        chain = js[js.index("fetch('assets/sim/azure-conv.json')"):]
+        self.assertIn(".catch(", chain[:chain.index("\n  }\n")])
+        self.assertIn("'loading the trace…'", js)
+        self.assertIn("'the trace didn\\'t load'", js)
+
+    def test_tab05_switches_to_the_trace_when_it_arrives(self):
+        # Opened before the trace is in (the canvas below the fold, or a slow fetch), tab 05 starts on random;
+        # when the trace arrives it switches, unless the visitor picked random. A failed load retries next time.
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        branch = re.search(r"else if \(id === 'traffic'\) \{([^}]*)\}", js)
+        self.assertIsNotNone(branch, "switchTab's traffic branch")
+        self.assertLess(branch.group(1).index("loadTrace();"), branch.group(1).index("deploy("))
+        self.assertIn("pickedRandom = false", js[js.index("function switchTab("):js.index("function setMode(")])
+        traffic = js[js.index("function setTraffic("):]
+        self.assertIn("pickedRandom = id === 'traffic-random'", traffic[:traffic.index("\n  }\n")])
+        load = js[js.index("function loadTrace()"):]
+        load = load[:load.index("\n  }\n")]
+        self.assertIn("if (preset === 'traffic-random' && !pickedRandom) deploy('traffic-trace');", load)
+        self.assertIn("traceAsked = false", load[load.index(".catch("):])
+
+    def test_tab05_credit_links_show_on_the_panel(self):
+        # the links take .sim-note's colour, so their underline is what marks them: at least 3:1 on the panel
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        rule = re.search(r"\.sim-note a \{([^}]*)\}", page)
+        self.assertIsNotNone(rule, ".sim-note a rule")
+        r, g, b, alpha = (float(v) for v in re.search(r"text-decoration-color: rgba\(([^)]*)\)", rule.group(1)).group(1).split(","))
+        panel = (0x0f, 0x11, 0x15)
+        mixed = "#" + "".join("%02x" % round(c * alpha + p * (1 - alpha)) for c, p in zip((r, g, b), panel))
+        self.assertGreaterEqual(contrast(mixed, "#0f1115"), 3)
+        hover = re.search(r"\.sim-note a:hover \{([^}]*)\}", page)
+        self.assertIsNotNone(hover, ".sim-note a:hover rule")
+        self.assertIn("color: var(--p-accent)", hover.group(1))
+
+    def test_tab05_views(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        for key in ("traffic-trace", "traffic-random"):
+            self.assertRegex(js, r"'" + key + r"': \{")
+        self.assertIn("Azure trace, 1 h in 5 min", js)
 
     def test_switch_as_tall_as_header_buttons(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")

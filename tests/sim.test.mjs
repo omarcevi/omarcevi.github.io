@@ -1140,3 +1140,127 @@ test('tab 04, loads deployed in API mode at threshold 0, the default and 0.9: AP
   const green = ROUTE_SEEDS.map(seed => greenShare(routeVisit('routing-api', defaultThreshold(), seed).refreshes));
   assert.ok(median(green) >= 0.95, `median ${median(green)}; per load ${fixed(green)}`);
 });
+
+// ---- Tab 05: real traffic ----
+
+const D = require('../assets/sim/azure-conv.json');
+const TINY = { gapMs: [100, 200, 300], prompt: [10, 20, 30], output: [1, 2, 3], durationMs: 1000, speed: 2, fit: E.TRACE_FIT };
+function traceSim(data, startMs, seed = 1) {
+  const p = E.tracePreset(data);
+  return E.createSim(Object.assign({}, p, { seed, streams: [Object.assign({}, p.streams[0], startMs === undefined ? {} : { startMs })] }));
+}
+// Every request the sim has seen, by id: queued, running or finished
+function seen(sim) {
+  const all = {};
+  for (const inst of sim.instances) for (const r of inst.queue.concat(inst.running)) all[r.id] = r;
+  for (const r of sim.finished) all[r.id] = r;
+  return Object.values(all).sort((a, b) => a.id - b.id);
+}
+// Runs exactly ms of sim time in ticks of at most 50 ms
+function runExact(sim, ms) {
+  const end = sim.t + ms;
+  while (sim.t < end) E.tick(sim, Math.min(50, end - sim.t));
+}
+// Absolute hour times of the real trace's requests (one loop)
+const TRACE_T = D.gapMs.reduce((a, g) => (a.push((a.length ? a[a.length - 1] : 0) + g), a), []);
+
+test('tab 05: a trace stream replays each request at its time, with its own lengths', () => {
+  const sim = traceSim(TINY, 0);
+  runExact(sim, 400);
+  assert.deepEqual(seen(sim).map(r => [r.t0, r.prompt, r.output]), [[50, 10, 1], [150, 20, 2], [300, 30, 3]]);
+});
+test('tab 05: the replay loops, and the sparkline marks it', () => {
+  const sim = traceSim(TINY, 0);
+  runExact(sim, 540);
+  assert.equal(sim.stats.arrived, 3);
+  assert.equal(sim.events.filter(e => e.label === 'trace loops').length, 0);
+  runExact(sim, 60);
+  const fourth = seen(sim)[3];
+  assert.deepEqual([fourth.t0, fourth.prompt, fourth.output], [550, 10, 1]);   // (1000 + 100) / 2
+  assert.deepEqual(sim.events.filter(e => e.label === 'trace loops').map(e => e.t), [550]);
+  assert.equal(E.traceClock(sim).ms, 200);   // hour time 1100 + 50 * 2 = 1200, so 200 into the second loop
+});
+test('tab 05: one loop of the real trace replays every sampled request', () => {
+  const sim = traceSim(D, 0);
+  runExact(sim, D.durationMs / D.speed - 1);
+  assert.equal(sim.stats.arrived, D.kept);
+});
+test('tab 05: traceClock reads the hour\'s position, and is null outside tab 05', () => {
+  const sim = traceSim(D);
+  assert.deepEqual(E.traceClock(sim), { ms: E.TRACE_START_MS, totalMs: D.durationMs });
+  runExact(sim, 1000);
+  assert.equal(E.traceClock(sim).ms, E.TRACE_START_MS + 12000);
+  assert.equal(E.traceClock(E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 }))), null);
+  assert.equal(E.traceClock(E.createSim(Object.assign({}, E.PRESETS['traffic-random'], { seed: 1 }))), null);
+});
+test('tab 05: pause freezes the hour and play resumes it, with no catch-up flood', () => {
+  const sim = traceSim(D);
+  runExact(sim, 5000);
+  E.setArrivals(sim, false);
+  const frozen = E.traceClock(sim).ms, arrived = sim.stats.arrived;
+  runExact(sim, 10000);
+  assert.deepEqual([E.traceClock(sim).ms, sim.stats.arrived], [frozen, arrived]);
+  E.setArrivals(sim, true);
+  runExact(sim, 1000);
+  const due = TRACE_T.filter(t => t > frozen && t <= frozen + 12000).length;
+  assert.ok(due > 0);
+  assert.equal(sim.stats.arrived - arrived, due);
+});
+test('tab 05: a long tick advances the hour by at most 50 ms of sim time', () => {
+  const sim = traceSim(D);
+  const before = E.traceClock(sim).ms;
+  E.tick(sim, 60000);
+  assert.ok(E.traceClock(sim).ms - before <= 50 * 12);
+});
+test('tab 05: a burst on the trace stream draws the trace\'s fitted lengths', () => {
+  // a fit that can only give one prompt and one output length, so any other source of lengths shows
+  const ONE = Object.assign({}, TINY, { fit: { prompt: { median: 77, sigma: 0, min: 77, max: 77 }, output: { median: 5, sigma: 0, min: 5, max: 5 } } });
+  const sim = traceSim(ONE, 0);
+  E.setArrivals(sim, false);
+  E.sendBurst(sim, 20, 0);
+  runExact(sim, 1000);
+  const burst = seen(sim);
+  assert.equal(sim.stats.arrived, 20);
+  assert.deepEqual([...new Set(burst.map(r => r.prompt + '/' + r.output))], ['77/5']);
+});
+test('tab 05: the random preset carries the trace\'s load', () => {
+  assert.equal(E.TRACE_RATE, D.rate);
+  assert.deepEqual(E.TRACE_FIT, { prompt: D.fit.prompt, output: D.fit.output });
+  const s = E.PRESETS['traffic-random'].streams[0];
+  assert.deepEqual([s.model, s.rate, s.bursts, s.lengths], ['llama-3-8b', E.TRACE_RATE, false, E.TRACE_FIT]);
+  assert.deepEqual(E.PRESETS['traffic-random'].instances, E.tracePreset(D).instances);
+});
+test('tab 05: a trace stream rejects malformed data', () => {
+  const bad = over => () => traceSim(Object.assign({}, TINY, over), 0);
+  assert.throws(bad({ prompt: [10, 20] }), /^Error: bad trace/);
+  assert.throws(bad({ gapMs: [], prompt: [], output: [] }), /^Error: bad trace/);
+  assert.throws(bad({ speed: 0 }), /^Error: bad trace/);
+});
+// Tab 05 as the page shows it: the 40 s warm-up (it has an slo), then per refresh the time since the open,
+// whether the box is red, and the 503s since the open
+function trafficVisit(sim, watchMs) {
+  const refreshes = [];
+  let open = null, rejected = null;
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => {
+    if (open === null) { open = s.t; rejected = s.stats.rejected; }
+    const p99 = E.metrics(s, 'llama-3-8b', PAGE.p99WindowMs).ttftP99;
+    refreshes.push({ at: s.t - open, red: p99 !== null && p99 > s.slo['llama-3-8b'], rejected: s.stats.rejected - rejected });
+  });
+  return refreshes;
+}
+test('tab 05 as a visitor sees it, on the trace: green at the open, red 10-25 s later, then back to green', () => {
+  const r = trafficVisit(traceSim(D), 240000);
+  const firstRed = r.find(x => x.red), early = r.filter(x => x.at < 120000), late = r.filter(x => x.at >= 120000);
+  assert.equal(r[0].red, false, 'red at the open');
+  assert.ok(firstRed && firstRed.at >= 10000 && firstRed.at <= 25000, `first red at ${firstRed && firstRed.at} ms`);
+  const share = early.filter(x => x.red).length / early.length;
+  assert.ok(share >= 0.3, `red on ${share} of the first 2 min`);
+  assert.ok(early[early.length - 1].rejected > 0, 'no 503 in the first 2 min');
+  assert.ok(late.every(x => !x.red), `red at ${late.filter(x => x.red).map(x => x.at).join(', ')} ms`);
+});
+test('tab 05 as a visitor sees it, random traffic at the same load stays green', () => {
+  const loads = Array.from({ length: 10 }, (_, k) => trafficVisit(E.createSim(Object.assign({}, E.PRESETS['traffic-random'], { seed: k + 1 })), 120000));
+  const green = loads.map(r => r.filter(x => !x.red).length / r.length), clean = loads.filter(r => r[r.length - 1].rejected === 0).length;
+  assert.ok(green.filter(g => g >= 0.95).length >= 9, `green share per load ${green.map(g => g.toFixed(2)).join(' ')}`);
+  assert.ok(clean >= 9, `${clean}/10 loads without a 503`);
+});

@@ -9,6 +9,8 @@
 // Tab 04 has its own layout, left to right: a request queues and is scored at the System1 box in the middle,
 // then its dot goes down one of two branches, labelled with the routing rule, to the small or the large model's
 // lane. In API mode the large model is a dashed box with no lane or KV that names the API model's spend.
+// Tab 05 replays an hour of Azure's real traffic (assets/sim/azure-conv.json, fetched when the panel first
+// comes into view) or random traffic at the same load; on the trace, the arrivals label is the trace's clock.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
@@ -74,6 +76,14 @@
     'routing-api': {
       note: '· System1 model and Llama 3.2 1B on one H100, large model by API · real time', label: 'H100 + API model', narrow: 'H100 + API',
       aria: 'Animated simulation: a System1 model routes each request to a small model on one H100 or to a large model behind an API'
+    },
+    'traffic-trace': {
+      note: '· Llama 3 8B on one H100 · Azure trace, 1 h in 5 min', label: 'H100 · Llama 3 8B', narrow: 'H100',
+      aria: 'Animated simulation: an hour of Azure\'s production LLM traffic, sped up 12 times, served by Llama 3 8B on one H100'
+    },
+    'traffic-random': {
+      note: '· Llama 3 8B on one H100 · random traffic · real time', label: 'H100 · Llama 3 8B', narrow: 'H100',
+      aria: 'Animated simulation: random traffic at the Azure hour\'s average rate, served by Llama 3 8B on one H100'
     }
   };
   var KV_MEM = 0.9;   // tab 02's slider default, vLLM's --gpu-memory-utilization default
@@ -93,6 +103,10 @@
   // Each panel's radio group is its own roving-tabindex group
   function group(panelId) { return [].slice.call($(panelId).querySelectorAll('[role=radiogroup] [role=radio]')); }
   var batchRadios = group('sim-tab-batching'), deployRadios = group('sim-tab-mig'), largeRadios = group('sim-tab-routing');
+  var trafficRadios = group('sim-tab-traffic');
+  var traceRadio = trafficRadios.filter(function (b) { return b.getAttribute('data-traffic') === 'trace'; })[0];
+  var TRACE = null, traceAsked = false;   // tab 05's trace, once loaded
+  var pickedRandom = false;               // the visitor chose random in tab 05, so the trace arriving doesn't switch it
 
   var sim = null, preset = null, V = null, L = null, frozen = REDUCE, shown = null;
   var W = 0, H = 0, visible = false, raf = 0, last = 0;
@@ -585,7 +599,7 @@
       routingLabels(narrow);
       drawBranches();
     } else {
-      text(10 + ctx.measureText('requests →').width + 6 > L.qx0 - 4 ? 'requests' : 'requests →', 10, 16, 10, COL.faint);
+      arrivalsLabel(narrow);
       text(narrow ? 'queue' : 'router · queue', L.qx0 - 4, 16, 10, COL.faint);
       text(narrow ? VIEWS[preset].narrow : VIEWS[preset].label, L.gx0, 16, 10, COL.faint);
       if (W > 420) text('tokens →', L.gx1 + 10, 16, 10, COL.faint);
@@ -696,6 +710,17 @@
   // ---- Tabs and controls ----
 
   // Checks the radio that matches, and makes it the one Tab stops on in its group
+  // The arrivals column's label: on tab 05's trace, where the replay is in its hour, else "requests →"
+  function arrivalsLabel(narrow) {
+    var c = E.traceClock(sim), s;
+    if (c) {
+      s = narrow ? mmss(c.ms) : 'trace ' + mmss(c.ms) + ' / ' + mmss(c.totalMs);
+      if (10 + ctx.measureText(s).width + 6 > L.qx0 - 4) s = mmss(c.ms);
+    } else s = 10 + ctx.measureText('requests →').width + 6 > L.qx0 - 4 ? 'requests' : 'requests →';
+    text(s, 10, 16, 10, COL.faint);
+  }
+  function mmss(ms) { var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+
   function check(list, attr, value) {
     list.forEach(function (b) {
       var on = b.getAttribute(attr) === value;
@@ -709,6 +734,30 @@
     check(batchRadios, 'data-batching', sim.batching);
     check(deployRadios, 'data-deploy', preset.indexOf('mig-') === 0 ? preset.slice(4) : 'mig');
     check(largeRadios, 'data-large', preset.indexOf('routing-') === 0 ? preset.slice(8) : 'onprem');
+    check(trafficRadios, 'data-traffic', preset.indexOf('traffic-') === 0 ? preset.slice(8) : 'trace');
+  }
+
+  // Tab 05's trace loads when the panel first comes into view, or when tab 05 opens before that. Until it's in,
+  // the trace option is disabled and says why, and tab 05 runs on random traffic; when it arrives, tab 05
+  // switches to it unless the visitor picked random. A failed load is tried again the next time tab 05 opens.
+  function traceState(title) {
+    if (title) { traceRadio.setAttribute('aria-disabled', 'true'); traceRadio.title = title; }
+    else { traceRadio.removeAttribute('aria-disabled'); traceRadio.removeAttribute('title'); }
+  }
+  function loadTrace() {
+    if (traceAsked) return;
+    traceAsked = true;
+    fetch('assets/sim/azure-conv.json').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      TRACE = d;
+      traceState(null);
+      if (preset === 'traffic-random' && !pickedRandom) deploy('traffic-trace');
+    }).catch(function () {
+      traceAsked = false;
+      traceState('the trace didn\'t load');
+    });
   }
 
   // A redeploy: builds the preset with a fresh seed and warms it up, so it opens mid-flow (tabs 03 and 04,
@@ -716,7 +765,7 @@
   // it, from the warm-up on and with no marker. Nothing of the old sim's view carries over, and frozen stays
   // as it is (reduced motion opens every one frozen).
   function deploy(id, config) {
-    var p = E.PRESETS[id];
+    var p = id === 'traffic-trace' ? E.tracePreset(TRACE) : E.PRESETS[id];
     preset = id;
     sim = E.createSim(Object.assign({}, p, {
       seed: Math.floor(Math.random() * 2147483647), config: config,
@@ -759,7 +808,9 @@
     kvMemOut.textContent = KV_MEM.toFixed(2);
     route.value = String(ROUTE);
     showRoute();
+    pickedRandom = false;
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
+    else if (id === 'traffic') { loadTrace(); deploy(TRACE ? 'traffic-trace' : 'traffic-random'); }
     else deploy(id === 'mig' ? 'mig-mig' : id === 'routing' ? 'routing-onprem' : 'batching');
   }
 
@@ -775,6 +826,12 @@
   function setLarge(b) {
     var id = 'routing-' + b.getAttribute('data-large');
     if (id !== preset) deploy(id);   // at the slider's threshold
+  }
+  function setTraffic(b) {
+    var id = 'traffic-' + b.getAttribute('data-traffic');
+    if (b.getAttribute('aria-disabled') === 'true') return;
+    pickedRandom = id === 'traffic-random';
+    if (id !== preset) deploy(id);
   }
 
   // Arrow keys move along a tab list or radio group and pick what they land on (roving tabindex)
@@ -803,6 +860,8 @@
   arrows(deployRadios, RADIO_KEYS, setDeploy);
   largeRadios.forEach(function (b) { b.addEventListener('click', function () { setLarge(b); }); });
   arrows(largeRadios, RADIO_KEYS, setLarge);
+  trafficRadios.forEach(function (b) { b.addEventListener('click', function () { setTraffic(b); }); });
+  arrows(trafficRadios, RADIO_KEYS, setTraffic);
   // The output follows the slider as it moves; a redeploy waits for the change (release, or a key step),
   // since --gpu-memory-utilization is a startup flag
   kvMem.addEventListener('input', function () { kvMemOut.textContent = (+kvMem.value).toFixed(2); });
@@ -841,11 +900,12 @@
     wake();
   });
 
+  traceState('loading the trace…');
   resize();
   switchTab('batching');
   if ('ResizeObserver' in window) new ResizeObserver(resize).observe(cv);
   else window.addEventListener('resize', resize);
-  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; wake(); }).observe(cv);
-  else { visible = true; wake(); }
+  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visible = es[0].isIntersecting; if (visible) loadTrace(); wake(); }).observe(cv);
+  else { visible = true; loadTrace(); wake(); }
   document.addEventListener('visibilitychange', wake);
 })();
