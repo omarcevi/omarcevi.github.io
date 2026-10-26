@@ -1264,3 +1264,165 @@ test('tab 05 as a visitor sees it, random traffic at the same load stays green',
   assert.ok(green.filter(g => g >= 0.95).length >= 9, `green share per load ${green.map(g => g.toFixed(2)).join(' ')}`);
   assert.ok(clean >= 9, `${clean}/10 loads without a 503`);
 });
+
+// ---- Tab 06: failure ----
+
+function failSim(seed = 1, over = {}) { return E.createSim(Object.assign({}, E.PRESETS.failure, { seed }, over)); }
+const status = (sim, k) => E.instanceStatus(sim, sim.instances[k]);
+
+test('tab 06: killing a GPU retries its requests on the survivor', () => {
+  const sim = failSim();
+  runExact(sim, 20000);
+  const dead = sim.instances[1].running.concat(sim.instances[1].queue).map(r => [r, r.id, r.t0]);
+  assert.ok(dead.length > 0);
+  assert.equal(E.killGpu(sim), 1);
+  assert.equal(status(sim, 1).state, 'down');
+  assert.deepEqual([sim.instances[1].queue.length, sim.instances[1].running.length], [0, 0]);
+  for (const [r, id, t0] of dead) {
+    assert.deepEqual([r.id, r.t0, r.retries], [id, t0, 1]);
+    assert.ok(r.state === 'rejected' || (r.inst === 0 && r.prefillDone === 0 && r.generated === 0 && r.tFirst === null), `request ${id}: ${r.state} on ${r.inst}`);
+  }
+  assert.equal(sim.stats.retried, dead.length);
+  assert.equal(sim.events[sim.events.length - 1].label, 'H100 2 killed');
+});
+test('tab 06: a kill cancels the step in flight', () => {
+  const sim = failSim();
+  runExact(sim, 20000);
+  const doomed = sim.instances[1].stepEnd, retried = sim.instances[1].running.concat(sim.instances[1].queue);
+  assert.ok(sim.instances[1].running.length > 0 && doomed !== null && doomed > sim.t);
+  E.killGpu(sim);
+  const at = sim.t, end = sim.t + 5000;
+  while (sim.t < end) {
+    E.tick(sim, 16);
+    const dead = sim.instances[1];
+    assert.deepEqual([dead.running.length, dead.queue.length, dead.kvUsed], [0, 0, 0]);
+    for (const inst of sim.instances) for (const r of inst.queue.concat(inst.running)) assert.notEqual(r.inst, 1);
+    // the cancelled step never completes: nothing is logged at its end, and a retry still waiting has made nothing
+    assert.ok(!sim.ttftLog.some(e => e[0] === doomed) && !sim.tokLog.some(e => e[0] === doomed), 'logged at the dead step\'s end');
+    for (const r of retried) if (r.state === 'queued') assert.deepEqual([r.prefillDone, r.generated, r.tFirst], [0, 0, null]);
+  }
+  assert.ok(sim.finished.filter(r => r.tDone > at).every(r => r.inst === 0));
+});
+test('tab 06: the footer\'s KV share counts only GPUs that are up', () => {
+  const sim = failSim();
+  runExact(sim, 20000);
+  E.killGpu(sim);
+  runExact(sim, 10000);
+  const live = sim.instances[0];
+  near(E.metrics(sim).kvFrac, live.kvUsed / live.kvBudget, 1e-12);
+  E.setAutoscaler(sim, true);
+  near(E.metrics(sim).kvFrac, live.kvUsed / live.kvBudget, 1e-12);   // a starting GPU holds no cache yet either
+});
+test('tab 06: the kill button has nothing to kill with one GPU left', () => {
+  const sim = failSim();
+  runExact(sim, 5000);
+  E.killGpu(sim);
+  const retried = sim.stats.retried, events = sim.events.length;
+  assert.equal(E.killGpu(sim), null);
+  assert.deepEqual([status(sim, 0).state, sim.stats.retried, sim.events.length], ['up', retried, events]);
+});
+test('tab 06: billing follows the GPUs', () => {
+  const sim = failSim();
+  assert.equal(sim.gpuCount, 2);
+  E.killGpu(sim);
+  assert.equal(sim.gpuCount, 1);
+  E.setAutoscaler(sim, true);
+  assert.equal(sim.gpuCount, 2);
+  runExact(sim, E.COLD_START_MS + 100);
+  assert.equal(sim.gpuCount, 2);
+});
+test('tab 06: the autoscaler brings a replacement up after the cold start', () => {
+  const sim = failSim();
+  runExact(sim, 5000);
+  E.killGpu(sim);
+  E.setAutoscaler(sim, true);
+  assert.deepEqual(status(sim, 1), { state: 'starting', gpu: 2, readyInMs: E.COLD_START_MS });
+  runExact(sim, 10000);
+  assert.equal(status(sim, 1).readyInMs, E.COLD_START_MS - 10000);
+  runExact(sim, E.COLD_START_MS - 10000);
+  assert.deepEqual(status(sim, 1), { state: 'up', gpu: 2, readyInMs: null });
+  runExact(sim, 1000);
+  assert.ok(sim.instances[1].running.length + sim.instances[1].queue.length > 0, 'the router sends it requests');
+  const labels = sim.events.map(e => e.label);
+  assert.ok(labels.includes('autoscaler on') && labels.includes('H100 3 starting') && labels.includes('H100 3 up'), labels.join(', '));
+});
+test('tab 06: autoscaler off cancels a start', () => {
+  const sim = failSim();
+  E.killGpu(sim);
+  E.setAutoscaler(sim, true);
+  runExact(sim, 10000);
+  E.setAutoscaler(sim, false);
+  assert.deepEqual([status(sim, 1).state, status(sim, 1).gpu, sim.gpuCount], ['down', 1, 1]);
+  assert.equal(sim.events[sim.events.length - 1].label, 'autoscaler off');
+  E.setAutoscaler(sim, true);
+  assert.equal(status(sim, 1).readyInMs, E.COLD_START_MS);
+});
+test('tab 06: GPU ids count up', () => {
+  const sim = failSim(1, { autoscaler: true });
+  E.killGpu(sim);
+  runExact(sim, E.COLD_START_MS + 1000);
+  assert.equal(status(sim, 1).gpu, 2);
+  assert.equal(E.killGpu(sim), 2);
+  assert.equal(sim.events.filter(e => e.label === 'H100 3 killed').length, 1);
+  assert.deepEqual([status(sim, 1).state, status(sim, 1).gpu], ['starting', 3]);
+});
+test('tab 06: retries drain while paused', () => {
+  const sim = failSim();
+  runExact(sim, 20000);
+  E.setArrivals(sim, false);
+  const dead = sim.instances[1].running.concat(sim.instances[1].queue);
+  E.killGpu(sim);
+  const end = sim.t + 120000;
+  while (!E.isDrained(sim) && sim.t < end) E.tick(sim, 50);
+  assert.ok(E.isDrained(sim));
+  assert.ok(dead.every(r => r.state === 'done' || r.state === 'rejected'), dead.map(r => r.state).join(' '));
+});
+test('tab 06: a replacement still starting keeps the sim awake', () => {
+  const sim = failSim(1, { autoscaler: true });
+  E.setArrivals(sim, false);
+  E.killGpu(sim);
+  runExact(sim, 20000);
+  assert.equal(E.isDrained(sim), false);
+  runExact(sim, E.COLD_START_MS);
+  assert.ok(E.isDrained(sim));
+});
+test('tab 06: tabs 01–05 never see the lifecycle', () => {
+  for (const id of Object.keys(E.PRESETS).filter(id => id !== 'failure')) {
+    const sim = E.createSim(Object.assign({}, E.PRESETS[id], { seed: 1 }));
+    assert.ok(sim.instances.every(inst => E.instanceStatus(sim, inst).state === 'up'), id);
+    assert.equal(sim.autoscaler, false, id);
+  }
+});
+// Tab 06 as the page shows it: the 40 s warm-up, an optional kill at the open, then per refresh the time since
+// the open, whether a box is red (one model on two boxes, so the model's p99 is both boxes' colour) and the 503s
+function failVisit(seed, { kill = false, autoscaler = false, watchMs = 30000 } = {}) {
+  const sim = failSim(seed, { autoscaler });
+  const refreshes = [];
+  let open = null;
+  visit(sim, PAGE.tab03WarmMs, watchMs, s => {
+    if (open === null) { open = s.t; if (kill) E.killGpu(s); }
+    const p99 = E.metrics(s, 'llama-3-8b', PAGE.p99WindowMs).ttftP99;
+    refreshes.push({ at: s.t - open, red: p99 !== null && p99 > s.slo['llama-3-8b'], rejected: s.stats.rejected });
+  });
+  return refreshes;
+}
+const FAIL_SEEDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+test('tab 06 as a visitor sees it: green before the kill', () => {
+  const green = FAIL_SEEDS.map(seed => { const r = failVisit(seed); return r.filter(x => !x.red).length / r.length; });
+  assert.ok(green.filter(g => g >= 0.95).length >= 9, `green share per load ${green.map(g => g.toFixed(2)).join(' ')}`);
+});
+test('tab 06 as a visitor sees it: a kill turns it red and, with the autoscaler off, the 503s keep coming', () => {
+  const loads = FAIL_SEEDS.map(seed => failVisit(seed, { kill: true, watchMs: 60000 }));
+  const redSoon = loads.filter(r => r.some(x => x.red && x.at <= 15000)).length;
+  const rejectedAt = (r, at) => r.filter(x => x.at <= at).pop().rejected;
+  const growing = loads.filter(r => rejectedAt(r, 60000) > rejectedAt(r, 30000)).length;
+  assert.ok(redSoon >= 9, `red within 15 s on ${redSoon}/10`);
+  assert.ok(growing >= 9, `503s still growing on ${growing}/10`);
+});
+test('tab 06 as a visitor sees it: with the autoscaler on, the replacement brings it back', () => {
+  const from = E.COLD_START_MS + 20000, to = E.COLD_START_MS + 60000;
+  const loads = FAIL_SEEDS.map(seed => failVisit(seed, { kill: true, autoscaler: true, watchMs: to }).filter(x => x.at >= from));
+  const green = loads.filter(r => r.every(x => !x.red)).length, quiet = loads.filter(r => r[r.length - 1].rejected === r[0].rejected).length;
+  assert.ok(green >= 9, `green from ${from / 1000} s on ${green}/10`);
+  assert.ok(quiet >= 9, `no new 503 on ${quiet}/10`);
+});

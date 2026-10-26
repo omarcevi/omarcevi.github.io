@@ -140,9 +140,9 @@ class Simulator(unittest.TestCase):
         self.assertEqual(len(lists), 1)
         self.assertNotIn("hidden", lists[0].attrs)
         tabs = find_all(lists[0], "button", role="tab")
-        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing", "traffic"])
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing", "traffic", "failure"])
         self.assertEqual([" ".join(t.text().split()) for t in tabs],
-                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing", "05 real traffic"])
+                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing", "05 real traffic", "06 failure"])
         for t in tabs:
             panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
             self.assertEqual(panel.attrs.get("role"), "tabpanel")
@@ -453,6 +453,67 @@ class Simulator(unittest.TestCase):
         for key in ("traffic-trace", "traffic-random"):
             self.assertRegex(js, r"'" + key + r"': \{")
         self.assertIn("Azure trace, 1 h in 5 min", js)
+
+    def test_tab06_exists(self):
+        tab = find_all(self.box, "button", id="sim-tabbtn-failure")[0]
+        self.assertEqual([tab.attrs.get(k) for k in ("role", "data-tab", "aria-controls", "aria-selected")],
+                         ["tab", "failure", "sim-tab-failure", "false"])
+        panel = find_all(self.box, id="sim-tab-failure")[0]
+        self.assertEqual([panel.attrs.get(k) for k in ("role", "data-tab", "aria-labelledby")],
+                         ["tabpanel", "failure", "sim-tabbtn-failure"])
+        self.assertIn("hidden", panel.attrs)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertLess(page.index('id="sim-tab-traffic"'), page.index('id="sim-tab-failure"'))
+
+    def test_tab06_controls(self):
+        panel = find_all(self.box, id="sim-tab-failure")[0]
+        kill = find_all(panel, "button", id="sim-kill")
+        self.assertEqual(len(kill), 1)
+        self.assertEqual([kill[0].attrs.get("type"), " ".join(kill[0].text().split())], ["button", "kill a GPU"])
+        r = self.radios("sim-tab-failure")
+        self.assertEqual([b.attrs.get("data-autoscale") for b in r], ["off", "on"])
+        self.assertEqual([" ".join(b.text().split()) for b in r], ["autoscaler off", "autoscaler on"])
+        self.assertEqual([b.attrs.get("aria-checked") for b in r], ["true", "false"])
+        self.assertEqual({b.parent.attrs.get("aria-label") for b in r}, {"Autoscaler"})
+        self.assertEqual(r[0].parent.attrs.get("role"), "radiogroup")
+
+    def test_tab06_footer_item(self):
+        self.assertEqual(len(find_all(self.box, id="m-retry")), 1)
+        wrap = find_all(self.box, id="m-retry-wrap")
+        self.assertEqual(len(wrap), 1)
+        self.assertIn("hidden", wrap[0].attrs)
+        self.assertIn("p-foot", wrap[0].parent.classes)
+
+    def test_tab06_lesson(self):
+        self.assertEqual(self.lesson("sim-tab-failure"),
+                         "Failure. Two replicas of Llama 3 8B, each on its own H100, share the traffic. Kill one and its "
+                         "requests come back as client retries: their KV cache died with the GPU, so each redoes its "
+                         "prefill and starts its reply over, and p99 spikes. The survivor can't carry both GPUs' traffic "
+                         "alone, so its queue grows and requests get 503s. Turn the autoscaler on and a replacement H100 "
+                         "comes up after a cold start, and the queues drain. Cold start: 30 s, assumed (a warm spare node "
+                         "loading the weights); a fresh node takes minutes.")
+        engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
+        self.assertIn("var COLD_START_MS = 30000;", engine)   # the note's 30 s
+
+    def test_tab06_resets_on_open(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertIn("else if (id === 'failure') deploy('failure');", js)
+        self.assertRegex(js, r"\n    failure: \{")
+        self.assertIn("E.killGpu(sim)", js)
+        self.assertIn("E.setAutoscaler(sim", js)
+
+    def test_tab06_dead_box_streams_no_tokens(self):
+        # a failed or starting box makes no tokens, so its particle rate drops to 0 at once rather than decaying
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        sync = js[js.index("function sync(dt)"):js.index("function sync(dt)") + 6000]
+        self.assertIn("if (!inst.api && E.instanceStatus(sim, inst).state !== 'up') { V.rate[ii] = 0; V.acc[ii] = 0; }", sync)
+
+    def test_tab06_kill_button_keeps_focus(self):
+        # disabling a focused button drops focus to the page; aria-disabled keeps it, with the reason as its title
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        self.assertNotIn("killBtn.disabled", js)
+        self.assertIn("killBtn.setAttribute('aria-disabled', 'true')", js)
+        self.assertIn("'one GPU left'", js)
 
     def test_switch_as_tall_as_header_buttons(self):
         page = (ROOT / "index.html").read_text(encoding="utf-8")

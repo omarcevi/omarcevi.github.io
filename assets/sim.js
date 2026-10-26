@@ -11,6 +11,8 @@
 // lane. In API mode the large model is a dashed box with no lane or KV that names the API model's spend.
 // Tab 05 replays an hour of Azure's real traffic (assets/sim/azure-conv.json, fetched when the panel first
 // comes into view) or random traffic at the same load; on the trace, the arrivals label is the trace's clock.
+// Tab 06 serves two replicas on two H100s: killing one draws its box failed (dashed red), and with the
+// autoscaler on its replacement draws as starting (dashed, counting down its cold start) until it serves.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
 (function () {
   'use strict';
@@ -38,7 +40,7 @@
     panel: '#0f1115', box: '#161920', line: '#2a2f38', track: '#232830', sep: '#1c2027',
     prefillTodo: 'rgba(122,162,255,0.22)', decode: 'rgba(122,162,255,0.6)', idle: 'rgba(139,145,156,0.35)',
     doneDecode: 'rgba(74,222,128,0.55)', preDecode: 'rgba(245,165,36,0.55)', free: 'rgba(122,162,255,0.55)',
-    lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)', branch: 'rgba(122,162,255,0.45)'
+    lane: 'rgba(220,225,235,0.12)', grid: 'rgba(220,225,235,0.06)', branch: 'rgba(122,162,255,0.45)', badDim: 'rgba(239,68,68,0.5)'
   };
   var BASE = [208, 213, 222], WARN = [245, 165, 36], BAD = [239, 68, 68];
   var PLAY = {
@@ -81,6 +83,10 @@
       note: '· Llama 3 8B on one H100 · Azure trace, 1 h in 5 min', label: 'H100 · Llama 3 8B', narrow: 'H100',
       aria: 'Animated simulation: an hour of Azure\'s production LLM traffic, sped up 12 times, served by Llama 3 8B on one H100'
     },
+    failure: {
+      note: '· Llama 3 8B on two H100s · real time', label: '2 × H100 · Llama 3 8B', narrow: '2 × H100',
+      aria: 'Animated simulation: Llama 3 8B on two H100 replicas behind a router; one can be killed and replaced'
+    },
     'traffic-random': {
       note: '· Llama 3 8B on one H100 · random traffic · real time', label: 'H100 · Llama 3 8B', narrow: 'H100',
       aria: 'Animated simulation: random traffic at the Azure hour\'s average rate, served by Llama 3 8B on one H100'
@@ -90,20 +96,21 @@
   var ROUTE = E.PRESETS['routing-onprem'].routing.threshold;   // tab 04's slider default, the engine's
 
   var playBtn = $('sim-play'), burstBtn = $('sim-burst'), wrap503 = $('m-503-wrap'), wrapPre = $('m-pre-wrap');
-  var wrapSmall = $('m-small-wrap'), wrapMis = $('m-mis-wrap'), wrapApi = $('m-api-wrap');
+  var wrapSmall = $('m-small-wrap'), wrapMis = $('m-mis-wrap'), wrapApi = $('m-api-wrap'), wrapRetry = $('m-retry-wrap');
+  var killBtn = $('sim-kill');
   var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
   var route = $('sim-route'), routeOut = $('sim-route-v');
   var M = {
     p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'),
     gpus: $('m-gpus'), cost: $('m-cost'), pre: $('m-pre'), rej: $('m-503'),
-    small: $('m-small'), mis: $('m-mis'), api: $('m-api')
+    small: $('m-small'), mis: $('m-mis'), api: $('m-api'), retry: $('m-retry')
   };
   var tabs = [].slice.call(box.querySelectorAll('[role=tablist] [role=tab]'));
   var panels = [].slice.call(box.querySelectorAll('[role=tabpanel]'));
   // Each panel's radio group is its own roving-tabindex group
   function group(panelId) { return [].slice.call($(panelId).querySelectorAll('[role=radiogroup] [role=radio]')); }
   var batchRadios = group('sim-tab-batching'), deployRadios = group('sim-tab-mig'), largeRadios = group('sim-tab-routing');
-  var trafficRadios = group('sim-tab-traffic');
+  var trafficRadios = group('sim-tab-traffic'), autoRadios = group('sim-tab-failure');
   var traceRadio = trafficRadios.filter(function (b) { return b.getAttribute('data-traffic') === 'trace'; })[0];
   var TRACE = null, traceAsked = false;   // tab 05's trace, once loaded
   var pickedRandom = false;               // the visitor chose random in tab 05, so the trace arriving doesn't switch it
@@ -300,6 +307,8 @@
         if (live[row.r.id] === row.r || row.preAt !== null) dot(row.r, b.bx + 2, ty + ROW_H / 2, true, j >= vis, ii);
       }
       inst.queue.forEach(function (x, qi) { if (!seen[x.id]) { var p = qslot(b, qi); dot(x, p[0], p[1], false, false, ii); } });
+      // tab 06: a failed or starting box makes no tokens, so its particles stop at once rather than decaying
+      if (!inst.api && E.instanceStatus(sim, inst).state !== 'up') { V.rate[ii] = 0; V.acc[ii] = 0; }
       if (dt > 0) {   // token particles: scaled to the instance's tok/s, at most 30 a second
         V.rate[ii] += (made * 1000 / dt - V.rate[ii]) * Math.min(1, dt / 600);
         V.acc[ii] += Math.min(MAX_PARTICLES_PER_S, V.rate[ii] / TOKENS_PER_PARTICLE) * dt / 1000;
@@ -379,7 +388,7 @@
   // a MIG slice by its profile
   function boxName(inst) {
     if (inst.profile !== '7g.80gb') return inst.profile;
-    return inst.timeSliced ? 'shared H100' : sim.gpuCount > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
+    return inst.timeSliced ? 'shared H100' : sim.instances.length > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
   }
   function width(pieces) {
     var w = 0;
@@ -398,8 +407,12 @@
     var kv = inst.kvBudget > 0 ? inst.kvUsed / inst.kvBudget : 0, hot = kv > 0.8, n = 0, fits, levels;
     var kvTxt = 'KV ' + Math.round(kv * 100) + '%', kvCol = hot ? COL.warn : COL.muted;
     var short = E.MODELS[inst.model].short, target = sim.slo ? sim.slo[inst.model] : undefined;
+    var st = inst.api ? null : E.instanceStatus(sim, inst);
     inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
-    if (inst.model === 'system1') {
+    if (st && st.state !== 'up') {   // tab 06: a killed GPU, or its replacement starting
+      var gpu = 'H100 ' + (st.gpu + 1), what = st.state === 'down' ? 'failed' : 'starting ' + Math.ceil(st.readyInMs / 1000) + 's';
+      levels = [[gpu + ' · ' + what, []], [gpu, [[what, COL.muted]]], [what, []]];
+    } else if (inst.model === 'system1') {
       var q = inst.queue.length, brief = [['q ' + q + ' · run ' + n, COL.muted]];
       levels = [['System1 · scoring', [['queue ' + q + ' · running ' + n, COL.muted]]],
                 ['System1 · scoring', brief], ['System1', brief], [short, brief], [short, [['q ' + q, COL.muted]]]];
@@ -456,8 +469,17 @@
     }
 
     rr(b.x, b.y, b.w, b.h, 6);
+    var st = inst.api ? null : E.instanceStatus(sim, inst);
     if (inst.api) {
       ctx.fillStyle = COL.panel; ctx.fill(); ctx.strokeStyle = COL.muted; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+    } else if (st.state !== 'up') {   // tab 06: failed (dashed red), or a replacement starting (dashed, its cold start as the bar)
+      ctx.fillStyle = COL.panel; ctx.fill(); ctx.strokeStyle = st.state === 'down' ? COL.badDim : COL.faint;
+      ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+      drawHeader(h, level, b);
+      var cy = b.y + b.h - 8;
+      bar(b.bx, cy, b.bw, 3, COL.track);
+      if (st.state === 'starting') bar(b.bx, cy, b.bw * (1 - st.readyInMs / E.COLD_START_MS), 3, COL.faint);
+      return;
     } else {
       ctx.fillStyle = COL.box; ctx.fill(); ctx.strokeStyle = COL.line; ctx.stroke();
     }
@@ -620,11 +642,15 @@
 
   // The canvas's aria-label in tabs 03 and 04: the view, then each model's p99 against its target, as the boxes show it
   function sloLabel() {
+    var words = sim.instances.map(function (inst) {   // tab 06: which GPU is down or starting
+      var st = inst.api ? null : E.instanceStatus(sim, inst);
+      return !st || st.state === 'up' ? '' : '; H100 ' + (st.gpu + 1) + (st.state === 'down' ? ' failed' : ' starting');
+    }).join('');
     return VIEWS[preset].aria + '. ' + V.targets.map(function (model) {
       var p = V.p99[model], slo = sim.slo[model];
       return E.MODELS[model].short + ' p99 ' + E.fmt.spoken(p) + ', target ' + E.fmt.spoken(slo) +
         (p === null ? '' : p <= slo ? ', met' : ', missed');
-    }).join('; ');
+    }).join('; ') + words;
   }
   // A spend per hour, as the footer and the API box show it: '$60.12/h', or a dash with no API model
   function perHour(v) { return v === null ? '\u2013' : '$' + v.toFixed(2) + '/h'; }
@@ -650,6 +676,13 @@
     wrapSmall.hidden = wrapMis.hidden = !sim.routing;
     wrapApi.hidden = !V.api;
     if (sim.routing) { M.small.textContent = f.pct(m.smallShare); M.mis.textContent = f.pct(m.misroutedShare); }
+    // tab 06: the retries, and the kill button while there's a second GPU up to kill
+    wrapRetry.hidden = preset !== 'failure';
+    M.retry.textContent = sim.stats.retried.toLocaleString('en-US');
+    // aria-disabled, not disabled: disabling the focused button would drop keyboard focus to the page
+    if (preset === 'failure' && sim.instances.filter(function (inst) { return !inst.api && E.instanceStatus(sim, inst).state === 'up'; }).length < 2) {
+      killBtn.setAttribute('aria-disabled', 'true'); killBtn.title = 'one GPU left';
+    } else { killBtn.removeAttribute('aria-disabled'); killBtn.removeAttribute('title'); }
     V.spend = m.apiUsdPerHour;   // and the API box's header
     if (V.api) M.api.textContent = perHour(V.spend);
     return m;
@@ -735,6 +768,7 @@
     check(deployRadios, 'data-deploy', preset.indexOf('mig-') === 0 ? preset.slice(4) : 'mig');
     check(largeRadios, 'data-large', preset.indexOf('routing-') === 0 ? preset.slice(8) : 'onprem');
     check(trafficRadios, 'data-traffic', preset.indexOf('traffic-') === 0 ? preset.slice(8) : 'trace');
+    check(autoRadios, 'data-autoscale', sim.autoscaler ? 'on' : 'off');
   }
 
   // Tab 05's trace loads when the panel first comes into view, or when tab 05 opens before that. Until it's in,
@@ -811,6 +845,7 @@
     pickedRandom = false;
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
     else if (id === 'traffic') { loadTrace(); deploy(TRACE ? 'traffic-trace' : 'traffic-random'); }
+    else if (id === 'failure') deploy('failure');
     else deploy(id === 'mig' ? 'mig-mig' : id === 'routing' ? 'routing-onprem' : 'batching');
   }
 
@@ -826,6 +861,20 @@
   function setLarge(b) {
     var id = 'routing-' + b.getAttribute('data-large');
     if (id !== preset) deploy(id);   // at the slider's threshold
+  }
+  // Tab 06: the autoscaler switches live, and a kill acts on the running sim; neither redeploys
+  function setAuto(b) {
+    E.setAutoscaler(sim, b.getAttribute('data-autoscale') === 'on');
+    syncRadios();
+    footer();
+    if (!raf) draw();   // frozen or stopped: show it now
+    wake();
+  }
+  function kill() {
+    if (E.killGpu(sim) === null) return;
+    footer();
+    if (!raf) draw();
+    wake();
   }
   function setTraffic(b) {
     var id = 'traffic-' + b.getAttribute('data-traffic');
@@ -862,6 +911,9 @@
   arrows(largeRadios, RADIO_KEYS, setLarge);
   trafficRadios.forEach(function (b) { b.addEventListener('click', function () { setTraffic(b); }); });
   arrows(trafficRadios, RADIO_KEYS, setTraffic);
+  autoRadios.forEach(function (b) { b.addEventListener('click', function () { setAuto(b); }); });
+  arrows(autoRadios, RADIO_KEYS, setAuto);
+  killBtn.addEventListener('click', kill);
   // The output follows the slider as it moves; a redeploy waits for the change (release, or a key step),
   // since --gpu-memory-utilization is a startup flag
   kvMem.addEventListener('input', function () { kvMemOut.textContent = (+kvMem.value).toFixed(2); });
