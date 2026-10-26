@@ -244,3 +244,19 @@
 - **Where the tab opens:** minute 16 of the hour, plus the 40 s warm-up, so the GPU turns red 10–25 s after the tab opens. Calibrated in Task 2.
 - **When the trace loads:** the page fetches the trace when the simulator first scrolls into view, not on page load. If it fails, tab 05 still works on random.
 - **Target:** tab 05 uses the 8B's 2 s TTFT p99 target, so the box turns red like in tabs 03 and 04.
+
+## What changed during execution
+
+- **Calibration:** `TRACE_START_MS` = minute 16 passed first. Tab 05 opens at minute 24 with p99 at 1.05 s. It's red from 17 s to 78 s after the open, with 55 503s, and green from then on. Random traffic stays green on 10 of 10 seeds.
+- **The trace arriving late:** if tab 05 opens before the trace has loaded (the canvas below the fold, or a slow connection), it switches to the trace when it arrives, unless the visitor picked random. A failed load is tried again the next time tab 05 opens.
+- **Credit links:** they take the panel's accent underline, so they show in the light theme too.
+- **Loop marker:** 'trace loops' is pushed when the first request of each new loop arrives, which is the hour boundary on the real data.
+
+## Follow-ups from PR 4's review
+
+- Random mode's output fit is clipped at 1000 tokens, so its mean is 4.5% under the trace's (201.6 vs 211.2). The engine comment and the script docstring say the means are equal.
+- `startMs` isn't wrapped into the hour or validated. Only code passes it.
+- `loadTrace` has no guard for browsers without `fetch`, and doesn't check the payload's shape.
+- The reason the trace radio is disabled lives only in its `title`, so touch and keyboard users don't see it.
+- The "Checks the radio…" comment in `sim.js` sits above `arrivalsLabel`/`mmss` instead of `check()`.
+- `scripts/azure_trace.py` guesses that "Azure served them on a longer-context model"; the dataset doesn't say that.
