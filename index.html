@@ -358,6 +358,8 @@
     }
     .seg button:hover { color: var(--p-accent); }
     .seg button[aria-checked="true"] { background: var(--p-accent); color: #0f1115; cursor: default; }
+    /* tab 05's trace option while its data loads, or if it doesn't */
+    .seg button[aria-disabled="true"], .seg button[aria-disabled="true"]:hover { color: var(--p-faint); cursor: not-allowed; }
     /* .seg and .sim-tabs clip overflow, so their focus rings sit inside the button */
     .seg button:focus-visible, .sim-tabs button:focus-visible { outline: 2px solid var(--p-accent); outline-offset: -2px; }
     .seg button[aria-checked="true"]:focus-visible { outline-color: #0f1115; }
@@ -752,6 +754,7 @@
           <button type="button" role="tab" id="sim-tabbtn-kvcache" data-tab="kvcache" aria-controls="sim-tab-kvcache" aria-selected="false"><i>02</i> kv cache</button>
           <button type="button" role="tab" id="sim-tabbtn-mig" data-tab="mig" aria-controls="sim-tab-mig" aria-selected="false"><i>03</i> mig layout</button>
           <button type="button" role="tab" id="sim-tabbtn-routing" data-tab="routing" aria-controls="sim-tab-routing" aria-selected="false"><i>04</i> routing</button>
+          <button type="button" role="tab" id="sim-tabbtn-traffic" data-tab="traffic" aria-controls="sim-tab-traffic" aria-selected="false"><i>05</i> real traffic</button>
         </div>
         <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
           <p><b>Continuous batching.</b> A request-level server reserves memory for the longest possible reply and runs each batch until its slowest request finishes, so under this traffic its queue fills up and requests get turned away. vLLM-style continuous batching lets requests join and leave at every step. Flip it and watch p99 time to first token.</p>
@@ -780,6 +783,13 @@
               <button type="button" role="radio" data-large="onprem" aria-checked="true">on-prem 8B</button>
               <button type="button" role="radio" data-large="api" aria-checked="false">API model</button>
             </div>
+          </div>
+        </div>
+        <div class="sim-lesson" id="sim-tab-traffic" role="tabpanel" data-tab="traffic" aria-labelledby="sim-tabbtn-traffic" hidden>
+          <p><b>Real traffic.</b> An hour of Azure's production LLM traffic, replayed 12× faster with every 4th request so that one H100 gets its share; each request still runs at real speed. Its busiest five minutes carry about 1.4× the hour's average, and at the peak the GPU that served the average with room to spare falls behind: the queue grows, p99 goes red and requests get 503s. Random traffic at the same average rate stays green. Size for the peak, not the average. <span class="sim-note">Traffic: <a href="https://github.com/Azure/AzurePublicDataset/blob/master/AzureLLMInferenceDataset2023.md">Azure LLM inference trace 2023</a>, conversations (Microsoft, <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>; Patel et al., Splitwise, ISCA 2024), every 4th request, 12× faster.</span></p>
+          <div class="seg" role="radiogroup" aria-label="Traffic">
+            <button type="button" role="radio" data-traffic="random" aria-checked="false">random</button>
+            <button type="button" role="radio" data-traffic="trace" aria-checked="true">Azure trace</button>
           </div>
         </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
