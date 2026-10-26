@@ -269,6 +269,9 @@ class Simulator(unittest.TestCase):
         branches = self.js_function("drawBranches")
         for piece in ("'score < '", "'score ≥ '", "' → small'", "' → large'", "'< '", "'≥ '", "sim.routing.threshold"):
             self.assertIn(piece, branches)
+        # at 1 nothing goes large (ruling R3: threshold < 1 && score >= threshold), so the rule isn't "score ≥ 1.00"
+        for piece in ("'all → small'", "'none → large'", "'all'", "'none'", "sim.routing.threshold >= 1"):
+            self.assertIn(piece, branches)
         self.assertIn("if (sim.routing)", self.js_function("layout"))   # the routing layout is tab 04's alone
 
     def test_header_level_is_clamped(self):

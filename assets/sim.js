@@ -235,7 +235,10 @@
   function sync(dt) {
     var k = V.place ? 1 : Math.min(1, dt / 1000 * 9), seen = {};
     function dot(r, tx, ty, lands, fade, ii) {
-      var d = V.dots[r.id];
+      var d = V.dots[r.id], g;
+      // tab 04: a request first seen at a model's box was scored between two frames, so its dot starts at the
+      // System1 box's exit, as from there (inst 0), and takes its branch like the others
+      if (!d && !V.place && L.routing && ii > 0) { g = branch(ii); d = V.dots[r.id] = { x: g[0], y: g[1], inst: 0 }; }
       if (!d) d = V.dots[r.id] = V.place ? { x: tx, y: ty, inst: ii } : { x: -4, y: L.top + Math.random() * (L.bot - L.top), inst: ii };
       if (V.place) delete d.hop;
       else if (L.routing && d.inst === 0 && ii > 0) startHop(d, ii);   // tab 04: just scored, so off down its branch
@@ -400,7 +403,8 @@
       }
       var name = inst.api ? 'API model · ' + perHour(V.spend) : V.multi ? boxName(inst) + ' · ' + short : boxName(inst);
       levels = fits.map(function (f) { return [name, f]; });
-      if (inst.api) levels.push(['API ' + (V.spend === null ? '\u2013' : '$' + Math.round(V.spend) + '/h'), fits[fits.length - 1]]);
+      // the API box's phone step, its spend in whole dollars; the other boxes keep their name for that step
+      if (V.api) levels.push(inst.api ? ['API ' + (V.spend === null ? '\u2013' : '$' + Math.round(V.spend) + '/h'), fits[fits.length - 1]] : levels[levels.length - 1]);
       if (V.multi) levels.push([short, fits[fits.length - 1]]);
     }
     ctx.font = '9px ' + FONT;
@@ -514,8 +518,9 @@
     }
     ctx.strokeStyle = COL.accent; ctx.lineWidth = 1.5; ctx.stroke(); ctx.lineWidth = 1;
 
-    // The markers' lines, then their labels on top. Markers close enough for their labels to collide (tab 04's
-    // slider stepped key by key) form a run, and only the run's newest label shows.
+    // A dashed line and a label per marker. Markers close enough for their labels to collide (tab 04's slider
+    // stepped key by key) form a run, and only the run's newest marker is drawn. Lines go first, so a label sits
+    // on top of any line.
     var marks = [], placed = [];
     ctx.font = '8px ' + FONT;
     sim.events.forEach(function (ev) {
@@ -524,18 +529,19 @@
       var x = Math.round(xs(Math.min(i, n - 1))) + 0.5, w = ctx.measureText(ev.label).width;
       marks.push({ label: ev.label, x: x, w: w, lx: x + 5 + w > x1 ? x - 5 - w : x + 5 });
     });
-    ctx.strokeStyle = COL.ok; ctx.setLineDash([2, 2]);
-    marks.forEach(function (m) { ctx.beginPath(); ctx.moveTo(m.x, by + 3); ctx.lineTo(m.x, by + 25); ctx.stroke(); });
-    ctx.setLineDash([]);
     function clash(a, b) { return a.lx < b.lx + b.w + 8 && b.lx < a.lx + a.w + 8; }
     for (i = marks.length - 1; i >= 0; i--) {
       var m = marks[i];
-      if ((i + 1 < marks.length && clash(m, marks[i + 1])) || placed.some(function (p) { return clash(m, p); })) continue;
-      placed.push(m);
+      if (!(i + 1 < marks.length && clash(m, marks[i + 1])) && !placed.some(function (p) { return clash(m, p); })) placed.push(m);
+    }
+    ctx.strokeStyle = COL.ok; ctx.setLineDash([2, 2]);
+    placed.forEach(function (m) { ctx.beginPath(); ctx.moveTo(m.x, by + 3); ctx.lineTo(m.x, by + 25); ctx.stroke(); });
+    ctx.setLineDash([]);
+    placed.forEach(function (m) {
       ctx.fillStyle = COL.panel;   // the label sits on a patch of panel, so no line runs through it
       ctx.fillRect(m.lx - 2, by + 4, m.w + 4, 9);
       text(m.label, m.lx, by + 11, 8, COL.ok);
-    }
+    });
   }
 
   // Tab 04's column labels, the most telling first; one that would run into a label already drawn is left out
@@ -552,10 +558,12 @@
   }
   // Tab 04's two branches out of the System1 box, labelled with the routing rule at the live threshold: above
   // the branch to the small model and below the one to the large model, or just "< 0.45" and "≥ 0.45" where
-  // the whole rule doesn't fit between the System1 box and the lanes
+  // the whole rule doesn't fit between the System1 box and the lanes. At 1 the gateway sends nothing large,
+  // not even a score of 1, so the labels say so.
   function drawBranches() {
     var t = sim.routing.threshold.toFixed(2), g = [branch(1), branch(2)], room = g[0][6] - g[0][0];
-    var rules = [['score < ' + t + ' → small', '< ' + t], ['score ≥ ' + t + ' → large', '≥ ' + t]];
+    var rules = sim.routing.threshold >= 1 ? [['all → small', 'all'], ['none → large', 'none']] :
+      [['score < ' + t + ' → small', '< ' + t], ['score ≥ ' + t + ' → large', '≥ ' + t]];
     ctx.strokeStyle = COL.branch; ctx.lineWidth = 1.5;
     g.forEach(function (p) { ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.bezierCurveTo(p[2], p[3], p[4], p[5], p[6], p[7]); ctx.stroke(); });
     ctx.lineWidth = 1;
