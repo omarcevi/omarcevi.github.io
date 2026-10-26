@@ -420,6 +420,34 @@ class Simulator(unittest.TestCase):
         self.assertIn("'loading the trace…'", js)
         self.assertIn("'the trace didn\\'t load'", js)
 
+    def test_tab05_switches_to_the_trace_when_it_arrives(self):
+        # Opened before the trace is in (the canvas below the fold, or a slow fetch), tab 05 starts on random;
+        # when the trace arrives it switches, unless the visitor picked random. A failed load retries next time.
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        branch = re.search(r"else if \(id === 'traffic'\) \{([^}]*)\}", js)
+        self.assertIsNotNone(branch, "switchTab's traffic branch")
+        self.assertLess(branch.group(1).index("loadTrace();"), branch.group(1).index("deploy("))
+        self.assertIn("pickedRandom = false", js[js.index("function switchTab("):js.index("function setMode(")])
+        traffic = js[js.index("function setTraffic("):]
+        self.assertIn("pickedRandom = id === 'traffic-random'", traffic[:traffic.index("\n  }\n")])
+        load = js[js.index("function loadTrace()"):]
+        load = load[:load.index("\n  }\n")]
+        self.assertIn("if (preset === 'traffic-random' && !pickedRandom) deploy('traffic-trace');", load)
+        self.assertIn("traceAsked = false", load[load.index(".catch("):])
+
+    def test_tab05_credit_links_show_on_the_panel(self):
+        # the links take .sim-note's colour, so their underline is what marks them: at least 3:1 on the panel
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        rule = re.search(r"\.sim-note a \{([^}]*)\}", page)
+        self.assertIsNotNone(rule, ".sim-note a rule")
+        r, g, b, alpha = (float(v) for v in re.search(r"text-decoration-color: rgba\(([^)]*)\)", rule.group(1)).group(1).split(","))
+        panel = (0x0f, 0x11, 0x15)
+        mixed = "#" + "".join("%02x" % round(c * alpha + p * (1 - alpha)) for c, p in zip((r, g, b), panel))
+        self.assertGreaterEqual(contrast(mixed, "#0f1115"), 3)
+        hover = re.search(r"\.sim-note a:hover \{([^}]*)\}", page)
+        self.assertIsNotNone(hover, ".sim-note a:hover rule")
+        self.assertIn("color: var(--p-accent)", hover.group(1))
+
     def test_tab05_views(self):
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
         for key in ("traffic-trace", "traffic-random"):

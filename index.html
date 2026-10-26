@@ -376,6 +376,10 @@
     .sim-ctls { display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; max-width: 100%; }
     .sim-ctls .sim-range > span { flex: 1 1 9em; }
     .sim-note { color: var(--p-muted); font-family: var(--mono); font-size: 0.74rem; }
+    /* tab 05's credit links keep the note's colour; on the dark panel the page's accent underline (light
+       theme) would all but vanish, so they take the panel's accent */
+    .sim-note a { text-decoration-color: rgba(122, 162, 255, 0.6); }
+    .sim-note a:hover { color: var(--p-accent); text-decoration-color: var(--p-accent); }
     /* colour key under the canvas; each swatch is its canvas colour (COL in assets/sim.js) over the
        instance box's fill, so the alpha colours come out exactly as drawn */
     .sim-key {

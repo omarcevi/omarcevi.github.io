@@ -106,6 +106,7 @@
   var trafficRadios = group('sim-tab-traffic');
   var traceRadio = trafficRadios.filter(function (b) { return b.getAttribute('data-traffic') === 'trace'; })[0];
   var TRACE = null, traceAsked = false;   // tab 05's trace, once loaded
+  var pickedRandom = false;               // the visitor chose random in tab 05, so the trace arriving doesn't switch it
 
   var sim = null, preset = null, V = null, L = null, frozen = REDUCE, shown = null;
   var W = 0, H = 0, visible = false, raf = 0, last = 0;
@@ -736,8 +737,9 @@
     check(trafficRadios, 'data-traffic', preset.indexOf('traffic-') === 0 ? preset.slice(8) : 'trace');
   }
 
-  // Tab 05's trace loads once, when the panel first comes into view. Until it's in, or if it never comes,
-  // the trace option is disabled and says why, and tab 05 runs on random traffic.
+  // Tab 05's trace loads when the panel first comes into view, or when tab 05 opens before that. Until it's in,
+  // the trace option is disabled and says why, and tab 05 runs on random traffic; when it arrives, tab 05
+  // switches to it unless the visitor picked random. A failed load is tried again the next time tab 05 opens.
   function traceState(title) {
     if (title) { traceRadio.setAttribute('aria-disabled', 'true'); traceRadio.title = title; }
     else { traceRadio.removeAttribute('aria-disabled'); traceRadio.removeAttribute('title'); }
@@ -751,7 +753,9 @@
     }).then(function (d) {
       TRACE = d;
       traceState(null);
+      if (preset === 'traffic-random' && !pickedRandom) deploy('traffic-trace');
     }).catch(function () {
+      traceAsked = false;
       traceState('the trace didn\'t load');
     });
   }
@@ -804,8 +808,9 @@
     kvMemOut.textContent = KV_MEM.toFixed(2);
     route.value = String(ROUTE);
     showRoute();
+    pickedRandom = false;
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
-    else if (id === 'traffic') deploy(TRACE ? 'traffic-trace' : 'traffic-random');
+    else if (id === 'traffic') { loadTrace(); deploy(TRACE ? 'traffic-trace' : 'traffic-random'); }
     else deploy(id === 'mig' ? 'mig-mig' : id === 'routing' ? 'routing-onprem' : 'batching');
   }
 
@@ -824,7 +829,9 @@
   }
   function setTraffic(b) {
     var id = 'traffic-' + b.getAttribute('data-traffic');
-    if (b.getAttribute('aria-disabled') !== 'true' && id !== preset) deploy(id);
+    if (b.getAttribute('aria-disabled') === 'true') return;
+    pickedRandom = id === 'traffic-random';
+    if (id !== preset) deploy(id);
   }
 
   // Arrow keys move along a tab list or radio group and pick what they land on (roving tabindex)

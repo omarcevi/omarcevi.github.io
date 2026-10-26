@@ -1178,6 +1178,7 @@ test('tab 05: the replay loops, and the sparkline marks it', () => {
   const fourth = seen(sim)[3];
   assert.deepEqual([fourth.t0, fourth.prompt, fourth.output], [550, 10, 1]);   // (1000 + 100) / 2
   assert.deepEqual(sim.events.filter(e => e.label === 'trace loops').map(e => e.t), [550]);
+  assert.equal(E.traceClock(sim).ms, 200);   // hour time 1100 + 50 * 2 = 1200, so 200 into the second loop
 });
 test('tab 05: one loop of the real trace replays every sampled request', () => {
   const sim = traceSim(D, 0);
@@ -1212,18 +1213,15 @@ test('tab 05: a long tick advances the hour by at most 50 ms of sim time', () =>
   assert.ok(E.traceClock(sim).ms - before <= 50 * 12);
 });
 test('tab 05: a burst on the trace stream draws the trace\'s fitted lengths', () => {
-  const sim = traceSim(D);
+  // a fit that can only give one prompt and one output length, so any other source of lengths shows
+  const ONE = Object.assign({}, TINY, { fit: { prompt: { median: 77, sigma: 0, min: 77, max: 77 }, output: { median: 5, sigma: 0, min: 5, max: 5 } } });
+  const sim = traceSim(ONE, 0);
   E.setArrivals(sim, false);
-  const before = sim.stats.arrived;
   E.sendBurst(sim, 20, 0);
   runExact(sim, 1000);
-  const burst = seen(sim).filter(r => r.id > before);
-  assert.equal(sim.stats.arrived - before, 20);
-  assert.equal(burst.length, 20);
-  for (const r of burst) {
-    assert.ok(r.prompt >= E.TRACE_FIT.prompt.min && r.prompt <= E.TRACE_FIT.prompt.max);
-    assert.ok(r.output >= E.TRACE_FIT.output.min && r.output <= E.TRACE_FIT.output.max);
-  }
+  const burst = seen(sim);
+  assert.equal(sim.stats.arrived, 20);
+  assert.deepEqual([...new Set(burst.map(r => r.prompt + '/' + r.output))], ['77/5']);
 });
 test('tab 05: the random preset carries the trace\'s load', () => {
   assert.equal(E.TRACE_RATE, D.rate);
