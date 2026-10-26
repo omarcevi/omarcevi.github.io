@@ -58,7 +58,8 @@
   };
 
   // Lognormal stand-ins for the Azure LLM conversation trace (Patel et al., Splitwise,
-  // ISCA 2024: median prompt 1020 tokens, median output 129). PR 3 refits these from the real trace.
+  // ISCA 2024: median prompt 1020 tokens, median output 129). Tabs 01 and 04 are calibrated on these;
+  // tab 05's random mode uses TRACE_FIT, fitted to the replayed trace itself.
   var LENGTHS = {
     prompt: { median: 1020, sigma: 0.8, min: 16, max: 7000 },
     output: { median: 129, sigma: 0.93, min: 1, max: 1000 }
@@ -141,6 +142,29 @@
     };
   }
 
+  // Tab 05 replays assets/sim/azure-conv.json (scripts/azure_trace.py): every 4th request of an hour of
+  // Azure's conversation trace, 12x faster, about 16.6 requests/s on one H100. TRACE_RATE and TRACE_FIT
+  // are copied from its rate and fit, so the random mode carries the same load: Poisson arrivals at the
+  // replay's average rate, with lognormal lengths that have the trace's medians and means.
+  var TRACE_RATE = 16.59;
+  var TRACE_FIT = {
+    prompt: { median: 1019, sigma: 0.484, min: 2, max: 7096 },
+    output: { median: 130, sigma: 0.985, min: 11, max: 1000 }
+  };
+  // Where in the hour tab 05's replay starts (hour ms); the page's 40 s warm-up then plays 8 min of it, so
+  // the tab opens at minute 24, as the rate climbs to the hour's peak. Measured as a visitor sees it (a
+  // refresh every 300 ms on a 30 s p99; the trace plays the same on every load): p99 is 1.05 s at the open,
+  // red from 17.3 s to 77.6 s after it (51% of the first 2 min) with 55 503s, then green through minute 4.
+  // Starting at minute 13 the first red comes at 32 s; at minute 17, 12.5 s. Random traffic at the same
+  // load stays green with no 503s (seeds 1-10). tests/sim.test.mjs checks both.
+  var TRACE_START_MS = 960000;
+  var TAB05 = { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', slo: { 'llama-3-8b': 2000 } };
+
+  // Tab 05 on the trace: the preset needs the trace's data, which the page loads
+  function tracePreset(data) {
+    return Object.assign({}, TAB05, { streams: [{ model: 'llama-3-8b', trace: data, startMs: TRACE_START_MS }] });
+  }
+
   var PRESETS = {
     batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
     // Tab 02: bursts of 8-12 over a steady 0.5 req/s, so the 0.9 pool fills within 30 s of opening (and the
@@ -173,7 +197,9 @@
     'routing-onprem': tab04({ profile: '3g.40gb', model: 'llama-3-8b', gpu: 0 }),
     // Tab 04, API: the large model is the API model, with no GPU; the 3g slice sits idle, and the H100 is still
     // billed in full
-    'routing-api': tab04({ profile: 'api', model: 'api' })
+    'routing-api': tab04({ profile: 'api', model: 'api' }),
+    // Tab 05, random: the trace's average rate and fitted lengths, without its hour
+    'traffic-random': Object.assign({}, TAB05, { streams: [{ model: 'llama-3-8b', rate: TRACE_RATE, bursts: false, lengths: TRACE_FIT }] })
   };
 
   // Tab 04's gateway. Its router is the System1 model; a request's hidden difficulty is a uniform draw raised
@@ -341,9 +367,11 @@
   }
 
   // A traffic stream from its spec { model, rate (req/s), bursts, lengths? }. bursts is true (BURSTS),
-  // { min, max } (the count range) or false; lengths defaults to LENGTHS.
+  // { min, max } (the count range) or false; lengths defaults to LENGTHS. A spec { model, trace, startMs? }
+  // replays a trace instead (traceStream).
   function createStream(spec) {
     checkModel(spec.model);
+    if (spec.trace) return traceStream(spec);
     var b = spec.bursts, l = spec.lengths || {};
     return {
       model: spec.model,
@@ -354,6 +382,28 @@
       nextBurst: Infinity
     };
   }
+
+  // A stream that replays a trace { gapMs, prompt, output, durationMs, speed, fit }: request i arrives at
+  // hour time loop * durationMs + times[i] (times: the running sum of gapMs), played speed times faster, and
+  // after the last request the hour starts over. pos is the hour time (counting loops) at sim time posT; while
+  // arrivals are off the hour stands still. Bursts draw the trace's fitted lengths. It draws nothing from the
+  // RNG, so a trace plays the same whatever the seed.
+  function traceStream(spec) {
+    var d = spec.trace, n = d.gapMs ? d.gapMs.length : 0, times = [], acc = 0, start = spec.startMs || 0, k;
+    if (!n || !d.prompt || !d.output || d.prompt.length !== n || d.output.length !== n || !(d.speed > 0) || !(d.durationMs > 0)) {
+      throw new Error('bad trace: needs gapMs, prompt and output of one non-zero length, a speed and a duration');
+    }
+    for (k = 0; k < n; k++) { acc += d.gapMs[k]; times.push(acc); }
+    for (k = 0; k < n && times[k] < start; k++) { /* first request at or after start */ }
+    var s = {
+      model: spec.model, rate: 0, bursts: false, lengths: { prompt: d.fit.prompt, output: d.fit.output },
+      trace: { times: times, prompt: d.prompt, output: d.output, durationMs: d.durationMs, speed: d.speed },
+      cursor: k % n, loop: k === n ? 1 : 0, pos: start, posT: 0, nextArrival: Infinity, nextBurst: Infinity
+    };
+    return s;
+  }
+  // The hour time of a trace stream's next request
+  function traceNext(s) { return s.loop * s.trace.durationMs + s.trace.times[s.cursor]; }
 
   // Poisson arrivals have exponential gaps; a rate of 0 means no steady arrivals
   function poissonGap(sim, stream) {
@@ -369,6 +419,7 @@
   function schedule(sim) {
     for (var k = 0; k < sim.streams.length; k++) {
       var s = sim.streams[k];
+      if (s.trace) { s.posT = sim.t; s.nextArrival = sim.t + (traceNext(s) - s.pos) / s.trace.speed; continue; }
       s.nextArrival = sim.t + poissonGap(sim, s);
       s.nextBurst = sim.t + burstGap(sim);
     }
@@ -384,6 +435,19 @@
     var b = sim.streams[k].bursts, n = b.min + Math.floor(sim.rng() * (b.max - b.min + 1));
     for (var j = 0; j < n; j++) sim.pending.push({ t: sim.t + sim.rng() * BURST_MS, stream: k });
     sortPending(sim);
+  }
+
+  // A trace stream's next request, with the trace's own lengths. The first request of each loop after the
+  // first marks the sparkline.
+  function arriveTrace(sim, k) {
+    var s = sim.streams[k], tr = s.trace;
+    if (s.cursor === 0 && s.loop > 0) sim.events.push({ t: sim.t, label: 'trace loops' });
+    enqueue(sim, { prompt: tr.prompt[s.cursor], output: tr.output[s.cursor], model: s.model, stream: k });
+    s.pos = traceNext(s);
+    s.posT = sim.t;
+    s.cursor += 1;
+    if (s.cursor === tr.times.length) { s.cursor = 0; s.loop += 1; }
+    s.nextArrival = sim.t + (traceNext(s) - s.pos) / tr.speed;
   }
 
   // A request on stream k, with that stream's lengths and model
@@ -882,7 +946,7 @@
     if (sim.pending.length) consider(sim.pending[0].t, 'pending', sim.pending[0].stream);
     if (sim.arrivalsOn) {
       for (k = 0; k < sim.streams.length; k++) {
-        consider(sim.streams[k].nextArrival, 'poisson', k);
+        consider(sim.streams[k].nextArrival, sim.streams[k].trace ? 'trace' : 'poisson', k);
         if (sim.streams[k].bursts) consider(sim.streams[k].nextBurst, 'burst', k);
       }
     }
@@ -914,6 +978,7 @@
       else if (ev.kind === 'api') apiTokens(sim, ev.inst);
       else if (ev.kind === 'pending') { sim.pending.shift(); arrive(sim, ev.stream); }
       else if (ev.kind === 'poisson') { arrive(sim, ev.stream); s.nextArrival = sim.t + poissonGap(sim, s); }
+      else if (ev.kind === 'trace') arriveTrace(sim, ev.stream);
       else if (ev.kind === 'burst') { addBurst(sim, ev.stream); s.nextBurst = sim.t + burstGap(sim); }
       // a 'wake' needs nothing more: idle instances start on the next pass
     }
@@ -945,13 +1010,32 @@
 
   // ---- Play state ----
 
-  // Off stops steady arrivals and drops the arrival times still pending; on schedules every stream's
-  // next arrival and burst from now. Work already queued or running carries on.
+  // Off stops steady arrivals and drops the arrival times still pending, and a trace's hour stands still
+  // where it is; on schedules every stream's next arrival and burst from now. Work already queued or
+  // running carries on.
   function setArrivals(sim, on) {
     if (on === sim.arrivalsOn) return;
     sim.arrivalsOn = on;
-    if (on) schedule(sim);
-    else sim.pending = [];
+    if (on) { schedule(sim); return; }
+    sim.pending = [];
+    for (var k = 0; k < sim.streams.length; k++) {
+      var s = sim.streams[k];
+      if (!s.trace) continue;
+      s.pos += (sim.t - s.posT) * s.trace.speed;
+      s.posT = sim.t;
+      s.nextArrival = Infinity;
+    }
+  }
+
+  // Where tab 05's replay is in its hour: { ms, totalMs }, or null when no stream replays a trace
+  function traceClock(sim) {
+    for (var k = 0; k < sim.streams.length; k++) {
+      var s = sim.streams[k];
+      if (!s.trace) continue;
+      var pos = s.pos + (sim.arrivalsOn ? (sim.t - s.posT) * s.trace.speed : 0);
+      return { ms: pos % s.trace.durationMs, totalMs: s.trace.durationMs };
+    }
+    return null;
   }
 
   // n arrival times on stream (default 0) over the next BURST_SPREAD_MS, whether or not arrivals are on
@@ -1160,6 +1244,11 @@
     setThreshold: setThreshold,
     setArrivals: setArrivals,
     sendBurst: sendBurst,
+    traceClock: traceClock,
+    tracePreset: tracePreset,
+    TRACE_FIT: TRACE_FIT,
+    TRACE_RATE: TRACE_RATE,
+    TRACE_START_MS: TRACE_START_MS,
     isDrained: isDrained,
     playState: playState,
     metrics: metrics,
