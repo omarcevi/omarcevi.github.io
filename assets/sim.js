@@ -12,6 +12,9 @@
 // Tab 05 replays an hour of Azure's real traffic (assets/sim/azure-conv.json, fetched when the panel first
 // comes into view) or random traffic at the same load; on the trace, the arrivals label is the trace's clock.
 // Each tab's lesson line is one sentence; its "?" opens the full lesson in a popover placed under it.
+// Clicking a request's dot or row follows it: it's outlined on the canvas, and the strip under the key shows
+// its queue, prefill and decode spans, what happened to it, and its TTFT, TPOT and total time. The config
+// drawer shows the setup being simulated, one block per server, with the value last changed highlighted.
 // Tab 06 serves two replicas on two H100s: killing one draws its box failed (dashed red), and with the
 // autoscaler on its replacement draws as starting (dashed, counting down its cold start) until it serves.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
@@ -98,6 +101,12 @@
   var playBtn = $('sim-play'), burstBtn = $('sim-burst');
   var wrapSmall = $('m-small-wrap'), wrapMis = $('m-mis-wrap'), wrapApi = $('m-api-wrap'), wrapRetry = $('m-retry-wrap');
   var killBtn = $('sim-kill');
+  var followEl = $('sim-follow'), flWhat = $('fl-what'), flNums = $('fl-nums'), flNext = $('fl-next'), flStop = $('fl-stop');
+  var flNote = $('fl-note'), flRows = [].slice.call(followEl.querySelectorAll('.fl-row'));
+  var cfgBtn = $('sim-cfg'), cfgBox = $('sim-config');
+  var followed = null, followNext = null, idleShown = false;   // the request followed, or the arrival count to follow the next after
+  var FOLLOW_MS = 150, followedAt = -Infinity;                 // the strip is rewritten at most this often (frame time)
+  var lastKey = null, cfgHtml = '';                             // the knob last changed (the config drawer highlights it)
   var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
   var route = $('sim-route'), routeOut = $('sim-route-v');
   var M = {
@@ -634,9 +643,187 @@
       drawInstance(inst, b, V.rows[ii], heads[ii], b.alone ? fitLevel(heads[ii], b) : level);
     });
     drawDots();
+    drawFollowed();
     drawStream();
     drawStrip();
+    renderFollow();
   }
+
+  // ---- Following a request ----
+
+  // The request under (x, y): a drawn row in a box, else the nearest dot within 9px; null when none
+  function pick(x, y) {
+    var best = null, bestD = 9, id, d, dd;
+    sim.instances.forEach(function (inst, ii) {
+      var b = L.boxes[ii], rows = V.rows[ii], vis = drawn(b, rows.length);
+      for (var j = 0; j < vis; j++) {
+        var row = rows[j];
+        if (row.y !== null && x >= b.bx - 3 && x <= b.bx + b.bw + 3 && y >= row.y - 2 && y <= row.y + ROW_H + 2) best = row.r;
+      }
+    });
+    if (best) return best;
+    for (id in V.dots) {
+      d = V.dots[id];
+      if (d.landed) continue;
+      dd = Math.abs(d.x - x) + Math.abs(d.y - y);
+      if (dd < bestD) { bestD = dd; best = d.r; }
+    }
+    return best;
+  }
+  // The strip changes at once (so focus can move to a button it shows), the canvas on the next frame
+  function follow(r) {
+    followed = r; followNext = null;
+    renderFollow(true);
+    if (!raf) draw();
+  }
+  function unfollow() {
+    followed = null; followNext = null;
+    if (!sim) return;
+    renderFollow(true);
+    if (!raf && L) draw();
+  }
+  // Writes a node only when what it shows changed, so the strip doesn't churn the DOM (or a screen reader)
+  function put(el, v, html) {
+    if (el.__shown === v) return;
+    el.__shown = v;
+    if (html) el.innerHTML = v; else el.textContent = v;
+  }
+  // "follow the next request": the first to arrive from now on
+  function catchNext() {
+    if (followNext === null) return;
+    var best = null;
+    sim.instances.forEach(function (inst) {
+      inst.queue.concat(inst.running).forEach(function (r) { if (r.id > followNext && (!best || r.id < best.id)) best = r; });
+    });
+    if (best) { followed = best; followNext = null; }
+  }
+  // Its row outlined, or while it has no row, a ring round its dot
+  function drawFollowed() {
+    if (!followed) return;
+    var ii = followed.inst, d = V.dots[followed.id], b, rows, vis;
+    ctx.strokeStyle = COL.accent; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+    if (ii !== null && L.boxes[ii]) {
+      b = L.boxes[ii]; rows = V.rows[ii]; vis = drawn(b, rows.length);
+      for (var j = 0; j < vis; j++) {
+        if (rows[j].r === followed && rows[j].y !== null) { rr(b.bx - 3, rows[j].y - 2.5, b.bw + 6, ROW_H + 5, 2); ctx.stroke(); return; }
+      }
+    }
+    if (d && !d.landed) { ctx.beginPath(); ctx.arc(d.x, d.y, DOT_R + 3, 0, 6.283); ctx.stroke(); }
+  }
+  // Where a request is: its box's name, as the canvas shows it
+  function placeName(ii) {
+    var inst = sim.instances[ii];
+    return inst.api ? 'API model' : inst.model === 'system1' ? 'System1' : boxName(inst);
+  }
+  // The strip's last line: where the request is now, then the latest thing that happened to it
+  function followNote(s) {
+    var f = E.fmt, at = function (m) { return f.ms(m.t - s.t0); }, last = s.marks[s.marks.length - 1], now;
+    if (s.state === 'rejected') return 'turned away with a 503 at ' + at(last) + ': no queue had room';
+    now = s.state === 'queued' ? 'waiting in the queue' : s.state === 'done' ? 'done: ' + s.generated.toLocaleString('en-US') + ' tokens' :
+      s.generated === 0 || (s.spans.length && s.spans[s.spans.length - 1].kind === 'prefill') ? 'in prefill' :
+      'decoding: ' + s.generated.toLocaleString('en-US') + ' of ' + s.output.toLocaleString('en-US') + ' tokens';
+    if (!last) return now;
+    if (last.kind === 'preempted') return now + ' · preempted at ' + at(last) + ': its KV was dropped, so it queued again and redid its prefill';
+    if (last.kind === 'retried') return now + ' · its GPU died at ' + at(last) + ': retried from the start on ' + placeName(s.inst);
+    return now + ' · System1 scored it ' + last.score.toFixed(2) + ' at ' + at(last) + ', so it went to the ' + last.target + ' model';
+  }
+  function renderFollow(force) {
+    catchNext();
+    var on = !!followed, had = document.activeElement === flNext;
+    if (on && !force && !followEl.classList.contains('idle') && V.vt - followedAt < FOLLOW_MS) return;
+    followedAt = V.vt;
+    followEl.classList.toggle('idle', !on);
+    flStop.hidden = !on; flNext.hidden = on;
+    if (on && had) flStop.focus();   // the button pressed is gone now: keep the keyboard on the strip
+    if (!on) {
+      var what = followNext !== null ? 'waiting for the next request…' : 'click a dot or a row on the canvas to follow one request';
+      if (idleShown === what) return;   // nothing changed: leave the DOM alone
+      idleShown = what;
+      flWhat.className = 'idle'; put(flWhat, what); put(flNums, '');
+      flRows.forEach(function (row) { put(row.children[1], '', true); put(row.children[2], '\u2013'); });
+      put(flNote, 'its spans, TTFT, TPOT and total time appear here');
+      return;
+    }
+    idleShown = false;
+    var s = E.requestSummary(sim, followed), f = E.fmt, span = Math.max(1, s.end - s.t0), tags = '', k;
+    var pct = function (t) { return ((t - s.t0) / span * 100).toFixed(2) + '%'; }, pre = 0, scored = null;
+    for (k = 0; k < s.marks.length; k++) {
+      if (s.marks[k].kind === 'preempted') pre += 1;
+      if (s.marks[k].kind === 'scored') scored = s.marks[k];
+    }
+    if (scored) tags += ' · scored ' + scored.score.toFixed(2) + ' → ' + scored.target;
+    if (pre) tags += ' · <span class="fl-warn">preempted ' + (pre === 1 ? 'once' : pre + ' times') + '</span>';
+    if (followed.retries) tags += ' · <span class="fl-warn">retried</span>';
+    if (s.state === 'rejected') tags += ' · <span class="fl-warn">503</span>';
+    flWhat.className = '';
+    put(flWhat, 'following <b>#' + s.id + '</b> · ' + s.prompt.toLocaleString('en-US') + ' → ' + s.output.toLocaleString('en-US') +
+      ' tokens' + (s.inst === null ? '' : ' · ' + placeName(s.inst)) + tags, true);
+    put(flNums, 'TTFT <b>' + f.ms(s.ttftMs) + '</b> · TPOT <b>' + f.ms(s.tpotMs) + '</b> · total <b>' + f.ms(s.totalMs) + '</b>', true);
+    flRows.forEach(function (row) {
+      var kind = row.getAttribute('data-kind'), html = '';
+      s.spans.forEach(function (sp) {
+        if (sp.kind === kind) html += '<span class="fl-seg" style="left:' + pct(sp.t0) + ';width:' + ((sp.t1 - sp.t0) / span * 100).toFixed(2) + '%"></span>';
+      });
+      s.marks.forEach(function (m) {
+        if (m.kind !== 'rejected') html += '<span class="fl-mark' + (m.kind === 'scored' ? ' scored' : '') + '" style="left:' + pct(m.t) + '"></span>';
+      });
+      put(row.children[1], html, true);
+      put(row.children[2], f.ms(s.byKind[kind]));
+    });
+    put(flNote, followNote(s));
+  }
+  cv.addEventListener('click', function (e) {
+    if (!L) return;
+    var r = cv.getBoundingClientRect(), p = pick(e.clientX - r.left, e.clientY - r.top);
+    if (p) follow(p); else unfollow();
+  });
+  cv.addEventListener('mousemove', function (e) {
+    if (!L) return;
+    var r = cv.getBoundingClientRect();
+    cv.classList.toggle('picking', !!pick(e.clientX - r.left, e.clientY - r.top));
+  });
+  // Paused, drained or frozen, nothing new will arrive: it follows the newest request still in flight instead
+  flNext.addEventListener('click', function () {
+    if (E.playState(sim, frozen) !== 'running') {
+      var newest = null;
+      sim.instances.forEach(function (inst) {
+        inst.queue.concat(inst.running).forEach(function (r) { if (r.state !== 'idle' && (!newest || r.id > newest.id)) newest = r; });
+      });
+      if (newest) { follow(newest); return; }
+      idleShown = false; put(flWhat, 'nothing in flight: press play or send a burst');
+      return;
+    }
+    followed = null; followNext = sim.stats.arrived;
+    renderFollow(true);
+    if (!raf) draw();
+    wake();
+  });
+  flStop.addEventListener('click', function () { unfollow(); flNext.focus(); });
+
+  // ---- Config drawer ----
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  // Rebuilt from the engine with the footer (a kill or a replacement changes it); the DOM only when it changed
+  function renderConfig() {
+    if (cfgBox.hidden) return;
+    var html = E.serverConfig(sim).map(function (b) {
+      return '<pre class="cfg-block"><span class="c"># ' + esc(b.title) + '</span>\n' + b.lines.map(function (l) {
+        var t = esc(l.text);
+        if (l.comment) t = '<span class="c">' + t + '</span>';
+        else t = t.replace(/^(vllm serve|router:|name:|backend:|max_batch_size:|dynamic_batching|instance_group)/, '<span class="k">$1</span>');
+        return l.key && l.key === lastKey ? '<span class="hl">' + t + '</span>' : t;
+      }).join('\n') + '</pre>';
+    }).join('');
+    if (html !== cfgHtml) { cfgBox.innerHTML = html; cfgHtml = html; }
+  }
+  cfgBtn.addEventListener('click', function () {
+    var open = cfgBox.hidden;
+    cfgBox.hidden = !open;
+    cfgBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    cfgBtn.textContent = open ? 'config \u25b4' : 'config \u25be';
+    cfgHtml = '';
+    renderConfig();
+  });
 
   // ---- Footer and play button ----
 
@@ -682,6 +869,7 @@
     if (preset === 'failure' && sim.instances.filter(function (inst) { return !inst.api && E.instanceStatus(sim, inst).state === 'up'; }).length < 2) {
       killBtn.setAttribute('aria-disabled', 'true'); killBtn.title = 'one GPU left';
     } else { killBtn.removeAttribute('aria-disabled'); killBtn.removeAttribute('title'); }
+    renderConfig();
     V.spend = m.apiUsdPerHour;   // and the API box's header
     if (V.api) M.api.textContent = perHour(V.spend);
     return m;
@@ -830,6 +1018,7 @@
     shown = null;
     measure();
     L = null;
+    unfollow();   // a new sim: nothing of the old one stays followed
     if (W) { layout(); sync(0); }
     footer();
     renderPlay();
@@ -851,6 +1040,7 @@
     route.value = String(ROUTE);
     showRoute();
     pickedRandom = false;
+    lastKey = null;
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
     else if (id === 'traffic') { loadTrace(); deploy(TRACE ? 'traffic-trace' : 'traffic-random'); }
     else if (id === 'failure') deploy('failure');
@@ -859,20 +1049,23 @@
 
   function setMode(b) {
     E.setBatching(sim, b.getAttribute('data-batching'));
+    lastKey = 'batching';
+    renderConfig();
     syncRadios();
     if (!raf) draw();   // frozen or stopped: show the new marker now
   }
   function setDeploy(b) {
     var id = 'mig-' + b.getAttribute('data-deploy');
-    if (id !== preset) deploy(id);
+    if (id !== preset) { lastKey = null; deploy(id); }
   }
   function setLarge(b) {
     var id = 'routing-' + b.getAttribute('data-large');
-    if (id !== preset) deploy(id);   // at the slider's threshold
+    if (id !== preset) { lastKey = 'large'; deploy(id); }   // at the slider's threshold
   }
   // Tab 06: the autoscaler switches live, and a kill acts on the running sim; neither redeploys
   function setAuto(b) {
     E.setAutoscaler(sim, b.getAttribute('data-autoscale') === 'on');
+    lastKey = 'autoscaler';
     syncRadios();
     footer();
     if (!raf) draw();   // frozen or stopped: show it now
@@ -927,6 +1120,7 @@
   kvMem.addEventListener('input', function () { kvMemOut.textContent = (+kvMem.value).toFixed(2); });
   kvMem.addEventListener('change', function () {
     kvMemOut.textContent = (+kvMem.value).toFixed(2);
+    lastKey = 'gpu-memory-utilization';
     deploy('kvcache', { gpuMemUtil: +kvMem.value });
   });
   // Tab 04's threshold is a router setting, so it moves live on the change: requests scored from then
@@ -941,6 +1135,8 @@
   route.addEventListener('change', function () {
     showRoute();
     E.setThreshold(sim, +route.value);
+    lastKey = 'threshold';
+    renderConfig();
     if (!raf) draw();   // frozen or stopped: show the new marker now
   });
 

@@ -1097,11 +1097,11 @@
     };
   }
 
-  // Hugging Face ids for the config drawer. The System1 model is a 1B fine-tuned to score difficulty, so it
-  // has no public id: it's served from a local directory.
+  // Hugging Face ids for the config drawer. The System1 model is modelled, a 1B-class classifier with Llama 3.2
+  // 1B's numbers, not a known checkpoint, so it's served from a local path.
   var HF_IDS = {
     'llama-3-8b': 'meta-llama/Meta-Llama-3-8B-Instruct', 'llama-3.2-3b': 'meta-llama/Llama-3.2-3B-Instruct',
-    'llama-3.2-1b': 'meta-llama/Llama-3.2-1B-Instruct', system1: './system1-1b'
+    'llama-3.2-1b': 'meta-llama/Llama-3.2-1B-Instruct', system1: '/models/system1'
   };
 
   // The config of the system being simulated, one block per server, for the config drawer:
@@ -1120,7 +1120,7 @@
         line('router:'),
         line('  scorer: system1   # one token: a difficulty score'),
         line('  small: ' + sim.routing.small),
-        line('  large: ' + sim.routing.large),
+        line('  large: ' + sim.routing.large, 'large'),
         line('  threshold: ' + x.toFixed(2) + (x >= 1 ? '   # none → large' : '   # score ≥ ' + x.toFixed(2) + ' → large'), 'threshold')
       ] });
     } else if (replicas) {
@@ -1158,9 +1158,12 @@
         return;
       }
       var lines = [];
-      if (inst.model === SYSTEM1) lines.push(line('# a Llama 3.2 1B fine-tuned to score difficulty; the gateway asks it for one token', null, true));
+      if (inst.model === SYSTEM1) {
+        lines.push(line('# a 1B-class classifier, sized like Llama 3.2 1B here; no public checkpoint', null, true));
+        lines.push(line('# the gateway asks it for one token, the score', null, true));
+      }
       blocks.push({ kind: 'vllm', title: title, lines: lines.concat([
-        line('vllm serve ' + HF_IDS[inst.model] + ' \\'),
+        line('vllm serve ' + HF_IDS[inst.model] + ' \\', 'batching'),   // continuous batching is vLLM's own
         line('  --gpu-memory-utilization ' + inst.gpuMemUtil.toFixed(2) + ' \\', 'gpu-memory-utilization'),
         line('  --max-num-seqs ' + cfg.maxNumSeqs + ' \\', 'max-num-seqs'),
         line('  --max-num-batched-tokens ' + cfg.maxNumBatchedTokens + ' \\', 'max-num-batched-tokens'),

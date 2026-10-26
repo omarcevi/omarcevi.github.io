@@ -240,7 +240,7 @@ class Simulator(unittest.TestCase):
         self.assertEqual(len(keys), 1)
         kids = keys[0].parent.elements()   # directly under the canvas, above the footer
         self.assertEqual([k.tag if k.tag == "canvas" else k.classes[0] for k in kids[kids.index(keys[0]) - 1:][:3]],
-                         ["canvas", "sim-key", "p-foot"])
+                         ["canvas", "sim-key", "sim-follow"])   # the follow strip sits between the key and the footer
         entries = keys[0].elements()
         self.assertEqual([" ".join(e.text().split()) for e in entries], [
             "prefill", "decode, one token per step", "finished", "idle slot (request-level only)", "preempted", "KV cache"])
@@ -382,6 +382,64 @@ class Simulator(unittest.TestCase):
         self.assertIn(".sim-counters { min-height: 3.25rem;", phone[:phone.index("\n    }\n")])
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
         self.assertIn("M.rej.classList.toggle('bad', m.rejected > 0)", js)
+
+    def test_follow_strip_markup(self):
+        # under the key, above the footer, the same height whether it follows a request or not
+        kids = [c for c in self.box.children if c.tag != "#text" and c.tag != "#comment"]
+        names = [c.attrs.get("id") or (c.classes[0] if c.classes else c.tag) for c in kids]
+        self.assertLess(names.index("sim-key"), names.index("sim-follow"))
+        self.assertLess(names.index("sim-follow"), names.index("p-foot"))
+        strip = find_all(self.box, id="sim-follow")[0]
+        nxt = find_all(strip, "button", id="fl-next")[0]
+        self.assertEqual([nxt.attrs.get("type"), " ".join(nxt.text().split())], ["button", "follow the next request"])
+        stop = find_all(strip, "button", id="fl-stop")[0]
+        self.assertEqual([stop.attrs.get("aria-label"), "hidden" in stop.attrs], ["Stop following", True])
+        self.assertEqual([r.attrs.get("data-kind") for r in find_all(strip, cls="fl-row")], ["queue", "prefill", "decode"])
+        self.assertEqual(len(find_all(strip, id="fl-note")), 1)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertRegex(page, r"\.sim-follow \{[^}]*height: [0-9.]+rem")
+        phone = page[page.index("@media (max-width: 640px)"):]
+        self.assertRegex(phone[:phone.index("\n    }\n")], r"\.sim-follow \{ height: [0-9.]+rem")
+
+    def test_config_drawer_markup(self):
+        btn = find_all(self.box, "button", id="sim-cfg")[0]
+        self.assertIn("sim-counters", btn.parent.classes)
+        self.assertEqual([btn.attrs.get(k) for k in ("type", "aria-controls", "aria-expanded")], ["button", "sim-config", "false"])
+        self.assertEqual(" ".join(btn.text().split()), "config ▾")
+        drawer = find_all(self.box, id="sim-config")[0]
+        self.assertIn("hidden", drawer.attrs)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertLess(page.index('<div class="p-foot">', page.index('id="simbox"')), page.index('id="sim-config"'))
+
+    def test_follow_and_config_wiring(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        for needle in ("cv.addEventListener('click'", "E.requestSummary(sim, followed)", "followNext", "$('fl-next')", "$('fl-stop')",
+                       "E.serverConfig(sim)", "lastKey = 'gpu-memory-utilization'", "lastKey = 'threshold'", "lastKey = 'batching'",
+                       "lastKey = 'autoscaler'", "lastKey = 'large'", "function unfollow()"):
+            self.assertIn(needle, js)
+        deploy = js[js.index("function deploy("):js.index("function switchTab(")]
+        self.assertIn("unfollow();", deploy)   # a redeploy is a new sim: nothing of the old one stays followed
+
+    def test_follow_review_fixes(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        render = js[js.index("function renderFollow("):]
+        render = render[:render.index("\n  }\n")]
+        # the button pressed hides once a request is caught: focus moves to ×, not to the page
+        self.assertIn("document.activeElement === flNext", render)
+        self.assertIn("flStop.focus()", render)
+        # written at most every FOLLOW_MS of frame time, and only the nodes whose text changed
+        self.assertIn("FOLLOW_MS", render)
+        self.assertIn("function put(", js)
+        # paused, drained or frozen: nothing will arrive, so it follows the newest request in flight
+        nxt = js[js.index("flNext.addEventListener('click'"):]
+        nxt = nxt[:nxt.index("\n  });\n")]
+        self.assertIn("E.playState(sim, frozen) !== 'running'", nxt)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        # the strip's header stays one line on wide screens (two on phones), so the strip never clips its note
+        self.assertRegex(page, r"\.fl-head \{[^}]*flex-wrap: nowrap")
+        self.assertRegex(page, r"#fl-what \{[^}]*text-overflow: ellipsis")
+        # the config pill is no taller than a counter's line, so the counters row keeps its height on every tab
+        self.assertRegex(page, r"\.sim-counters \.sim-cfg \{[^}]*margin-block: -")
 
     def test_popover_placed_by_its_button(self):
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")

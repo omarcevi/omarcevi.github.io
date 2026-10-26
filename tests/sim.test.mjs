@@ -1533,6 +1533,8 @@ test('config: continuous batching shows each server\'s vllm serve flags, with th
   assert.match(text, /--max-num-batched-tokens 8192 \\/);
   assert.match(text, new RegExp('--max-model-len ' + sim.instances[0].maxModelLen + '$'));
   assert.equal(b.lines.find(l => /gpu-memory/.test(l.text)).key, 'gpu-memory-utilization');
+  // switching back to continuous batching highlights the vllm serve line, as switching to request-level does Triton's
+  assert.equal(b.lines.find(l => /^vllm serve/.test(l.text)).key, 'batching');
 });
 test('config: request-level batching is Triton\'s config.pbtxt with its dynamic_batching block', () => {
   const sim = E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 }));
@@ -1551,7 +1553,13 @@ test('config: tab 04 adds the gateway\'s routing block, and in API mode the API 
   const blocks = E.serverConfig(sim);
   assert.deepEqual(blocks.map(b => b.kind), ['router', 'vllm', 'vllm', 'vllm']);
   assert.match(blocks[0].lines.find(l => l.key === 'threshold').text, /threshold: 0\.60/);
+  assert.match(blocks[0].lines.find(l => l.key === 'large').text, /large: llama-3-8b/);
   assert.match(blocks[1].title, /System1/);
+  // System1 is modelled, not a known checkpoint: the drawer says so rather than describing how it was built
+  const s1 = blocks[1].lines.map(l => l.text).join('\n');
+  assert.doesNotMatch(s1, /fine-tuned/);
+  assert.match(s1, /sized like Llama 3\.2 1B here/);
+  assert.match(s1, /no public checkpoint/);
   const api = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['routing-api'], { seed: 1 })));
   assert.deepEqual(api.map(b => b.kind), ['router', 'vllm', 'vllm', 'api']);
   assert.match(api[3].lines.map(l => l.text).join('\n'), /\$2 .*\$10/);
