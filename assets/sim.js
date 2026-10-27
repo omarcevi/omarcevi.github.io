@@ -15,6 +15,8 @@
 // Clicking a request's dot or row follows it: it's outlined on the canvas, and the strip under the key shows
 // its queue, prefill and decode spans, what happened to it, and its TTFT, TPOT and total time. The config
 // drawer shows the setup being simulated, one block per server, with the value last changed highlighted.
+// The sandbox builds a deployment from knobs or a terminal (both run the same commands), shows its config
+// beside them, meters its cost, and runs the SLO challenge: the Azure hour's peak against that deployment.
 // Tab 06 serves two replicas on two H100s: killing one draws its box failed (dashed red), and with the
 // autoscaler on its replacement draws as starting (dashed, counting down its cold start) until it serves.
 // Animations run on the page's frame clock; the sim's own clock stops once it has drained.
@@ -107,12 +109,21 @@
   var followed = null, followNext = null, idleShown = false;   // the request followed, or the arrival count to follow the next after
   var FOLLOW_MS = 150, followedAt = -Infinity;                 // the strip is rewritten at most this often (frame time)
   var lastKey = null, cfgHtml = '';                             // the knob last changed (the config drawer highlights it)
+  var sbWork = $('sb-work'), sbLog = $('sb-log'), sbCmd = $('sb-cmd'), sbConfig = $('sb-config'), sbGo = $('sb-go');
+  var sbModels = $('sb-models'), sbMem = $('sb-mem'), sbMemOut = $('sb-mem-v'), sbSeqs = $('sb-seqs'), sbRate = $('sb-rate');
+  var sbRateOut = $('sb-rate-v'), sbLengths = $('sb-lengths'), sbKill = $('sb-kill'), wrapSpent = $('m-spent-wrap');
+  var sbChal = $('sb-chal'), sbChalWhat = $('sb-chal-what'), sbChalBar = $('sb-chal-bar'), sbChalNums = $('sb-chal-nums'), sbChalBtns = $('sb-chal-btns');
+  var sbRadios = [].slice.call(sbWork.querySelectorAll('[role=radio][data-sb]'));
+  function copySettings(st) { return Object.assign({}, st, { models: st.models.slice() }); }
+  var SANDBOX = copySettings(E.SANDBOX_DEFAULTS);   // kept while the visitor stays on the page
+  var challenge = null;                             // the SLO challenge running: { failedAt, why, peak, done }
+  var history = [], histAt = 0;                     // the terminal's past commands
   var note = box.querySelector('.p-title .note'), kvMem = $('sim-kvmem'), kvMemOut = $('sim-kvmem-v');
   var route = $('sim-route'), routeOut = $('sim-route-v');
   var M = {
     p50: $('m-ttft50'), p99: $('m-ttft99'), tpot: $('m-tpot'), thr: $('m-thr'), kv: $('m-kv'),
     gpus: $('m-gpus'), cost: $('m-cost'), pre: $('m-pre'), rej: $('m-503'),
-    small: $('m-small'), mis: $('m-mis'), api: $('m-api'), retry: $('m-retry')
+    small: $('m-small'), mis: $('m-mis'), api: $('m-api'), retry: $('m-retry'), spent: $('m-spent')
   };
   var tabs = [].slice.call(box.querySelectorAll('[role=tablist] [role=tab]'));
   var panels = [].slice.call(box.querySelectorAll('[role=tabpanel]'));
@@ -804,8 +815,10 @@
 
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // Rebuilt from the engine with the footer (a kill or a replacement changes it); the DOM only when it changed
+  function sandboxish() { return preset === 'sandbox' || preset === 'challenge'; }
   function renderConfig() {
-    if (cfgBox.hidden) return;
+    var target = sandboxish() ? sbConfig : cfgBox.hidden ? null : cfgBox;
+    if (!target) return;
     var html = E.serverConfig(sim).map(function (b) {
       return '<pre class="cfg-block"><span class="c"># ' + esc(b.title) + '</span>\n' + b.lines.map(function (l) {
         var t = esc(l.text);
@@ -814,14 +827,14 @@
         return l.key && l.key === lastKey ? '<span class="hl">' + t + '</span>' : t;
       }).join('\n') + '</pre>';
     }).join('');
-    if (html !== cfgHtml) { cfgBox.innerHTML = html; cfgHtml = html; }
+    if (html !== target.__html) { target.innerHTML = html; target.__html = html; }
   }
   cfgBtn.addEventListener('click', function () {
     var open = cfgBox.hidden;
     cfgBox.hidden = !open;
     cfgBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     cfgBtn.textContent = open ? 'config \u25b4' : 'config \u25be';
-    cfgHtml = '';
+    cfgBox.__html = '';
     renderConfig();
   });
 
@@ -863,7 +876,10 @@
     wrapApi.hidden = !V.api;
     if (sim.routing) { M.small.textContent = f.pct(m.smallShare); M.mis.textContent = f.pct(m.misroutedShare); }
     // tab 06: the retries, and the kill button while there's a second GPU up to kill
-    wrapRetry.hidden = preset !== 'failure';
+    wrapRetry.hidden = preset !== 'failure' && !sandboxish();
+    wrapSpent.hidden = !sandboxish();
+    if (sandboxish()) M.spent.textContent = usd(E.spentUsd(sim) - V.spent0);
+    if (challenge && preset === 'challenge') judge();
     M.retry.textContent = sim.stats.retried.toLocaleString('en-US');
     // aria-disabled, not disabled: disabling the focused button would drop keyboard focus to the page
     if (preset === 'failure' && sim.instances.filter(function (inst) { return !inst.api && E.instanceStatus(sim, inst).state === 'up'; }).length < 2) {
@@ -984,6 +1000,7 @@
     }).then(function (d) {
       TRACE = d;
       traceState(null);
+      syncKnobs();
       if (preset === 'traffic-random' && !pickedRandom) deploy('traffic-trace');
     }).catch(function () {
       traceAsked = false;
@@ -996,17 +1013,21 @@
   // it, from the warm-up on and with no marker. Nothing of the old sim's view carries over, and frozen stays
   // as it is (reduced motion opens every one frozen).
   function deploy(id, config) {
-    var p = id === 'traffic-trace' ? E.tracePreset(TRACE) : E.PRESETS[id];
+    if (id === 'sandbox' || id === 'challenge') sandboxViews();
+    var p = id === 'traffic-trace' ? E.tracePreset(TRACE) : id === 'sandbox' ? E.sandboxPreset(SANDBOX, TRACE) :
+      id === 'challenge' ? E.challengePreset(SANDBOX, TRACE) : E.PRESETS[id];
     preset = id;
     sim = E.createSim(Object.assign({}, p, {
-      seed: Math.floor(Math.random() * 2147483647), config: config,
+      seed: Math.floor(Math.random() * 2147483647), config: config || p.config,
       routing: p.routing ? Object.assign({}, p.routing, { threshold: +route.value }) : null
     }));
     V = freshView();
-    for (var k = 0, n = sim.slo ? TAB03_WARMUP_TICKS : WARMUP_TICKS; k < n; k++) {
+    // the challenge starts from empty servers, at minute 20 of the hour
+    for (var k = 0, n = id === 'challenge' ? 0 : sim.slo ? TAB03_WARMUP_TICKS : WARMUP_TICKS; k < n; k++) {
       E.tick(sim, TICK_MS);
       if (sim.t >= V.nextSample) { V.nextSample += SAMPLE_MS; sample(E.metrics(sim)); }
     }
+    V.spent0 = E.spentUsd(sim);   // the cost meter counts from the open, not the warm-up
     V.rejected = sim.stats.rejected;
     note.textContent = VIEWS[id].note;
     cv.setAttribute('aria-label', VIEWS[id].aria);
@@ -1041,9 +1062,14 @@
     showRoute();
     pickedRandom = false;
     lastKey = null;
+    challenge = null;
+    var sb = id === 'sandbox';
+    sbWork.hidden = !sb; sbChal.hidden = true; cfgBtn.hidden = sb;
+    if (sb) { cfgBox.hidden = true; cfgBtn.setAttribute('aria-expanded', 'false'); cfgBtn.textContent = 'config \u25be'; }
     if (id === 'kvcache') deploy('kvcache', { gpuMemUtil: KV_MEM });
     else if (id === 'traffic') { loadTrace(); deploy(TRACE ? 'traffic-trace' : 'traffic-random'); }
     else if (id === 'failure') deploy('failure');
+    else if (id === 'sandbox') { loadTrace(); deploy('sandbox'); }
     else deploy(id === 'mig' ? 'mig-mig' : id === 'routing' ? 'routing-onprem' : 'batching');
   }
 
@@ -1139,6 +1165,175 @@
     renderConfig();
     if (!raf) draw();   // frozen or stopped: show the new marker now
   });
+
+  // ---- Sandbox ----
+
+  function usd(v) { return '$' + (v < 1 ? v.toFixed(4) : v.toFixed(2)); }
+  function clock(ms) { var t = Math.max(0, Math.round(ms / 1000)); return Math.floor(t / 60) + ':' + ('0' + t % 60).slice(-2); }
+  function describe(st) {
+    return st.gpus + ' × H100' + (st.layout === 'whole' ? '' : st.layout === 'time-sliced' ? ', time-sliced' : ', MIG ' + st.layout);
+  }
+  function sandboxViews() {
+    var d = describe(SANDBOX);
+    VIEWS.sandbox = { note: '· sandbox: ' + d + ' · real time', label: d, narrow: SANDBOX.gpus + ' × H100',
+                      aria: 'Animated simulation: your sandbox deployment, ' + d };
+    VIEWS.challenge = { note: '· SLO challenge: ' + d + ' · Azure peak, 12× faster', label: d, narrow: SANDBOX.gpus + ' × H100',
+                        aria: 'Animated simulation: the SLO challenge, the peak of the Azure hour replayed against ' + d };
+  }
+  function log(text, cls) {
+    var line = document.createElement('div');
+    line.className = cls || '';
+    line.textContent = text;
+    sbLog.appendChild(line);
+    while (sbLog.childNodes.length > 80) sbLog.removeChild(sbLog.firstChild);
+    sbLog.scrollTop = sbLog.scrollHeight;
+  }
+  function statusLine() {
+    var m = E.metrics(sim), f = E.fmt;
+    return 'TTFT p99 ' + f.ms(m.ttftP99) + ' · throughput ' + f.tok(m.tokPerSec) + ' · KV ' + f.pct(m.kvFrac) + ' · GPUs ' + sim.gpuCount +
+      ' · 503s ' + m.rejected + ' · spent ' + usd(E.spentUsd(sim) - V.spent0);
+  }
+  // One command, typed or from a knob (both show in the terminal, so the knobs teach its commands)
+  function run(line) {
+    var r = E.sandboxCommand(SANDBOX, line), a = r.action, msg = r.message, k;
+    if (r.ok && !a) return;
+    log('› ' + line, 'cmd');
+    if (!r.ok) { log(r.message, 'err'); return; }
+    SANDBOX = r.settings;
+    if (a === 'deploy' || a === 'reset') {
+      if (a === 'reset') { SANDBOX = copySettings(E.SANDBOX_DEFAULTS); msg = 'back to the defaults: ' + describe(SANDBOX); }
+      lastKey = /gpu-mem/.test(line) ? 'gpu-memory-utilization' : /max-num-seqs/.test(line) ? 'max-num-seqs' : null;
+      stopChallenge(false);
+      deploy('sandbox');
+    } else if (a === 'batching') { E.setBatching(sim, SANDBOX.batching); lastKey = 'batching'; }
+    else if (a === 'router') { E.setRouter(sim, SANDBOX.router); lastKey = 'router'; }
+    else if (a === 'autoscaler') { E.setAutoscaler(sim, SANDBOX.autoscaler); lastKey = 'autoscaler'; }
+    else if (a === 'kill') {
+      k = E.killGpu(sim);
+      if (k === null) { log('only one GPU is up: nothing to kill', 'err'); return; }
+      msg = 'killed H100 ' + (k + 1) + ': its requests retry on the others';
+    } else if (a === 'burst') {
+      if (frozen) { frozen = false; E.setArrivals(sim, false); }
+      E.sendBurst(sim, r.value, 0);
+    } else if (a === 'pause') { if (E.playState(sim, frozen) === 'running') E.setArrivals(sim, false); msg = 'paused: what is in flight finishes'; }
+    else if (a === 'play') { frozen = false; E.setArrivals(sim, true); msg = 'playing'; }
+    else if (a === 'challenge') { startChallenge(); return; }
+    else if (a === 'status') msg = statusLine();
+    else if (a === 'clear') { sbLog.textContent = ''; return; }
+    log(a === 'help' || a === 'status' ? msg : 'ok  ' + msg, a === 'help' || a === 'status' ? 'hint' : 'ok');
+    syncKnobs(); renderConfig(); footer(); renderPlay();
+    if (!raf) draw();
+    wake();
+  }
+  // The knobs show SANDBOX; a choice that would put more servers on the canvas than it can draw is disabled
+  function syncKnobs() {
+    var slots = E.SANDBOX_LAYOUTS[SANDBOX.layout].length, max = E.SANDBOX_MAX_SERVERS;
+    sbRadios.forEach(function (b) {
+      var key = b.getAttribute('data-sb'), v = b.getAttribute('data-v'), cur = SANDBOX[key], off = false;
+      if (key === 'bursts' || key === 'autoscaler') cur = cur ? 'on' : 'off';
+      var on = String(cur) === v;
+      if (key === 'gpus') off = +v * slots > max;
+      if (key === 'layout') off = SANDBOX.gpus * E.SANDBOX_LAYOUTS[v].length > max;
+      if (key === 'traffic' && v === 'trace') off = !TRACE;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      if (off) b.setAttribute('aria-disabled', 'true'); else b.removeAttribute('aria-disabled');
+    });
+    if (sbModels.children.length !== slots || sbModels.__layout !== SANDBOX.layout) {
+      sbModels.__layout = SANDBOX.layout;
+      sbModels.innerHTML = E.SANDBOX_LAYOUTS[SANDBOX.layout].map(function (profile, k) {
+        return '<select aria-label="Model on slice ' + (k + 1) + ' (' + profile + ')">' +
+          [['llama-3-8b', '8B'], ['llama-3.2-3b', '3B'], ['llama-3.2-1b', '1B']].map(function (o) {
+            return '<option value="' + o[0] + '">' + (profile === '7g.80gb' ? '' : profile.split('.')[0] + ' · ') + o[1] + '</option>';
+          }).join('') + '</select>';
+      }).join('');
+    }
+    [].slice.call(sbModels.children).forEach(function (sel, k) { sel.value = SANDBOX.models[Math.min(k, SANDBOX.models.length - 1)]; });
+    sbMem.value = String(SANDBOX.gpuMemUtil); sbMemOut.textContent = SANDBOX.gpuMemUtil.toFixed(2);
+    sbSeqs.value = String(SANDBOX.maxNumSeqs);
+    sbRate.value = String(SANDBOX.rate); sbRateOut.textContent = SANDBOX.rate + '/s'; sbRate.disabled = SANDBOX.traffic === 'trace';
+    sbLengths.value = SANDBOX.lengths;
+  }
+  var WORD = { 'llama-3-8b': '8b', 'llama-3.2-3b': '3b', 'llama-3.2-1b': '1b' };
+  function knob(b) {
+    if (b.getAttribute('aria-disabled') === 'true') return;
+    var key = b.getAttribute('data-sb'), v = b.getAttribute('data-v');
+    run(key === 'gpus' || key === 'layout' || key === 'batching' || key === 'traffic' || key === 'bursts' || key === 'router' || key === 'autoscaler' ? key + ' ' + v : '');
+  }
+  [].slice.call(sbWork.querySelectorAll('[role=radiogroup]')).forEach(function (g) {
+    var list = [].slice.call(g.querySelectorAll('[role=radio]'));
+    list.forEach(function (b) { b.addEventListener('click', function () { knob(b); }); });
+    arrows(list, RADIO_KEYS, knob);
+  });
+  sbModels.addEventListener('change', function () {
+    run('models ' + [].slice.call(sbModels.children).map(function (sel) { return WORD[sel.value]; }).join(' '));
+  });
+  sbMem.addEventListener('input', function () { sbMemOut.textContent = (+sbMem.value).toFixed(2); });
+  sbMem.addEventListener('change', function () { run('set gpu-mem ' + (+sbMem.value).toFixed(2)); });
+  sbSeqs.addEventListener('change', function () { run('set max-num-seqs ' + sbSeqs.value); });
+  sbRate.addEventListener('input', function () { sbRateOut.textContent = sbRate.value + '/s'; });
+  sbRate.addEventListener('change', function () { run('rate ' + sbRate.value); });
+  sbLengths.addEventListener('change', function () { run('lengths ' + sbLengths.value); });
+  sbKill.addEventListener('click', function () { run('kill'); });
+  sbCmd.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      var line = sbCmd.value.trim();
+      sbCmd.value = '';
+      if (line) { history.push(line); histAt = history.length; }
+      run(line);
+    } else if (e.key === 'ArrowUp' && histAt > 0) { e.preventDefault(); sbCmd.value = history[--histAt]; }
+    else if (e.key === 'ArrowDown' && histAt < history.length) { e.preventDefault(); histAt += 1; sbCmd.value = history[histAt] || ''; }
+  });
+
+  // The SLO challenge: the peak of the Azure hour, once, against SANDBOX. It fails on a 30 s p99 over the
+  // target or on any 503, and ends once its last request is served.
+  var CHALLENGE_MS = (E.CHALLENGE.endMs - E.CHALLENGE.startMs) / 12;   // the window at 12x, about 75 s
+  function startChallenge() {
+    if (!TRACE) { log('the Azure trace is still loading: try again in a moment', 'err'); return; }
+    try { E.challengePreset(SANDBOX, TRACE); } catch (err) { log(err.message, 'err'); return; }
+    log('› challenge: Azure\'s peak against ' + describe(SANDBOX) + ' · p99 ≤ 2 s, no 503s', 'cmd');
+    challenge = { failedAt: null, why: '', peak: 0, done: false };
+    lastKey = null;
+    deploy('challenge');
+    sbChal.hidden = false; sbChalBtns.hidden = true; sbGo.textContent = 'stop the challenge';
+    judge();
+  }
+  function stopChallenge(redeploy) {
+    if (!challenge && preset !== 'challenge') return;
+    challenge = null;
+    sbChal.hidden = true; sbGo.textContent = 'take the SLO challenge \u203a';
+    if (redeploy) deploy('sandbox');
+  }
+  function judge() {
+    var f = E.fmt, p = E.metrics(sim, 'llama-3-8b', E.CHALLENGE.windowMs).ttftP99, rej = sim.stats.rejected, slo = E.CHALLENGE.sloMs;
+    var cost = sim.stats.outputTokens ? E.spentUsd(sim) / sim.stats.outputTokens * 1e6 : null;
+    if (p !== null) challenge.peak = Math.max(challenge.peak, p);
+    if (challenge.failedAt === null && ((p !== null && p > slo) || rej > 0)) {
+      challenge.failedAt = sim.t;
+      challenge.why = p !== null && p > slo ? 'p99 ' + f.ms(p) + ' over the 2 s target' : rej + ' requests turned away (503)';
+    }
+    if (!challenge.done && E.isDrained(sim)) challenge.done = true;
+    var perM = function (v) { return v === null ? '\u2013' : f.usd(v); }, par = 'par ' + perM(E.CHALLENGE.parUsdPer1M) + ' (2 × H100)';
+    if (challenge.done) {
+      sbChalWhat.innerHTML = challenge.failedAt === null ?
+        '<b class="ok">Passed.</b> ' + describe(SANDBOX) + ': p99 peaked at ' + f.ms(challenge.peak) + ', no 503s' :
+        '<b class="bad">Failed at ' + clock(challenge.failedAt) + '.</b> ' + challenge.why;
+      sbChalNums.innerHTML = 'you: <b>' + perM(cost) + '</b> · ' + par;
+      sbChalBar.style.width = '100%';
+      sbChalBtns.hidden = false;
+      return;
+    }
+    sbChalWhat.innerHTML = '<b>SLO challenge</b> · the Azure hour\'s peak (minutes 20–35, 12× faster) · TTFT p99 ≤ 2 s, no 503s';
+    sbChalBar.style.width = Math.min(100, sim.t / CHALLENGE_MS * 100).toFixed(1) + '%';
+    sbChalNums.innerHTML = (challenge.failedAt !== null ? '<b class="bad">failed at ' + clock(challenge.failedAt) + '</b> · ' : '') +
+      clock(CHALLENGE_MS - sim.t) + ' left · p99 <b class="' + (p !== null && p > slo ? 'bad' : 'ok') + '">' + f.ms(p) + '</b> · 503s <b>' + rej +
+      '</b> · <b>' + perM(cost) + '</b>';
+  }
+  sbGo.addEventListener('click', function () { if (preset === 'challenge') stopChallenge(true); else startChallenge(); });
+  $('sb-again').addEventListener('click', startChallenge);
+  $('sb-free').addEventListener('click', function () { stopChallenge(true); });
+  log('sandbox · type help for the commands, or use the knobs', 'hint');
+  syncKnobs();
 
   // Pause stops new arrivals and lets in-flight work drain; play (also from draining) restarts them
   playBtn.addEventListener('click', function () {
