@@ -141,9 +141,10 @@ class Simulator(unittest.TestCase):
         self.assertEqual(len(lists), 1)
         self.assertNotIn("hidden", lists[0].attrs)
         tabs = find_all(lists[0], "button", role="tab")
-        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing", "traffic", "failure"])
+        self.assertEqual([t.attrs.get("data-tab") for t in tabs], ["batching", "kvcache", "mig", "routing", "traffic", "failure", "sandbox"])
         self.assertEqual([" ".join(t.text().split()) for t in tabs],
-                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing", "05 real traffic", "06 failure"])
+                         ["01 batching", "02 kv cache", "03 mig layout", "04 routing", "05 real traffic", "06 failure", "sandbox ›"])
+        self.assertIn("sb-tab", tabs[-1].classes)   # set apart on the right
         for t in tabs:
             panel = find_all(self.box, id=t.attrs.get("aria-controls"))[0]
             self.assertEqual(panel.attrs.get("role"), "tabpanel")
@@ -326,6 +327,7 @@ class Simulator(unittest.TestCase):
         "routing": "Model routing. A small System1 model sends easy requests to a 1B model and hard ones to the 8B, cutting cost until misroutes hurt answers.",
         "traffic": "Real traffic. Real traffic peaks well above its average, so a GPU sized for the average falls behind at the peak, which random traffic hides.",
         "failure": "Failure. Kill one of two replicas and its requests retry on the survivor, which falls behind until a replacement comes up.",
+        "sandbox": "Sandbox. Build any deployment with the knobs or the terminal, watch its config follow, then take the SLO challenge.",
     }
 
     def test_one_lesson_shape(self):
@@ -372,7 +374,7 @@ class Simulator(unittest.TestCase):
         counters = find_all(foot, "div", cls="sim-counters")
         self.assertEqual(len(counters), 1)
         self.assertEqual([c.attrs.get("id") for c in counters[0].children if c.tag == "span"],
-                         ["m-small-wrap", "m-mis-wrap", "m-api-wrap", "m-retry-wrap", "m-pre-wrap", "m-503-wrap"])
+                         ["m-spent-wrap", "m-small-wrap", "m-mis-wrap", "m-api-wrap", "m-retry-wrap", "m-pre-wrap", "m-503-wrap"])
         page = (ROOT / "index.html").read_text(encoding="utf-8")
         for metric, width in (("ttft50", "5ch"), ("ttft99", "5ch"), ("tpot", "5ch"), ("thr", "11ch"), ("kv", "4ch"), ("cost", "15ch")):
             self.assertRegex(page, r"#m-" + metric + r"\b[^{]*\{[^}]*min-width: " + width, metric)
@@ -441,6 +443,67 @@ class Simulator(unittest.TestCase):
         # the config pill is no taller than a counter's line, so the counters row keeps its height on every tab
         self.assertRegex(page, r"\.sim-counters \.sim-cfg \{[^}]*margin-block: -")
 
+    def test_sandbox_panel_and_par(self):
+        panel = find_all(self.box, id="sim-tab-sandbox")[0]
+        go = find_all(panel, "button", id="sb-go")[0]
+        self.assertEqual(" ".join(go.text().split()), "take the SLO challenge ›")
+        engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
+        par = float(re.search(r"parUsdPer1M: ([0-9.]+)", engine).group(1))
+        self.assertIn("$%.2f" % par, self.lesson("sim-tab-sandbox"))   # the full lesson states the engine's par
+
+    def test_sandbox_workbench(self):
+        work = find_all(self.box, id="sb-work")[0]
+        self.assertIn("hidden", work.attrs)
+        panes = [(p.attrs.get("role"), p.attrs.get("aria-label")) for p in find_all(work, cls="sb-pane")]   # page <section>s are reading-trace sections
+        self.assertEqual(panes, [("region", "Knobs"), ("region", "Terminal"), ("region", "Config")])
+        groups = {g.attrs.get("aria-label"): [b.attrs.get("data-v") for b in find_all(g, "button", role="radio")]
+                  for g in find_all(work, role="radiogroup")}
+        engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
+        layouts = re.findall(r"'?([a-z0-9+-]+)'?: \[", re.search(r"var SANDBOX_LAYOUTS = \{(.*?)\};", engine, re.S).group(1))
+        self.assertEqual(groups, {"GPUs": ["1", "2", "3"], "Layout": layouts, "Batching": ["request", "continuous"],
+                                  "Traffic": ["random", "trace"], "Bursts": ["on", "off"], "Router": ["least", "round-robin"],
+                                  "Autoscaler": ["off", "on"]})
+        for i in ("sb-models", "sb-mem", "sb-mem-v", "sb-seqs", "sb-rate", "sb-rate-v", "sb-lengths", "sb-kill", "sb-config"):
+            self.assertEqual(len(find_all(work, id=i)), 1, i)
+        log = find_all(work, id="sb-log")[0]
+        self.assertEqual(log.attrs.get("role"), "log")
+        cmd = find_all(work, "input", id="sb-cmd")[0]
+        self.assertEqual([cmd.attrs.get("type"), cmd.attrs.get("aria-label"), cmd.attrs.get("autocomplete")], ["text", "Sandbox command", "off"])
+        chal = find_all(self.box, id="sb-chal")[0]
+        self.assertIn("hidden", chal.attrs)
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertLess(page.index('id="sim-follow"'), page.index('id="sb-chal"'))
+        self.assertLess(page.index('id="sb-chal"'), page.index('<div class="p-foot">', page.index('id="simbox"')))
+
+    def test_sandbox_wiring(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        for needle in ("E.sandboxCommand(SANDBOX, line)", "E.sandboxPreset(SANDBOX, TRACE)", "E.challengePreset(SANDBOX, TRACE)",
+                       "E.spentUsd(sim)", "E.setRouter(sim, SANDBOX.router)", "E.CHALLENGE.sloMs", "function startChallenge(",
+                       "function syncKnobs(", "lastKey = 'router'"):
+            self.assertIn(needle, js)
+        deploy = js[js.index("function deploy("):js.index("function switchTab(")]
+        self.assertIn("id === 'challenge' ? 0", deploy)   # the challenge starts from empty servers, at minute 20
+
+    def test_sandbox_challenge_holds(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        judge = js[js.index("function judge("):]
+        judge = judge[:judge.index("\n  }\n")]
+        self.assertIn("E.challengeDone(sim)", judge)          # done once the whole window is served, not when it drains
+        self.assertIn("challenge.result", judge)              # the verdict and cost freeze at done
+        run = js[js.index("function run(line)"):]
+        run = run[:run.index("\n  }\n")]
+        self.assertIn("not during the challenge", run)       # pause, play and burst would change the workload
+        switch = js[js.index("function switchTab("):js.index("function setMode(")]
+        self.assertIn("stopChallenge(false)", switch)
+        self.assertIn("sbGo.focus()", js)                     # try again / back to free play keep the keyboard's place
+        knob = js[js.index("function knob("):]
+        self.assertIn("aria-checked') === 'true'", knob[:knob.index("\n  }\n")])   # re-clicking the choice made does nothing
+        said = find_all(self.box, id="sb-chal-said")[0]
+        self.assertEqual(said.attrs.get("role"), "status")
+        self.assertIn("vh", said.classes)
+        self.assertIn("doesn't fit", js)                      # a model too big for its slice is drawn as such
+        self.assertNotIn("Everything the other tabs", self.lesson("sim-tab-sandbox"))
+
     def test_popover_placed_by_its_button(self):
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
         self.assertIn("addEventListener('toggle'", js)
@@ -477,7 +540,7 @@ class Simulator(unittest.TestCase):
 
     def test_mig_lesson_states_the_engine_targets_and_overhead(self):
         engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
-        slo = dict(re.findall(r"'llama-([0-9.-]+b)': (\d+)", re.search(r"slo: \{([^}]*)\}", engine).group(1)))
+        slo = dict(re.findall(r"'llama-([0-9.-]+b)': (\d+)", re.search(r"var SLOS = \{([^}]*)\}", engine).group(1)))   # tab 03's targets
         said = {"3-8b": "8B", "3.2-3b": "3B", "3.2-1b": "1B"}
         targets = ", ".join(said[m] + " " + (str(int(ms) // 1000) + " s" if int(ms) >= 1000 else ms + " ms")
                             for m, ms in slo.items())

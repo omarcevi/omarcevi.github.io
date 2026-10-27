@@ -1565,7 +1565,7 @@ test('config: tab 04 adds the gateway\'s routing block, and in API mode the API 
   assert.match(api[3].lines.map(l => l.text).join('\n'), /\$2 .*\$10/);
 });
 test('config: time-slicing shows each process\'s share of the one GPU, and tab 06 its load balancer and autoscaler', () => {
-  const ts = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['mig-time'], { seed: 1 })));
+  const ts = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['mig-time'], { seed: 1 }))).filter(b => b.kind === 'vllm');
   assert.deepEqual(ts.map(b => b.lines.find(l => l.key === 'gpu-memory-utilization').text.trim()),
     ['--gpu-memory-utilization 0.45 \\', '--gpu-memory-utilization 0.25 \\', '--gpu-memory-utilization 0.20 \\']);
   assert.ok(ts.every(b => /time-sliced/.test(b.title)));
@@ -1577,4 +1577,190 @@ test('config: time-slicing shows each process\'s share of the one GPU, and tab 0
   blocks = E.serverConfig(sim);
   assert.match(blocks[0].lines.find(l => l.key === 'autoscaler').text, /autoscaler: on/);
   assert.deepEqual(blocks.slice(1).map(b => b.title), ['H100 1 · Llama 3 8B', 'H100 2 · Llama 3 8B']);
+});
+
+// ---- Sandbox ----
+
+test('sandbox: round-robin splits requests evenly however busy a server is; least outstanding favours the faster one', () => {
+  // an 8B on a 3g slice and one on a slower 2g slice, under load
+  const base = { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }, { profile: '2g.20gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: false } };
+  const routed = router => {
+    const sim = E.createSim(Object.assign({}, base, { seed: 1 }, router ? { router } : {})), w = watchAll(sim);
+    w.tick(30000);
+    const n = [0, 0];
+    for (const r of Object.values(w.all)) if (r.spans.length) n[r.spans[0].inst] += 1;
+    return n;
+  };
+  const rr = routed('round-robin'), least = routed(null);
+  // a few long prompts don't fit the 2g slice's max-model-len, so they skip to the 3g
+  assert.ok(Math.abs(rr[0] - rr[1]) <= 3, `round-robin ${rr}`);
+  assert.ok(least[0] > least[1] * 1.2, `least outstanding ${least}`);
+});
+test('sandbox: killing a GPU kills every server on it, and only while another GPU is up', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 2 })), { seed: 1 }));
+  assert.equal(sim.instances.length, 6);
+  assert.equal(E.killGpu(sim), 1);
+  assert.deepEqual(sim.instances.map(i => E.instanceStatus(sim, i).state), ['up', 'up', 'up', 'down', 'down', 'down']);
+  assert.equal(E.killGpu(sim), null);   // the last GPU's three servers stay up
+  const one = E.createSim(Object.assign({}, E.PRESETS['mig-mig'], { seed: 1 }));
+  assert.equal(E.killGpu(one), null);   // three slices of one H100 are one GPU
+});
+test('sandbox: the cost meter adds up the GPUs billed over time, and output tokens', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.failure, { seed: 1 }));
+  runExact(sim, 10000);
+  near(sim.stats.gpuMs, 2 * 10000, 1e-6);
+  E.killGpu(sim);
+  runExact(sim, 10000);
+  near(sim.stats.gpuMs, 2 * 10000 + 10000, 1e-6);
+  near(E.spentUsd(sim), E.GPU_HOUR_USD * 30000 / 3.6e6, 1e-12);
+  const made = sim.finished.reduce((n, r) => n + r.generated, 0);
+  assert.ok(sim.stats.outputTokens >= made && sim.stats.outputTokens > 0);
+});
+test('sandbox: settings build a deployment: layouts, models per slice, GPUs, and traffic per model', () => {
+  const p = E.sandboxPreset(E.SANDBOX_DEFAULTS);
+  assert.deepEqual(p.instances.map(i => [i.profile, i.model, i.gpu]), [['3g.40gb', 'llama-3-8b', 0], ['2g.20gb', 'llama-3.2-3b', 0], ['2g.20gb', 'llama-3.2-1b', 0]]);
+  assert.deepEqual(p.streams.map(s => s.model), ['llama-3-8b', 'llama-3.2-3b', 'llama-3.2-1b']);
+  near(p.streams.reduce((n, s) => n + s.rate, 0), E.SANDBOX_DEFAULTS.rate, 1e-9);   // the rate is the total, split across the models
+  assert.deepEqual(Object.keys(p.slo).sort(), ['llama-3-8b', 'llama-3.2-1b', 'llama-3.2-3b']);
+  const two = E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 2, layout: 'whole', models: ['llama-3-8b'], router: 'round-robin', batching: 'request', gpuMemUtil: 0.7, maxNumSeqs: 64 }));
+  assert.deepEqual(two.instances.map(i => [i.profile, i.gpu]), [['7g.80gb', 0], ['7g.80gb', 1]]);
+  assert.deepEqual([two.router, two.batching, two.config.gpuMemUtil, two.config.maxNumSeqs, two.streams.length], ['round-robin', 'request', 0.7, 64, 1]);
+  const ts = E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: 'time-sliced' }));
+  assert.ok(ts.instances.every(i => i.profile === '7g.80gb' && i.gpu === 0 && i.gpuMemUtil > 0));
+  const small = E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: '2g+2g+2g+1g', models: ['llama-3.2-1b'] }));
+  assert.deepEqual(small.instances.map(i => i.profile), ['2g.20gb', '2g.20gb', '2g.20gb', '1g.10gb']);
+  assert.ok(small.instances.every(i => i.model === 'llama-3.2-1b'));   // a short models list repeats its last
+  assert.throws(() => E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: '9g' })), /layout/);
+  assert.equal(E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { traffic: 'trace' }), D).streams[0].trace, D);
+});
+test('sandbox: every layout and model choice deploys and runs', () => {
+  for (const layout of Object.keys(E.SANDBOX_LAYOUTS)) for (const m of ['llama-3-8b', 'llama-3.2-3b', 'llama-3.2-1b']) for (const gpus of [1, 3]) {
+    const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout, models: [m], gpus })), { seed: 1 }));
+    runExact(sim, 3000);
+    assert.ok(sim.stats.arrived > 0, `${layout} ${m} ×${gpus}`);
+  }
+});
+// The SLO challenge as the page runs it: no warm-up, a refresh every 300 ms, failing on a 30 s p99 over the
+// target or on any 503; done once the window's requests are all served
+function runChallenge(settings) {
+  const sim = E.createSim(Object.assign({}, E.challengePreset(settings, D), { seed: 1 }));
+  let next = PAGE.sampleMs, failedAt = null;
+  while (!E.isDrained(sim) && sim.t < 400000) {
+    E.tick(sim, PAGE.tickMs);
+    if (sim.t >= next) {
+      next += PAGE.sampleMs;
+      const p99 = E.metrics(sim, 'llama-3-8b', E.CHALLENGE.windowMs).ttftP99;
+      if (failedAt === null && ((p99 !== null && p99 > E.CHALLENGE.sloMs) || sim.stats.rejected > 0)) failedAt = sim.t;
+    }
+  }
+  return { failedAt, cost: E.spentUsd(sim) / sim.stats.outputTokens * 1e6, ms: sim.t, arrived: sim.stats.arrived };
+}
+test('challenge: the window replays minutes 20-35 of the hour once, at 12×, to the 8B', () => {
+  const sim = E.createSim(Object.assign({}, E.challengePreset(E.SANDBOX_DEFAULTS, D), { seed: 1 }));
+  assert.deepEqual(sim.streams.map(s => s.model), ['llama-3-8b']);
+  const due = TRACE_T.filter(t => t >= E.CHALLENGE.startMs && t < E.CHALLENGE.endMs).length;
+  runExact(sim, (E.CHALLENGE.endMs - E.CHALLENGE.startMs) / D.speed + 30000);
+  assert.equal(sim.stats.arrived, due);
+  assert.throws(() => E.challengePreset(Object.assign({}, E.SANDBOX_DEFAULTS, { models: ['llama-3.2-1b'] }), D), /8B/);
+});
+test('challenge: one H100 fails at the peak; two pass, and their cost per 1M is the par', () => {
+  const one = runChallenge(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 1, layout: 'whole', models: ['llama-3-8b'] }));
+  assert.notEqual(one.failedAt, null);
+  const two = runChallenge(Object.assign({}, E.SANDBOX_DEFAULTS, E.CHALLENGE.par));
+  assert.equal(two.failedAt, null);
+  near(two.cost, E.CHALLENGE.parUsdPer1M, E.CHALLENGE.parUsdPer1M * 0.02);
+});
+test('sandbox: the router policy can change live, marked on the sparkline', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(E.SANDBOX_DEFAULTS), { seed: 1 }));
+  E.setRouter(sim, 'round-robin');
+  assert.equal(sim.router, 'round-robin');
+  assert.equal(sim.events[sim.events.length - 1].label, 'round-robin');
+  E.setRouter(sim, 'least');
+  assert.equal(sim.events[sim.events.length - 1].label, 'least outstanding');
+  assert.throws(() => E.setRouter(sim, 'random'), /router/);
+});
+test('terminal: commands change the settings, or say what\'s wrong', () => {
+  const S = E.SANDBOX_DEFAULTS, run = (line, s = S) => E.sandboxCommand(s, line);
+  let r = run('gpus 2');
+  assert.deepEqual([r.ok, r.action, r.settings.gpus], [true, 'deploy', 2]);
+  assert.equal(S.gpus, 1);   // the defaults are left alone
+  r = run('layout whole');
+  assert.deepEqual([r.ok, r.action, r.settings.layout], [true, 'deploy', 'whole']);
+  r = run('models 8b 8b');
+  assert.deepEqual(r.settings.models, ['llama-3-8b', 'llama-3-8b']);
+  r = run('set gpu-mem 0.75');
+  assert.deepEqual([r.ok, r.settings.gpuMemUtil], [true, 0.75]);
+  assert.equal(run('set gpu-mem 1.2').ok, false);
+  r = run('set max-num-seqs 64');
+  assert.equal(r.settings.maxNumSeqs, 64);
+  assert.deepEqual([run('rate 18').settings.rate, run('bursts off').settings.bursts, run('lengths long').settings.lengths], [18, false, 'long']);
+  assert.deepEqual([run('traffic trace').settings.traffic, run('traffic trace').action], ['trace', 'deploy']);
+  // live ones don't redeploy
+  assert.deepEqual([run('batching request').action, run('batching request').settings.batching], ['batching', 'request']);
+  assert.deepEqual([run('router round-robin').action, run('router round-robin').settings.router], ['router', 'round-robin']);
+  assert.deepEqual([run('autoscaler on').action, run('autoscaler on').settings.autoscaler], ['autoscaler', true]);
+  for (const a of ['kill', 'pause', 'play', 'challenge', 'status', 'reset', 'clear', 'help']) assert.equal(run(a).action, a, a);
+  assert.deepEqual([run('burst').action, run('burst').value, run('burst 40').value], ['burst', 24, 40]);
+  // more servers than the canvas can show, an unknown command, a bad value
+  r = run('gpus 3', Object.assign({}, S, { layout: '3g+2g+2g' }));
+  assert.equal(r.ok, false);
+  assert.match(r.message, /6 servers/);
+  assert.equal(run('layout 2g+2g+2g+1g', Object.assign({}, S, { gpus: 2 })).ok, false);
+  assert.match(run('frobnicate').message, /help/);
+  assert.equal(run('models 7b').ok, false);
+  assert.equal(run('').action, null);
+  assert.match(run('help').message, /gpus/);
+});
+test('config: with several servers the router block names its policy and the queue limit behind the 503s', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(E.SANDBOX_DEFAULTS), { seed: 1 }));
+  let r = E.serverConfig(sim)[0];
+  assert.equal(r.kind, 'router');
+  assert.match(r.lines.find(l => l.key === 'router').text, /policy: least outstanding requests/);
+  assert.match(r.lines.map(l => l.text).join('\n'), /max queued per server: 128 +# then 503/);
+  E.setRouter(sim, 'round-robin');
+  r = E.serverConfig(sim)[0];
+  assert.match(r.lines.find(l => l.key === 'router').text, /policy: round-robin/);
+  assert.equal(E.serverConfig(E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 })))[0].kind, 'vllm');   // one server: no router block
+});
+test('challenge: done only once the whole window is served: a pause, a drain or play afterwards doesn\'t end it early or keep it going', () => {
+  const sim = E.createSim(Object.assign({}, E.challengePreset(Object.assign({}, E.SANDBOX_DEFAULTS, E.CHALLENGE.par), D), { seed: 1 }));
+  runExact(sim, 5000);
+  E.setArrivals(sim, false);
+  runExact(sim, 30000);
+  assert.ok(E.isDrained(sim));
+  assert.equal(E.challengeDone(sim), false);   // paused and drained, but most of the window is still to come
+  E.setArrivals(sim, true);
+  while (!E.challengeDone(sim) && sim.t < 300000) E.tick(sim, 50);
+  assert.ok(E.challengeDone(sim));
+  E.setArrivals(sim, true);                     // play after the end: nothing is left to arrive, so it stays done
+  assert.equal(sim.arrivalsOn, false);
+  assert.ok(E.challengeDone(sim));
+  assert.equal(E.challengeDone(E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 }))), false);
+});
+test('sandbox: with the autoscaler on, a killed MIG H100 comes back as one H100, slices and all', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 2, autoscaler: true })), { seed: 1 }));
+  runExact(sim, 2000);
+  assert.equal(E.killGpu(sim), 1);
+  assert.equal(sim.gpuCount, 2);   // the replacement is billed from now on: one GPU, not three
+  assert.deepEqual(sim.events.filter(e => / starting$/.test(e.label)).map(e => e.label), ['H100 3 starting']);
+  assert.deepEqual(sim.instances.slice(3).map(i => [E.instanceStatus(sim, i).state, i.gpu]), [['starting', 2], ['starting', 2], ['starting', 2]]);
+  runExact(sim, E.COLD_START_MS + 100);
+  assert.equal(sim.gpuCount, 2);
+  assert.deepEqual(sim.events.filter(e => / up$/.test(e.label)).map(e => e.label), ['H100 3 up']);
+  assert.equal(E.killGpu(sim), 2);   // the next kill takes the whole replacement
+  assert.deepEqual(sim.instances.slice(3).map(i => E.instanceStatus(sim, i).state), ['starting', 'starting', 'starting']);
+  assert.equal(sim.gpuCount, 2);
+});
+test('sandbox: time-sliced processes share the memory the gpu-mem knob gives, in tab 03\'s proportions', () => {
+  const at = u => E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: 'time-sliced', gpuMemUtil: u })).instances.map(i => +i.gpuMemUtil.toFixed(4));
+  assert.deepEqual(at(0.9), [0.45, 0.25, 0.2]);
+  assert.deepEqual(at(0.5), [0.25, +(0.5 * 0.25 / 0.9).toFixed(4), +(0.5 * 0.2 / 0.9).toFixed(4)]);
+});
+test('config: a model that doesn\'t fit its slice says so instead of printing a command that won\'t start', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: '2g+2g+2g+1g', models: ['llama-3.2-1b', 'llama-3.2-1b', 'llama-3.2-1b', 'llama-3-8b'] })), { seed: 1 }));
+  const b = E.serverConfig(sim).find(x => /1g\.10gb/.test(x.title));
+  assert.equal(b.kind, 'unfit');
+  assert.match(b.title, /doesn't fit/);
+  assert.match(b.lines.map(l => l.text).join('\n'), /won't start: 16\.06 GB of weights/);
+  assert.ok(!b.lines.some(l => /vllm serve/.test(l.text)));
 });

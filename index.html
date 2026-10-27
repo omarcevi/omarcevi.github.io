@@ -310,6 +310,7 @@
     .paused .live { animation: none; background: var(--p-faint); }
     @keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
     .p-ctrl { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .p-ctrl button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }   /* send burst during the SLO challenge */
     .p-ctrl button, .p-ctrl select {
       font: inherit; color: var(--p-text); background: #181b21; border: 1px solid #2a2f38; border-radius: 999px;
       padding: 0.26rem 0.7rem; cursor: pointer; transition: border-color 0.15s, color 0.15s;
@@ -375,6 +376,47 @@
     #fl-next:focus-visible, #fl-stop:focus-visible, .sim-cfg:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
     #fl-next[hidden], #fl-stop[hidden] { display: none; }
     #sim.picking { cursor: pointer; }
+    /* the sandbox: its tab set apart on the right; the SLO challenge's bar over the footer; and under it the
+       workbench, knobs, a terminal and the config they make, side by side (stacked on phones) */
+    .sim-tabs .sb-tab { margin-left: auto; }
+    .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* read out, not shown */
+    .sb-go { font: 0.72rem/1.65 var(--mono); color: var(--p-accent); background: #181b21; border: 1px solid var(--p-accent); border-radius: 999px; padding: 0.26rem 0.7rem; cursor: pointer; flex: none; }
+    .sb-go:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
+    .sb-chal { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1.2rem; padding: 0.55rem 0.9rem; border-top: 1px solid var(--p-line2); background: rgba(122, 162, 255, 0.06); font: 0.72rem/1.5 var(--mono); color: var(--p-muted); }
+    .sb-chal[hidden] { display: none; }
+    .sb-chal b { color: var(--p-text); font-weight: 500; }
+    .sb-chal .ok { color: var(--p-ok); } .sb-chal .bad { color: var(--p-bad); }
+    .sb-bar { flex: 1 1 8rem; height: 4px; border-radius: 2px; background: #2a2f38; overflow: hidden; }
+    #sb-chal-bar { display: block; height: 100%; width: 0; background: var(--p-accent); }
+    .sb-chal-btns button { font: inherit; color: var(--p-muted); background: #181b21; border: 1px solid #2a2f38; border-radius: 999px; padding: 0.1rem 0.6rem; cursor: pointer; }
+    .sb-chal-btns[hidden] { display: none; }
+    .sb-work { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 0.7rem; padding: 0.7rem 0.9rem 0.9rem; border-top: 1px solid var(--p-line2); font: 0.72rem/1.6 var(--mono); color: var(--p-muted); }
+    .sb-work[hidden] { display: none; }
+    .sb-pane { min-width: 0; height: 21rem; padding: 0.6rem 0.75rem; background: #13161c; border: 1px solid #1c2027; border-radius: 8px; overflow: auto; }
+    .sb-knobs { height: 24.5rem; }
+    .sb-term, .sb-cfgpane { height: 24.5rem; }
+    .sb-pane h4 { margin: 0 0 0.45rem; font: inherit; font-weight: 400; color: var(--p-muted); opacity: 0.8; }
+    .sb-knobs .kr { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 0.5rem; align-items: center; justify-items: start; margin-bottom: 0.45rem; }
+    .sb-knobs .kr > span:first-child { color: var(--p-muted); opacity: 0.8; }
+    .sb-knobs .kv { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
+    .sb-knobs .kn { color: var(--p-muted); }
+    .seg.sm { flex-wrap: wrap; border-radius: 10px; font-size: 0.72rem; line-height: 1.5; }
+    .seg.sm button { padding: 0.12rem 0.5rem; }
+    .sb-knobs select { font: inherit; color: var(--p-text); background: #181b21; border: 1px solid #2a2f38; border-radius: 6px; padding: 0 0.3rem; }
+    .sb-knobs .sim-range { flex-wrap: nowrap; }
+    .sb-knobs .sim-range input { flex: none; width: 72px; min-width: 0; }
+    .sb-models { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .sb-term { display: flex; flex-direction: column; }
+    .sb-log { flex: 1; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
+    .sb-log .cmd { color: var(--p-text); } .sb-log .ok { color: var(--p-ok); } .sb-log .err { color: var(--p-bad); } .sb-log .hint { color: var(--p-muted); opacity: 0.8; }
+    .sb-prompt { display: flex; align-items: center; gap: 0.4rem; padding-top: 0.4rem; border-top: 1px solid #1c2027; color: var(--p-text); }
+    .sb-prompt input { flex: 1; min-width: 0; font: inherit; color: var(--p-text); background: transparent; border: 0; outline: none; caret-color: var(--p-accent); }
+    .sb-prompt:focus-within { box-shadow: 0 -1px 0 var(--p-accent); }
+    .sb-cfgpane pre { margin: 0 0 0.55rem; white-space: pre; font: inherit; color: var(--p-muted); }
+    .sb-cfgpane .cfg-block { padding: 0; background: none; border: 0; border-radius: 0; }   /* flat inside the pane */
+    .sb-cfgpane .c { color: var(--p-muted); opacity: 0.8; } .sb-cfgpane .k { color: var(--p-text); }
+    .sb-cfgpane .hl { background: rgba(122, 162, 255, 0.18); color: var(--p-accent); border-radius: 3px; }
+    @media (max-width: 900px) { .sb-work { grid-template-columns: 1fr 1fr; } .sb-knobs { grid-column: 1 / -1; height: auto; } }
     /* the config drawer: the setup being simulated, one block per server, the value last changed highlighted */
     .sim-counters .sim-cfg { margin-left: auto; margin-block: -0.15rem; }   /* no taller than a counter's line */
     .sim-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: 0.7rem; padding: 0.7rem 0.9rem 0.9rem; border-top: 1px solid var(--p-line2); }
@@ -745,6 +787,10 @@
       #fl-what { flex-basis: 100%; }
       .fl-row { grid-template-columns: 3.6rem 1fr 3rem; }
       .fl-note { display: none; }
+      .sb-work { grid-template-columns: 1fr; }
+      .sb-pane, .sb-knobs, .sb-cfgpane { height: auto; }
+      .sb-cfgpane { max-height: 20rem; }
+      .sb-term { height: 16rem; }
       .p-title .note { display: none; }
       .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
@@ -839,6 +885,7 @@
           <button type="button" role="tab" id="sim-tabbtn-routing" data-tab="routing" aria-controls="sim-tab-routing" aria-selected="false"><i>04</i> routing</button>
           <button type="button" role="tab" id="sim-tabbtn-traffic" data-tab="traffic" aria-controls="sim-tab-traffic" aria-selected="false"><i>05</i> real traffic</button>
           <button type="button" role="tab" id="sim-tabbtn-failure" data-tab="failure" aria-controls="sim-tab-failure" aria-selected="false"><i>06</i> failure</button>
+          <button type="button" role="tab" id="sim-tabbtn-sandbox" class="sb-tab" data-tab="sandbox" aria-controls="sim-tab-sandbox" aria-selected="false">sandbox ›</button>
         </div>
         <div class="sim-lesson" id="sim-tab-batching" role="tabpanel" data-tab="batching" aria-labelledby="sim-tabbtn-batching">
           <p class="sim-sum"><b>Continuous batching.</b> Requests join and leave at every step, so the queue drains instead of waiting on the slowest reply. <button type="button" class="sim-more" popovertarget="sim-more-batching" aria-label="More about continuous batching">?</button></p>
@@ -910,6 +957,14 @@
             <p><b>Failure.</b> Two replicas of Llama 3 8B, each on its own H100, share the traffic. Kill one and its requests come back as client retries: their KV cache died with the GPU, so each redoes its prefill and starts its reply over, and p99 spikes. The survivor can't carry both GPUs' traffic alone, so its queue grows and requests get 503s. Turn the autoscaler on and a replacement H100 comes up after a cold start, and the queues drain. <span class="sim-note">Cold start: 30 s, assumed (a warm spare node loading the weights); a fresh node takes minutes.</span></p>
           </div>
         </div>
+        <div class="sim-lesson" id="sim-tab-sandbox" role="tabpanel" data-tab="sandbox" aria-labelledby="sim-tabbtn-sandbox" hidden>
+          <p class="sim-sum"><b>Sandbox.</b> Build any deployment with the knobs or the terminal, watch its config follow, then take the SLO challenge. <button type="button" class="sim-more" popovertarget="sim-more-sandbox" aria-label="More about the sandbox">?</button></p>
+          <button type="button" id="sb-go" class="sb-go">take the SLO challenge ›</button>
+          <div class="sim-pop" id="sim-more-sandbox" popover>
+            <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-sandbox" popovertargetaction="hide" aria-label="Close">×</button></div>
+            <p><b>Sandbox.</b> Much of what the other tabs fix, you choose here: up to three H100s, each whole, split by MIG or time-sliced, a model per slice (the same on every GPU), batching, GPU memory, traffic and the router, and you can kill a GPU; tab 04's routing gateway stays in tab 04. The terminal under the footer does the same by typing (try help), the config pane shows what you'd deploy, and the footer's meter what this deployment has cost so far. The SLO challenge replays the peak of tab 05's Azure hour against your deployment: keep TTFT p99 within 2 s with no 503s, as cheaply as you can. <span class="sim-note">Par: two whole H100s pass at $0.77 per 1M output tokens; one H100 falls behind at the peak.</span></p>
+          </div>
+        </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
         <div class="sim-key">
           <span><i class="k-prefill" aria-hidden="true"></i>prefill</span>
@@ -926,6 +981,13 @@
           <div class="fl-row" data-kind="decode"><span>decode</span><span class="fl-track"></span><span class="fl-time">–</span></div>
           <div class="fl-note" id="fl-note">its spans, TTFT, TPOT and total time appear here</div>
         </div>
+        <div class="sb-chal" id="sb-chal" hidden>
+          <span id="sb-chal-what"></span>
+          <span class="sb-bar" aria-hidden="true"><span id="sb-chal-bar"></span></span>
+          <span id="sb-chal-nums"></span>
+          <span class="vh" id="sb-chal-said" role="status"></span>
+          <span class="sb-chal-btns" id="sb-chal-btns" hidden><button type="button" id="sb-again">try again</button> <button type="button" id="sb-free">back to free play</button></span>
+        </div>
         <div class="p-foot">
           <span>TTFT p50 <b id="m-ttft50">–</b></span>
           <span>TTFT p99 <b id="m-ttft99">–</b></span>
@@ -935,6 +997,7 @@
           <span>GPUs <b id="m-gpus">1</b></span>
           <span>cost <b id="m-cost">–</b></span>
           <div class="sim-counters">
+            <span id="m-spent-wrap" title="the GPUs billed (H100 at $4.29/h) since this deployment started" hidden>spent <b id="m-spent">$0</b></span>
             <span id="m-small-wrap" title="share of requests the router sent to the small model, last 30 s" hidden>sent small <b id="m-small">–</b></span>
             <span id="m-mis-wrap" title="share of hard requests the router sent to the small model, last 30 s" hidden>misrouted <b id="m-mis">–</b></span>
             <span id="m-api-wrap" title="the API model's spend over the last 30 s, per hour" hidden>API spend <b id="m-api">–</b></span>
@@ -945,6 +1008,30 @@
           </div>
         </div>
         <div class="sim-config" id="sim-config" hidden></div>
+        <div class="sb-work" id="sb-work" hidden>
+          <div class="sb-pane sb-knobs" role="region" aria-label="Knobs">
+            <h4>knobs</h4>
+            <div class="kr"><span>GPUs</span><div class="seg sm" role="radiogroup" aria-label="GPUs"><button type="button" role="radio" data-sb="gpus" data-v="1" aria-checked="false">1</button><button type="button" role="radio" data-sb="gpus" data-v="2" aria-checked="false">2</button><button type="button" role="radio" data-sb="gpus" data-v="3" aria-checked="false">3</button></div></div>
+            <div class="kr"><span>layout</span><div class="seg sm" role="radiogroup" aria-label="Layout"><button type="button" role="radio" data-sb="layout" data-v="whole" aria-checked="false">whole</button><button type="button" role="radio" data-sb="layout" data-v="4g+3g" aria-checked="false">4g+3g</button><button type="button" role="radio" data-sb="layout" data-v="3g+2g+2g" aria-checked="false">3g+2g+2g</button><button type="button" role="radio" data-sb="layout" data-v="2g+2g+2g+1g" aria-checked="false">2g+2g+2g+1g</button><button type="button" role="radio" data-sb="layout" data-v="time-sliced" aria-checked="false">time-sliced</button></div></div>
+            <div class="kr"><span>models</span><span class="sb-models" id="sb-models"></span></div>
+            <div class="kr"><span>batching</span><div class="seg sm" role="radiogroup" aria-label="Batching"><button type="button" role="radio" data-sb="batching" data-v="request" aria-checked="false">request-level</button><button type="button" role="radio" data-sb="batching" data-v="continuous" aria-checked="false">continuous</button></div></div>
+            <div class="kr"><span>server</span><span class="kv"><label class="sim-range"><span>gpu-mem</span> <input type="range" id="sb-mem" min="0.5" max="0.95" step="0.05" value="0.9"> <output id="sb-mem-v" for="sb-mem">0.90</output></label>
+              <label class="kn">max-num-seqs <select id="sb-seqs"><option>16</option><option>32</option><option>64</option><option>128</option><option selected>256</option><option>512</option></select></label></span></div>
+            <div class="kr"><span>traffic</span><span class="kv"><div class="seg sm" role="radiogroup" aria-label="Traffic"><button type="button" role="radio" data-sb="traffic" data-v="random" aria-checked="false">random</button><button type="button" role="radio" data-sb="traffic" data-v="trace" aria-checked="false">Azure trace</button></div><label class="sim-range"><span>rate</span> <input type="range" id="sb-rate" min="1" max="40" step="1" value="6"> <output id="sb-rate-v" for="sb-rate">6/s</output></label></span></div>
+            <div class="kr"><span>shape</span><span class="kv"><span class="kn">bursts</span><div class="seg sm" role="radiogroup" aria-label="Bursts"><button type="button" role="radio" data-sb="bursts" data-v="on" aria-checked="false">on</button><button type="button" role="radio" data-sb="bursts" data-v="off" aria-checked="false">off</button></div><label class="kn">lengths <select id="sb-lengths"><option value="chat">chat</option><option value="long">long</option><option value="short">short</option></select></label></span></div>
+            <div class="kr"><span>router</span><div class="seg sm" role="radiogroup" aria-label="Router"><button type="button" role="radio" data-sb="router" data-v="least" aria-checked="false">least outstanding</button><button type="button" role="radio" data-sb="router" data-v="round-robin" aria-checked="false">round-robin</button></div></div>
+            <div class="kr"><span>failure</span><span class="kv"><span class="seg sm"><button type="button" id="sb-kill">kill a GPU</button></span><span class="kn">autoscaler</span><div class="seg sm" role="radiogroup" aria-label="Autoscaler"><button type="button" role="radio" data-sb="autoscaler" data-v="off" aria-checked="false">off</button><button type="button" role="radio" data-sb="autoscaler" data-v="on" aria-checked="false">on</button></div></span></div>
+          </div>
+          <div class="sb-pane sb-term" role="region" aria-label="Terminal">
+            <h4>terminal · type help</h4>
+            <div class="sb-log" id="sb-log" role="log" aria-live="polite"></div>
+            <label class="sb-prompt"><span aria-hidden="true">›</span><input type="text" id="sb-cmd" autocomplete="off" spellcheck="false" aria-label="Sandbox command" placeholder="help"></label>
+          </div>
+          <div class="sb-pane sb-cfgpane" role="region" aria-label="Config">
+            <h4>config · what you'd deploy</h4>
+            <div id="sb-config"></div>
+          </div>
+        </div>
       </div>
       <p class="cap js-only">A model of LLM serving, not a benchmark: step times come from the H100's specs and each model's real size. Pick a tab, send a burst, then pause and watch it drain.</p>
     </header>

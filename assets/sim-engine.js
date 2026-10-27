@@ -94,11 +94,14 @@
   // time-slicing's 8B is red on at least 70% of refreshes on 79% of loads. At rate 1.5 it was red on a
   // median 70%; at rate 3 its p99 runs away (median 9 s after 2 min). A manual burst of 24 still turns
   // MIG's 8B red for a while, since a 3g slice has less headroom than a whole GPU.
+  // TTFT p99 targets per model: tab 03's, and the sandbox's
+  var SLOS = { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 };
+
   function tab03(instances) {
     return {
       instances: instances,
       batching: 'continuous',
-      slo: { 'llama-3-8b': 2000, 'llama-3.2-3b': 500, 'llama-3.2-1b': 300 },
+      slo: SLOS,
       streams: [
         { model: 'llama-3-8b', rate: 2.5, bursts: { min: 6, max: 10 }, lengths: LENGTHS },
         { model: 'llama-3.2-3b', rate: 8, bursts: false, lengths: SHORT },
@@ -178,6 +181,63 @@
   // after the kill (the 30 s cold start, then the backlog). At 21 the 503s start too late on some loads (none by
   // 60 s on one); at 20, on most. tests/sim.test.mjs checks all three.
   var FAILURE_RATE = 22;
+
+  // The sandbox: a deployment from the visitor's settings. Every GPU gets the same layout, and slot k of each
+  // runs models[k] (a short list repeats its last). Time-sliced processes split 90% of the H100's memory by
+  // their models' needs, as in tab 03 (at gpu-mem 0.9, tab 03's shares). Random traffic's rate is the total, split evenly across the models,
+  // each with its own kind of request unless lengths says otherwise; bursts go to the first model's stream.
+  var SANDBOX_LAYOUTS = {
+    whole: ['7g.80gb'], '4g+3g': ['4g.40gb', '3g.40gb'], '3g+2g+2g': ['3g.40gb', '2g.20gb', '2g.20gb'],
+    '2g+2g+2g+1g': ['2g.20gb', '2g.20gb', '2g.20gb', '1g.10gb'], 'time-sliced': ['7g.80gb', '7g.80gb', '7g.80gb']
+  };
+  var SANDBOX_DEFAULTS = {
+    gpus: 1, layout: '3g+2g+2g', models: ['llama-3-8b', 'llama-3.2-3b', 'llama-3.2-1b'], batching: 'continuous', gpuMemUtil: 0.9,
+    maxNumSeqs: 256, traffic: 'random', rate: 6, bursts: true, lengths: 'chat', router: 'least', autoscaler: false
+  };
+  var SLICE_WEIGHT = { 'llama-3-8b': 0.45, 'llama-3.2-3b': 0.25, 'llama-3.2-1b': 0.2 };   // tab 03's time-sliced shares
+  var OWN_LENGTHS = { 'llama-3-8b': LENGTHS, 'llama-3.2-3b': SHORT, 'llama-3.2-1b': TINY };
+  function sandboxPreset(settings, trace) {
+    var s = Object.assign({}, SANDBOX_DEFAULTS, settings), slots = SANDBOX_LAYOUTS[s.layout], instances = [], models = [], slo = {};
+    if (!slots) throw new Error('unknown sandbox layout: ' + s.layout);
+    var pick = function (k) { return s.models[Math.min(k, s.models.length - 1)]; }, weight = 0, g, k;
+    for (k = 0; k < slots.length; k++) weight += SLICE_WEIGHT[pick(k)];
+    for (g = 0; g < s.gpus; g++) {
+      for (k = 0; k < slots.length; k++) {
+        var spec = { profile: slots[k], model: pick(k), gpu: g };
+        if (s.layout === 'time-sliced') spec.gpuMemUtil = s.gpuMemUtil * SLICE_WEIGHT[spec.model] / weight;
+        instances.push(spec);
+        if (models.indexOf(spec.model) < 0) models.push(spec.model);
+      }
+    }
+    models.forEach(function (m) { slo[m] = SLOS[m]; });
+    var streams = s.traffic === 'trace' ?
+      [{ model: models.indexOf('llama-3-8b') >= 0 ? 'llama-3-8b' : models[0], trace: trace, startMs: TRACE_START_MS }] :
+      models.map(function (m, i) {
+        return { model: m, rate: s.rate / models.length, bursts: !!s.bursts && i === 0,
+                 lengths: s.lengths === 'long' ? LONG : s.lengths === 'short' ? SHORT : OWN_LENGTHS[m] };
+      });
+    return { instances: instances, batching: s.batching, slo: slo, streams: streams, router: s.router, autoscaler: !!s.autoscaler,
+             config: { gpuMemUtil: s.gpuMemUtil, maxNumSeqs: s.maxNumSeqs } };
+  }
+
+  // The SLO challenge: the visitor's deployment serves the Azure hour's peak (minutes 20-35) once, at 12x, on its
+  // Llama 3 8B servers. It passes if TTFT p99 stays within sloMs on every refresh (a windowMs p99) with no 503s.
+  // par is a deployment that passes, and parUsdPer1M its cost per 1M output tokens. Measured with the page's
+  // refresh (seed 1; the replay itself doesn't depend on the seed): the run takes about 79 s. One H100 fails at
+  // 38 s (p99 7.3 s, 55 503s) at $0.43; two pass with p99 at most 0.37 s, at $0.765 (round-robin $0.766, MIG 4g+3g
+  // on each $0.80, three H100s $1.14). tests/sim.test.mjs checks the par.
+  var CHALLENGE = {
+    startMs: 20 * 60000, endMs: 35 * 60000, sloMs: 2000, windowMs: 30000,
+    par: { gpus: 2, layout: 'whole', models: ['llama-3-8b'], batching: 'continuous', router: 'least' }, parUsdPer1M: 0.765
+  };
+  function challengePreset(settings, trace) {
+    var p = sandboxPreset(Object.assign({}, settings, { traffic: 'random' }));
+    if (!p.instances.some(function (i) { return i.model === 'llama-3-8b'; })) {
+      throw new Error('the challenge serves Llama 3 8B: deploy at least one 8B');
+    }
+    p.streams = [{ model: 'llama-3-8b', trace: trace, startMs: CHALLENGE.startMs, endMs: CHALLENGE.endMs }];
+    return p;
+  }
 
   var PRESETS = {
     batching: { instances: [{ profile: '7g.80gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: true } },
@@ -419,12 +479,24 @@
     var s = {
       model: spec.model, rate: 0, bursts: false, lengths: { prompt: d.fit.prompt, output: d.fit.output },
       trace: { times: times, prompt: d.prompt, output: d.output, durationMs: d.durationMs, speed: d.speed },
-      cursor: k % n, loop: k === n ? 1 : 0, pos: start, posT: 0, nextArrival: Infinity, nextBurst: Infinity
+      cursor: k % n, loop: k === n ? 1 : 0, pos: start, posT: 0, nextArrival: Infinity, nextBurst: Infinity,
+      endMs: spec.endMs || Infinity   // the SLO challenge replays a window once: nothing from this hour time on
     };
     return s;
   }
-  // The hour time of a trace stream's next request
+  // Whether every stream replays a window that's over (only the SLO challenge's does)
+  function windowOver(sim) {
+    return sim.streams.length > 0 && sim.streams.every(function (s) { return s.trace && s.endMs !== Infinity && traceNext(s) >= s.endMs; });
+  }
+  // The SLO challenge is done once its window is over and every request in it has been served or turned away
+  function challengeDone(sim) {
+    if (!windowOver(sim) || sim.pending.length) return false;
+    return sim.instances.every(function (inst) { return !inst.queue.length && !inst.running.length; });
+  }
+
+  // The hour time of a trace stream's next request, and the sim time it's due (never, past its window's end)
   function traceNext(s) { return s.loop * s.trace.durationMs + s.trace.times[s.cursor]; }
+  function traceDue(s, t) { return traceNext(s) >= s.endMs ? Infinity : t + (traceNext(s) - s.pos) / s.trace.speed; }
 
   // Poisson arrivals have exponential gaps; a rate of 0 means no steady arrivals
   function poissonGap(sim, stream) {
@@ -440,7 +512,7 @@
   function schedule(sim) {
     for (var k = 0; k < sim.streams.length; k++) {
       var s = sim.streams[k];
-      if (s.trace) { s.posT = sim.t; s.nextArrival = sim.t + (traceNext(s) - s.pos) / s.trace.speed; continue; }
+      if (s.trace) { s.posT = sim.t; s.nextArrival = traceDue(s, sim.t); continue; }
       s.nextArrival = sim.t + poissonGap(sim, s);
       s.nextBurst = sim.t + burstGap(sim);
     }
@@ -468,7 +540,8 @@
     s.posT = sim.t;
     s.cursor += 1;
     if (s.cursor === tr.times.length) { s.cursor = 0; s.loop += 1; }
-    s.nextArrival = sim.t + (traceNext(s) - s.pos) / tr.speed;
+    s.nextArrival = traceDue(s, sim.t);
+    if (s.nextArrival === Infinity) setArrivals(sim, false);   // a window replayed once is over: the sim drains, and stops
   }
 
   // A request on stream k, with that stream's lengths and model
@@ -494,6 +567,7 @@
   // Least outstanding requests among the instances that can take it and, when a model is given,
   // serve that model; lowest index on ties. null when none can (the request gets a 503).
   function route(sim, prompt, model) {
+    if (sim.router === 'round-robin') return roundRobin(sim, prompt, model);
     var best = null;
     for (var k = 0; k < sim.instances.length; k++) {
       var inst = sim.instances[k];
@@ -501,6 +575,17 @@
           (!best || outstanding(inst) < outstanding(best))) best = inst;
     }
     return best;
+  }
+
+  // The sandbox's other policy: each request goes to the next server for its model in turn, however busy it
+  // is (skipping one that can't take it), so a slow slice gets as many as a fast one
+  function roundRobin(sim, prompt, model) {
+    var n = sim.instances.length, key = model || '*', start = sim.rrNext[key] || 0;
+    for (var j = 0; j < n; j++) {
+      var k = (start + j) % n, inst = sim.instances[k];
+      if ((!model || inst.model === model) && canTake(sim, inst, prompt)) { sim.rrNext[key] = k + 1; return inst; }
+    }
+    return null;
   }
 
   // Puts r in the queue of an instance serving r.model (any instance when null), or rejects it (a 503). An API
@@ -888,6 +973,7 @@
     }
     if (inst.batch && idle === inst.running.length) endBatch(inst);
     if (made) sim.tokLog.push([t, made]);
+    sim.stats.outputTokens += made;
     trimLog(sim.tokLog, t, TOKLOG_KEEP_MS, Infinity);
     trimLog(sim.ttftLog, t, TTFT_KEEP_MS, Infinity);   // metrics takes its window and sample cap, per model
     inst.kvUsed = kvUsedBytes(inst);
@@ -942,6 +1028,7 @@
         sim.ttftLog.push([r.tFirst, r.tFirst - r.t0, r.model]);
       }
       made += n - r.generated;
+      sim.stats.outputTokens += n - r.generated;
       r.generated = n;
       if (n < apiLength(sim, r)) {
         running.push(r);
@@ -1015,7 +1102,7 @@
   // at the current time is handled, idle instances start a step, so a finished step's instance
   // starts its next one at the same moment and no time is lost between steps.
   function tick(sim, dtMs) {
-    var end = sim.t + (dtMs > MAX_TICK_MS ? MAX_TICK_MS : dtMs > 0 ? dtMs : 0);
+    var start = sim.t, end = sim.t + (dtMs > MAX_TICK_MS ? MAX_TICK_MS : dtMs > 0 ? dtMs : 0);
     for (;;) {
       var ev = nextEvent(sim);
       if (ev.t > sim.t && startIdle(sim)) continue;
@@ -1032,6 +1119,7 @@
       // a 'wake' needs nothing more: idle instances start on the next pass
     }
     sim.t = end;
+    sim.stats.gpuMs += sim.gpuCount * (end - start);
   }
 
   // Switches the batching mode live and logs it in sim.events. To continuous: idle slots (already
@@ -1064,6 +1152,7 @@
   // running carries on.
   function setArrivals(sim, on) {
     if (on === sim.arrivalsOn) return;
+    if (on && windowOver(sim)) return;   // the challenge's window is replayed: nothing is left to arrive
     sim.arrivalsOn = on;
     if (on) { schedule(sim); return; }
     sim.pending = [];
@@ -1075,6 +1164,119 @@
       s.nextArrival = Infinity;
     }
   }
+
+  // The sandbox's router policy, live: requests routed from now on use it
+  function setRouter(sim, policy) {
+    if (policy !== 'least' && policy !== 'round-robin') throw new Error('unknown router policy: ' + policy);
+    if (policy === sim.router) return;
+    sim.router = policy;
+    sim.rrNext = {};
+    sim.events.push({ t: sim.t, label: policy === 'least' ? 'least outstanding' : 'round-robin' });
+  }
+
+  // The sandbox terminal: one command line against the current settings. Returns { ok, message, settings (a
+  // copy, changed), action, value }: action 'deploy' rebuilds the sim; 'batching', 'router' and 'autoscaler'
+  // change it live; the rest ('kill', 'burst', 'pause', 'play', 'challenge', 'status', 'reset', 'clear',
+  // 'help') are the page's to carry out. At most SANDBOX_MAX_SERVERS servers, so every box stays readable.
+  var SANDBOX_MAX_SERVERS = 6;
+  var MODEL_WORDS = { '8b': 'llama-3-8b', '3b': 'llama-3.2-3b', '1b': 'llama-3.2-1b' };
+  var SANDBOX_HELP = [
+    'gpus 1-3 · layout ' + Object.keys(SANDBOX_LAYOUTS).join('|') + ' · models 8b 3b 1b (one per slice)',
+    'batching continuous|request · set gpu-mem 0.5-0.95 · set max-num-seqs 1-512',
+    'traffic random|trace · rate 1-40 (req/s) · bursts on|off · lengths chat|long|short',
+    'router least|round-robin · kill · autoscaler on|off · burst [n] · pause · play',
+    'challenge · status · reset · clear · help'
+  ].join('\n');
+  function sandboxCommand(settings, line) {
+    var w = String(line).trim().toLowerCase().split(/\s+/), cmd = w[0], arg = w[1], s = Object.assign({}, settings);
+    s.models = settings.models.slice();
+    var done = function (action, message, value) { return { ok: true, message: message, settings: s, action: action, value: value }; };
+    var bad = function (message) { return { ok: false, message: message, settings: settings, action: null }; };
+    var num = function (x, lo, hi) { var v = +x; return x !== undefined && isFinite(v) && v >= lo && v <= hi ? v : null; };
+    var fits = function () {
+      var n = s.gpus * SANDBOX_LAYOUTS[s.layout].length;
+      return n <= SANDBOX_MAX_SERVERS ? null : bad(n + ' servers won\'t fit: at most ' + SANDBOX_MAX_SERVERS + ' servers (GPUs × slices)');
+    };
+    if (!cmd) return { ok: true, message: '', settings: settings, action: null };
+    if (cmd === 'gpus') {
+      if (num(arg, 1, 3) === null || Math.round(+arg) !== +arg) return bad('gpus takes 1, 2 or 3');
+      s.gpus = +arg;
+      return fits() || done('deploy', s.gpus + ' × H100');
+    }
+    if (cmd === 'layout') {
+      if (!SANDBOX_LAYOUTS[arg]) return bad('layout takes ' + Object.keys(SANDBOX_LAYOUTS).join(', '));
+      s.layout = arg;
+      return fits() || done('deploy', arg === 'whole' ? 'a whole H100 per server' : arg === 'time-sliced' ? 'three processes time-sharing each H100' :
+        'each H100 split ' + SANDBOX_LAYOUTS[arg].join(' + '));
+    }
+    if (cmd === 'models') {
+      var ms = w.slice(1).map(function (x) { return MODEL_WORDS[x]; });
+      if (!ms.length || ms.some(function (m) { return !m; })) return bad('models takes 8b, 3b or 1b, one per slice');
+      s.models = ms;
+      return done('deploy', ms.map(function (m) { return MODELS[m].label; }).join(', '));
+    }
+    if (cmd === 'batching') {
+      if (arg !== 'continuous' && arg !== 'request') return bad('batching takes continuous or request');
+      s.batching = arg;
+      return done('batching', arg === 'request' ? 'request-level batching (Triton\'s dynamic batcher)' : 'continuous batching (vLLM)');
+    }
+    if (cmd === 'set') {
+      var v = w[2];
+      if (arg === 'gpu-mem') {
+        if (num(v, 0.5, 0.95) === null) return bad('set gpu-mem takes 0.5 to 0.95');
+        s.gpuMemUtil = +v;
+        return done('deploy', '--gpu-memory-utilization ' + s.gpuMemUtil.toFixed(2));
+      }
+      if (arg === 'max-num-seqs') {
+        if (num(v, 1, 512) === null || Math.round(+v) !== +v) return bad('set max-num-seqs takes 1 to 512');
+        s.maxNumSeqs = +v;
+        return done('deploy', '--max-num-seqs ' + s.maxNumSeqs);
+      }
+      return bad('set takes gpu-mem or max-num-seqs');
+    }
+    if (cmd === 'traffic') {
+      if (arg !== 'random' && arg !== 'trace') return bad('traffic takes random or trace');
+      s.traffic = arg;
+      return done('deploy', arg === 'trace' ? 'the Azure hour, 12× faster, to the 8B (or the first model)' : 'random traffic');
+    }
+    if (cmd === 'rate') {
+      if (num(arg, 1, 40) === null) return bad('rate takes 1 to 40 requests/s');
+      s.rate = +arg;
+      return done('deploy', s.rate + ' requests/s in all, split across the models');
+    }
+    if (cmd === 'bursts') {
+      if (arg !== 'on' && arg !== 'off') return bad('bursts takes on or off');
+      s.bursts = arg === 'on';
+      return done('deploy', 'bursts ' + arg);
+    }
+    if (cmd === 'lengths') {
+      if (arg !== 'chat' && arg !== 'long' && arg !== 'short') return bad('lengths takes chat, long or short');
+      s.lengths = arg;
+      return done('deploy', arg === 'chat' ? 'each model\'s own kind of request' : arg + ' prompts and replies');
+    }
+    if (cmd === 'router') {
+      var policy = arg === 'least' ? 'least' : arg === 'round-robin' ? 'round-robin' : null;
+      if (!policy) return bad('router takes least or round-robin');
+      s.router = policy;
+      return done('router', policy === 'least' ? 'least outstanding requests' : 'round-robin: each server in turn, however busy');
+    }
+    if (cmd === 'autoscaler') {
+      if (arg !== 'on' && arg !== 'off') return bad('autoscaler takes on or off');
+      s.autoscaler = arg === 'on';
+      return done('autoscaler', 'autoscaler ' + arg);
+    }
+    if (cmd === 'burst') {
+      var n = arg === undefined ? 24 : num(arg, 1, 200);
+      if (n === null) return bad('burst takes 1 to 200');
+      return done('burst', n + ' requests at once', Math.round(n));
+    }
+    if (cmd === 'help') return done('help', SANDBOX_HELP);
+    if (['kill', 'pause', 'play', 'challenge', 'status', 'reset', 'clear'].indexOf(cmd) >= 0) return done(cmd, '');
+    return bad('unknown command: ' + cmd + ' (type help)');
+  }
+
+  // The sandbox's cost meter: what the GPUs billed so far cost, plus any API spend (USD)
+  function spentUsd(sim) { return GPU_HOUR_USD * sim.stats.gpuMs / 3.6e6 + sim.stats.apiUsd; }
 
   // ---- Following a request, and the config drawer ----
 
@@ -1114,6 +1316,7 @@
     function line(text, key, comment) { return { text: text, key: key || null, comment: !!comment }; }
     sim.instances.forEach(function (inst) { if (!inst.api) counts[inst.model] = (counts[inst.model] || 0) + 1; });
     var replicas = Object.keys(counts).filter(function (m) { return counts[m] > 1; })[0];
+    var servers = sim.instances.filter(function (inst) { return !inst.api; }).length;
     if (sim.routing) {
       var x = sim.routing.threshold;
       blocks.push({ kind: 'router', title: 'gateway · routes on the System1 score', lines: [
@@ -1123,14 +1326,14 @@
         line('  large: ' + sim.routing.large, 'large'),
         line('  threshold: ' + x.toFixed(2) + (x >= 1 ? '   # none → large' : '   # score ≥ ' + x.toFixed(2) + ' → large'), 'threshold')
       ] });
-    } else if (replicas) {
-      blocks.push({ kind: 'router', title: 'load balancer · ' + counts[replicas] + ' replicas', lines: [
-        line('router:'),
-        line('  policy: least outstanding requests'),
-        line('  replicas: ' + counts[replicas]),
-        line('  autoscaler: ' + (sim.autoscaler ? 'on' : 'off'), 'autoscaler'),
-        line('  cold start: ' + COLD_START_MS / 1000 + ' s   # assumed', null)
-      ] });
+    } else if (servers > 1) {
+      var rl = [line('router:'), line('  policy: ' + (sim.router === 'round-robin' ? 'round-robin' : 'least outstanding requests'), 'router')];
+      if (replicas) {
+        rl.push(line('  replicas: ' + counts[replicas]), line('  autoscaler: ' + (sim.autoscaler ? 'on' : 'off'), 'autoscaler'),
+                line('  cold start: ' + COLD_START_MS / 1000 + ' s   # assumed'));
+      }
+      rl.push(line('  max queued per server: ' + cfg.queueCap + '   # then 503'));
+      blocks.push({ kind: 'router', title: replicas ? 'load balancer · ' + counts[replicas] + ' replicas' : 'router · ' + servers + ' servers', lines: rl });
     }
     sim.instances.forEach(function (inst) {
       if (inst.api) {
@@ -1141,6 +1344,14 @@
         return;
       }
       var label = MODELS[inst.model].label, st = instanceStatus(sim, inst);
+      if (!inst.fits) {
+        blocks.push({ kind: 'unfit', title: (inst.profile === '7g.80gb' ? 'H100' : 'MIG ' + inst.profile) + ' · ' + label + " · doesn't fit", lines: [
+          line("# won't start: " + MODELS[inst.model].weightsGB + ' GB of weights leave no room for a KV cache in ' + PROFILES[inst.profile].memGB +
+               ' GB at --gpu-memory-utilization ' + inst.gpuMemUtil.toFixed(2), null, true),
+          line('# so the router has nowhere to send its requests: they get 503s', null, true)
+        ] });
+        return;
+      }
       var where = inst.profile !== '7g.80gb' ? 'MIG ' + inst.profile : inst.timeSliced ? 'H100 ' + (inst.gpu + 1) + ', time-sliced' :
         sim.instances.length > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
       var title = where + ' · ' + label + (st.state === 'down' ? ' · failed' : st.state === 'starting' ? ' · starting' : '');
@@ -1234,12 +1445,12 @@
     place(sim, r);
   }
 
-  // Starts a replacement H100 in a dead instance's slot: it's billed from now and serves after COLD_START_MS
-  function startReplacement(sim, inst) {
-    inst.deadGpu = inst.gpu;
-    inst.gpu = sim.nextGpu++;
-    inst.readyAt = sim.t + COLD_START_MS;
-    sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' starting' });
+  // Starts one replacement H100 in a dead GPU's place, for all its servers (MIG slices or time-sliced processes
+  // come back together on the one new GPU): it's billed from now and serves after COLD_START_MS
+  function startReplacement(sim, dead) {
+    var gpu = sim.nextGpu++;
+    dead.forEach(function (inst) { inst.deadGpu = inst.gpu; inst.gpu = gpu; inst.readyAt = sim.t + COLD_START_MS; });
+    sim.events.push({ t: sim.t, label: 'H100 ' + (gpu + 1) + ' starting' });
     countGpus(sim);
   }
 
@@ -1247,16 +1458,18 @@
     inst.readyAt = null;
     inst.deadGpu = null;
     inst.up = true;
-    sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' up' });
+    var still = sim.instances.some(function (o) { return o.gpu === inst.gpu && o.readyAt !== null && o.readyAt !== undefined; });
+    if (!still) sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' up' });   // once its last server is up
     countGpus(sim);
   }
 
-  // Kills the highest-numbered GPU that's up, while another is up: its step stops, its KV is gone, and its
-  // running then queued requests are retried through the router. Returns that GPU, or null when only one is up.
+  // Kills the highest-numbered GPU that's up, while another GPU is up: every server on it stops (its step, its
+  // KV), and their running then queued requests are retried through the router. Returns that GPU, or null when
+  // only one GPU is up.
   function killGpu(sim) {
-    var up = sim.instances.filter(function (inst) { return !inst.api && inst.up; }), g = -1;
-    if (up.length < 2) return null;
-    up.forEach(function (inst) { if (inst.gpu > g) g = inst.gpu; });
+    var up = sim.instances.filter(function (inst) { return !inst.api && inst.up; }), g = -1, gpus = {};
+    up.forEach(function (inst) { gpus[inst.gpu] = true; if (inst.gpu > g) g = inst.gpu; });
+    if (Object.keys(gpus).length < 2) return null;   // MIG slices or time-sliced processes of one H100 are one GPU
     var dead = up.filter(function (inst) { return inst.gpu === g; }), reqs = [];
     dead.forEach(function (inst) {
       inst.running.forEach(function (r) { if (r.state === 'idle') r.state = 'done'; else reqs.push(r); });
@@ -1266,7 +1479,7 @@
     sim.events.push({ t: sim.t, label: 'H100 ' + (g + 1) + ' killed' });
     countGpus(sim);
     reqs.forEach(function (r) { retry(sim, r); });
-    if (sim.autoscaler) dead.forEach(function (inst) { startReplacement(sim, inst); });
+    if (sim.autoscaler) startReplacement(sim, dead);
     return g;
   }
 
@@ -1275,11 +1488,13 @@
     if (on === sim.autoscaler) return;
     sim.autoscaler = on;
     sim.events.push({ t: sim.t, label: on ? 'autoscaler on' : 'autoscaler off' });
+    var byGpu = {};
     sim.instances.forEach(function (inst) {
       if (inst.api || inst.up) return;
-      if (on && inst.readyAt === null) startReplacement(sim, inst);
+      if (on && inst.readyAt === null) (byGpu[inst.gpu] = byGpu[inst.gpu] || []).push(inst);
       else if (!on && inst.readyAt !== null) { inst.gpu = inst.deadGpu; inst.deadGpu = null; inst.readyAt = null; }
     });
+    Object.keys(byGpu).forEach(function (g) { startReplacement(sim, byGpu[g]); });   // one new H100 per dead one
     countGpus(sim);
   }
 
@@ -1447,13 +1662,17 @@
       gpuCount: Object.keys(gpus).length,
       nextGpu: Object.keys(gpus).reduce(function (n, g) { return Math.max(n, +g + 1); }, 0),   // tab 06: a replacement's GPU id
       autoscaler: !!opts.autoscaler,
+      router: opts.router === 'round-robin' ? 'round-robin' : 'least',   // the sandbox's router policy
+      rrNext: {},                                                          // round-robin: the next server, per model
       arrivalsOn: true,
       pending: [],     // { t, stream }, earliest first
       events: [],
       finished: [],
       // routedSmall and routedLarge count the gateway's decisions; misrouted, the hard requests sent small;
       // apiUsd, the API model's spend in USD
-      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0, routedSmall: 0, routedLarge: 0, misrouted: 0, apiUsd: 0, retried: 0 },
+      // gpuMs: GPU-milliseconds billed (sim.gpuCount over time), outputTokens: every answer token made; the
+      // sandbox's cost meter and the SLO challenge's cost per 1M tokens add them up
+      stats: { arrived: 0, finished: 0, rejected: 0, preemptions: 0, routedSmall: 0, routedLarge: 0, misrouted: 0, apiUsd: 0, retried: 0, gpuMs: 0, outputTokens: 0 },
       tokLog: [],      // [time, tokens made in a step]
       ttftLog: [],     // [time of a first token, its TTFT, its model]
       routeLog: [],    // [time scored, target ('small' or 'large'), whether hard], over the last ROUTE_WINDOW_MS
@@ -1485,7 +1704,17 @@
     sendBurst: sendBurst,
     traceClock: traceClock,
     killGpu: killGpu,
+    challengeDone: challengeDone,
     requestSummary: requestSummary,
+    sandboxPreset: sandboxPreset,
+    sandboxCommand: sandboxCommand,
+    setRouter: setRouter,
+    SANDBOX_MAX_SERVERS: SANDBOX_MAX_SERVERS,
+    challengePreset: challengePreset,
+    spentUsd: spentUsd,
+    SANDBOX_DEFAULTS: SANDBOX_DEFAULTS,
+    SANDBOX_LAYOUTS: SANDBOX_LAYOUTS,
+    CHALLENGE: CHALLENGE,
     serverConfig: serverConfig,
     setAutoscaler: setAutoscaler,
     instanceStatus: instanceStatus,
