@@ -1,5 +1,5 @@
 // Shared behaviour for the cloud-agents-workshop guide pages (copy buttons, done marks,
-// section highlighting, theme toggle). Adapted from workshops/adk-multi-agent-workshop.
+// section highlighting, diagram lightbox, theme toggle). Adapted from workshops/adk-multi-agent-workshop.
 (() => {
   // Copy buttons on code blocks and prompts
   const copy = (btn, text) => {
@@ -51,6 +51,26 @@
       }});
     }, { rootMargin: '-20% 0px -70% 0px' });
     targets.forEach(t => io.observe(t));
+  }
+
+  // Diagrams open magnified in a dialog over the page; Esc, a click anywhere or the close button closes it.
+  // A modified click still opens the SVG itself, and so does any click in a browser without <dialog>.
+  const box = document.createElement('dialog');
+  if (box.showModal) {
+    box.className = 'lightbox'; box.setAttribute('aria-label', 'Diagram');
+    box.innerHTML = '<button type="button" class="lightbox-close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true">'
+      + '<path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button><img alt="">';
+    const big = box.querySelector('img');
+    document.body.appendChild(box);
+    document.querySelectorAll('.arch-frame a').forEach(a => a.addEventListener('click', e => {
+      const img = a.querySelector('img');
+      if (!img || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      big.src = a.href; big.alt = img.alt;
+      big.style.setProperty('--ratio', img.getAttribute('width') / img.getAttribute('height'));
+      box.showModal(); box.scrollTo(0, 0);
+    }));
+    box.addEventListener('click', () => box.close());
   }
 
   // Theme toggle: flips light/dark and remembers it (applyTheme and the saved choice are read in <head>)
