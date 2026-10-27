@@ -1565,7 +1565,7 @@ test('config: tab 04 adds the gateway\'s routing block, and in API mode the API 
   assert.match(api[3].lines.map(l => l.text).join('\n'), /\$2 .*\$10/);
 });
 test('config: time-slicing shows each process\'s share of the one GPU, and tab 06 its load balancer and autoscaler', () => {
-  const ts = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['mig-time'], { seed: 1 })));
+  const ts = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['mig-time'], { seed: 1 }))).filter(b => b.kind === 'vllm');
   assert.deepEqual(ts.map(b => b.lines.find(l => l.key === 'gpu-memory-utilization').text.trim()),
     ['--gpu-memory-utilization 0.45 \\', '--gpu-memory-utilization 0.25 \\', '--gpu-memory-utilization 0.20 \\']);
   assert.ok(ts.every(b => /time-sliced/.test(b.title)));
@@ -1710,4 +1710,15 @@ test('terminal: commands change the settings, or say what\'s wrong', () => {
   assert.equal(run('models 7b').ok, false);
   assert.equal(run('').action, null);
   assert.match(run('help').message, /gpus/);
+});
+test('config: with several servers the router block names its policy and the queue limit behind the 503s', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(E.SANDBOX_DEFAULTS), { seed: 1 }));
+  let r = E.serverConfig(sim)[0];
+  assert.equal(r.kind, 'router');
+  assert.match(r.lines.find(l => l.key === 'router').text, /policy: least outstanding requests/);
+  assert.match(r.lines.map(l => l.text).join('\n'), /max queued per server: 128 +# then 503/);
+  E.setRouter(sim, 'round-robin');
+  r = E.serverConfig(sim)[0];
+  assert.match(r.lines.find(l => l.key === 'router').text, /policy: round-robin/);
+  assert.equal(E.serverConfig(E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 })))[0].kind, 'vllm');   // one server: no router block
 });

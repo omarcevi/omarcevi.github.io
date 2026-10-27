@@ -1305,6 +1305,7 @@
     function line(text, key, comment) { return { text: text, key: key || null, comment: !!comment }; }
     sim.instances.forEach(function (inst) { if (!inst.api) counts[inst.model] = (counts[inst.model] || 0) + 1; });
     var replicas = Object.keys(counts).filter(function (m) { return counts[m] > 1; })[0];
+    var servers = sim.instances.filter(function (inst) { return !inst.api; }).length;
     if (sim.routing) {
       var x = sim.routing.threshold;
       blocks.push({ kind: 'router', title: 'gateway · routes on the System1 score', lines: [
@@ -1314,14 +1315,14 @@
         line('  large: ' + sim.routing.large, 'large'),
         line('  threshold: ' + x.toFixed(2) + (x >= 1 ? '   # none → large' : '   # score ≥ ' + x.toFixed(2) + ' → large'), 'threshold')
       ] });
-    } else if (replicas) {
-      blocks.push({ kind: 'router', title: 'load balancer · ' + counts[replicas] + ' replicas', lines: [
-        line('router:'),
-        line('  policy: least outstanding requests'),
-        line('  replicas: ' + counts[replicas]),
-        line('  autoscaler: ' + (sim.autoscaler ? 'on' : 'off'), 'autoscaler'),
-        line('  cold start: ' + COLD_START_MS / 1000 + ' s   # assumed', null)
-      ] });
+    } else if (servers > 1) {
+      var rl = [line('router:'), line('  policy: ' + (sim.router === 'round-robin' ? 'round-robin' : 'least outstanding requests'), 'router')];
+      if (replicas) {
+        rl.push(line('  replicas: ' + counts[replicas]), line('  autoscaler: ' + (sim.autoscaler ? 'on' : 'off'), 'autoscaler'),
+                line('  cold start: ' + COLD_START_MS / 1000 + ' s   # assumed'));
+      }
+      rl.push(line('  max queued per server: ' + cfg.queueCap + '   # then 503'));
+      blocks.push({ kind: 'router', title: replicas ? 'load balancer · ' + counts[replicas] + ' replicas' : 'router · ' + servers + ' servers', lines: rl });
     }
     sim.instances.forEach(function (inst) {
       if (inst.api) {
