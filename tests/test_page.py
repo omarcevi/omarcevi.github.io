@@ -477,7 +477,7 @@ class Simulator(unittest.TestCase):
 
     def test_mig_lesson_states_the_engine_targets_and_overhead(self):
         engine = (ROOT / "assets/sim-engine.js").read_text(encoding="utf-8")
-        slo = dict(re.findall(r"'llama-([0-9.-]+b)': (\d+)", re.search(r"slo: \{([^}]*)\}", engine).group(1)))
+        slo = dict(re.findall(r"'llama-([0-9.-]+b)': (\d+)", re.search(r"var SLOS = \{([^}]*)\}", engine).group(1)))   # tab 03's targets
         said = {"3-8b": "8B", "3.2-3b": "3B", "3.2-1b": "1B"}
         targets = ", ".join(said[m] + " " + (str(int(ms) // 1000) + " s" if int(ms) >= 1000 else ms + " ms")
                             for m, ms in slo.items())

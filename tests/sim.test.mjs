@@ -1578,3 +1578,95 @@ test('config: time-slicing shows each process\'s share of the one GPU, and tab 0
   assert.match(blocks[0].lines.find(l => l.key === 'autoscaler').text, /autoscaler: on/);
   assert.deepEqual(blocks.slice(1).map(b => b.title), ['H100 1 · Llama 3 8B', 'H100 2 · Llama 3 8B']);
 });
+
+// ---- Sandbox ----
+
+test('sandbox: round-robin splits requests evenly however busy a server is; least outstanding favours the faster one', () => {
+  // an 8B on a 3g slice and one on a slower 2g slice, under load
+  const base = { instances: [{ profile: '3g.40gb', model: 'llama-3-8b' }, { profile: '2g.20gb', model: 'llama-3-8b' }], batching: 'continuous', traffic: { rate: 6, bursts: false } };
+  const routed = router => {
+    const sim = E.createSim(Object.assign({}, base, { seed: 1 }, router ? { router } : {})), w = watchAll(sim);
+    w.tick(30000);
+    const n = [0, 0];
+    for (const r of Object.values(w.all)) if (r.spans.length) n[r.spans[0].inst] += 1;
+    return n;
+  };
+  const rr = routed('round-robin'), least = routed(null);
+  // a few long prompts don't fit the 2g slice's max-model-len, so they skip to the 3g
+  assert.ok(Math.abs(rr[0] - rr[1]) <= 3, `round-robin ${rr}`);
+  assert.ok(least[0] > least[1] * 1.2, `least outstanding ${least}`);
+});
+test('sandbox: killing a GPU kills every server on it, and only while another GPU is up', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 2 })), { seed: 1 }));
+  assert.equal(sim.instances.length, 6);
+  assert.equal(E.killGpu(sim), 1);
+  assert.deepEqual(sim.instances.map(i => E.instanceStatus(sim, i).state), ['up', 'up', 'up', 'down', 'down', 'down']);
+  assert.equal(E.killGpu(sim), null);   // the last GPU's three servers stay up
+  const one = E.createSim(Object.assign({}, E.PRESETS['mig-mig'], { seed: 1 }));
+  assert.equal(E.killGpu(one), null);   // three slices of one H100 are one GPU
+});
+test('sandbox: the cost meter adds up the GPUs billed over time, and output tokens', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.failure, { seed: 1 }));
+  runExact(sim, 10000);
+  near(sim.stats.gpuMs, 2 * 10000, 1e-6);
+  E.killGpu(sim);
+  runExact(sim, 10000);
+  near(sim.stats.gpuMs, 2 * 10000 + 10000, 1e-6);
+  near(E.spentUsd(sim), E.GPU_HOUR_USD * 30000 / 3.6e6, 1e-12);
+  const made = sim.finished.reduce((n, r) => n + r.generated, 0);
+  assert.ok(sim.stats.outputTokens >= made && sim.stats.outputTokens > 0);
+});
+test('sandbox: settings build a deployment: layouts, models per slice, GPUs, and traffic per model', () => {
+  const p = E.sandboxPreset(E.SANDBOX_DEFAULTS);
+  assert.deepEqual(p.instances.map(i => [i.profile, i.model, i.gpu]), [['3g.40gb', 'llama-3-8b', 0], ['2g.20gb', 'llama-3.2-3b', 0], ['2g.20gb', 'llama-3.2-1b', 0]]);
+  assert.deepEqual(p.streams.map(s => s.model), ['llama-3-8b', 'llama-3.2-3b', 'llama-3.2-1b']);
+  near(p.streams.reduce((n, s) => n + s.rate, 0), E.SANDBOX_DEFAULTS.rate, 1e-9);   // the rate is the total, split across the models
+  assert.deepEqual(Object.keys(p.slo).sort(), ['llama-3-8b', 'llama-3.2-1b', 'llama-3.2-3b']);
+  const two = E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 2, layout: 'whole', models: ['llama-3-8b'], router: 'round-robin', batching: 'request', gpuMemUtil: 0.7, maxNumSeqs: 64 }));
+  assert.deepEqual(two.instances.map(i => [i.profile, i.gpu]), [['7g.80gb', 0], ['7g.80gb', 1]]);
+  assert.deepEqual([two.router, two.batching, two.config.gpuMemUtil, two.config.maxNumSeqs, two.streams.length], ['round-robin', 'request', 0.7, 64, 1]);
+  const ts = E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: 'time-sliced' }));
+  assert.ok(ts.instances.every(i => i.profile === '7g.80gb' && i.gpu === 0 && i.gpuMemUtil > 0));
+  const small = E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: '2g+2g+2g+1g', models: ['llama-3.2-1b'] }));
+  assert.deepEqual(small.instances.map(i => i.profile), ['2g.20gb', '2g.20gb', '2g.20gb', '1g.10gb']);
+  assert.ok(small.instances.every(i => i.model === 'llama-3.2-1b'));   // a short models list repeats its last
+  assert.throws(() => E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: '9g' })), /layout/);
+  assert.equal(E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { traffic: 'trace' }), D).streams[0].trace, D);
+});
+test('sandbox: every layout and model choice deploys and runs', () => {
+  for (const layout of Object.keys(E.SANDBOX_LAYOUTS)) for (const m of ['llama-3-8b', 'llama-3.2-3b', 'llama-3.2-1b']) for (const gpus of [1, 3]) {
+    const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout, models: [m], gpus })), { seed: 1 }));
+    runExact(sim, 3000);
+    assert.ok(sim.stats.arrived > 0, `${layout} ${m} ×${gpus}`);
+  }
+});
+// The SLO challenge as the page runs it: no warm-up, a refresh every 300 ms, failing on a 30 s p99 over the
+// target or on any 503; done once the window's requests are all served
+function runChallenge(settings) {
+  const sim = E.createSim(Object.assign({}, E.challengePreset(settings, D), { seed: 1 }));
+  let next = PAGE.sampleMs, failedAt = null;
+  while (!E.isDrained(sim) && sim.t < 400000) {
+    E.tick(sim, PAGE.tickMs);
+    if (sim.t >= next) {
+      next += PAGE.sampleMs;
+      const p99 = E.metrics(sim, 'llama-3-8b', E.CHALLENGE.windowMs).ttftP99;
+      if (failedAt === null && ((p99 !== null && p99 > E.CHALLENGE.sloMs) || sim.stats.rejected > 0)) failedAt = sim.t;
+    }
+  }
+  return { failedAt, cost: E.spentUsd(sim) / sim.stats.outputTokens * 1e6, ms: sim.t, arrived: sim.stats.arrived };
+}
+test('challenge: the window replays minutes 20-35 of the hour once, at 12×, to the 8B', () => {
+  const sim = E.createSim(Object.assign({}, E.challengePreset(E.SANDBOX_DEFAULTS, D), { seed: 1 }));
+  assert.deepEqual(sim.streams.map(s => s.model), ['llama-3-8b']);
+  const due = TRACE_T.filter(t => t >= E.CHALLENGE.startMs && t < E.CHALLENGE.endMs).length;
+  runExact(sim, (E.CHALLENGE.endMs - E.CHALLENGE.startMs) / D.speed + 30000);
+  assert.equal(sim.stats.arrived, due);
+  assert.throws(() => E.challengePreset(Object.assign({}, E.SANDBOX_DEFAULTS, { models: ['llama-3.2-1b'] }), D), /8B/);
+});
+test('challenge: one H100 fails at the peak; two pass, and their cost per 1M is the par', () => {
+  const one = runChallenge(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 1, layout: 'whole', models: ['llama-3-8b'] }));
+  assert.notEqual(one.failedAt, null);
+  const two = runChallenge(Object.assign({}, E.SANDBOX_DEFAULTS, E.CHALLENGE.par));
+  assert.equal(two.failedAt, null);
+  near(two.cost, E.CHALLENGE.parUsdPer1M, E.CHALLENGE.parUsdPer1M * 0.02);
+});
