@@ -184,7 +184,7 @@
 
   // The sandbox: a deployment from the visitor's settings. Every GPU gets the same layout, and slot k of each
   // runs models[k] (a short list repeats its last). Time-sliced processes split 90% of the H100's memory by
-  // their models' needs, as in tab 03. Random traffic's rate is the total, split evenly across the models,
+  // their models' needs, as in tab 03 (at gpu-mem 0.9, tab 03's shares). Random traffic's rate is the total, split evenly across the models,
   // each with its own kind of request unless lengths says otherwise; bursts go to the first model's stream.
   var SANDBOX_LAYOUTS = {
     whole: ['7g.80gb'], '4g+3g': ['4g.40gb', '3g.40gb'], '3g+2g+2g': ['3g.40gb', '2g.20gb', '2g.20gb'],
@@ -204,7 +204,7 @@
     for (g = 0; g < s.gpus; g++) {
       for (k = 0; k < slots.length; k++) {
         var spec = { profile: slots[k], model: pick(k), gpu: g };
-        if (s.layout === 'time-sliced') spec.gpuMemUtil = 0.9 * SLICE_WEIGHT[spec.model] / weight;
+        if (s.layout === 'time-sliced') spec.gpuMemUtil = s.gpuMemUtil * SLICE_WEIGHT[spec.model] / weight;
         instances.push(spec);
         if (models.indexOf(spec.model) < 0) models.push(spec.model);
       }
@@ -484,6 +484,16 @@
     };
     return s;
   }
+  // Whether every stream replays a window that's over (only the SLO challenge's does)
+  function windowOver(sim) {
+    return sim.streams.length > 0 && sim.streams.every(function (s) { return s.trace && s.endMs !== Infinity && traceNext(s) >= s.endMs; });
+  }
+  // The SLO challenge is done once its window is over and every request in it has been served or turned away
+  function challengeDone(sim) {
+    if (!windowOver(sim) || sim.pending.length) return false;
+    return sim.instances.every(function (inst) { return !inst.queue.length && !inst.running.length; });
+  }
+
   // The hour time of a trace stream's next request, and the sim time it's due (never, past its window's end)
   function traceNext(s) { return s.loop * s.trace.durationMs + s.trace.times[s.cursor]; }
   function traceDue(s, t) { return traceNext(s) >= s.endMs ? Infinity : t + (traceNext(s) - s.pos) / s.trace.speed; }
@@ -1142,6 +1152,7 @@
   // running carries on.
   function setArrivals(sim, on) {
     if (on === sim.arrivalsOn) return;
+    if (on && windowOver(sim)) return;   // the challenge's window is replayed: nothing is left to arrive
     sim.arrivalsOn = on;
     if (on) { schedule(sim); return; }
     sim.pending = [];
@@ -1333,6 +1344,14 @@
         return;
       }
       var label = MODELS[inst.model].label, st = instanceStatus(sim, inst);
+      if (!inst.fits) {
+        blocks.push({ kind: 'unfit', title: (inst.profile === '7g.80gb' ? 'H100' : 'MIG ' + inst.profile) + ' · ' + label + " · doesn't fit", lines: [
+          line("# won't start: " + MODELS[inst.model].weightsGB + ' GB of weights leave no room for a KV cache in ' + PROFILES[inst.profile].memGB +
+               ' GB at --gpu-memory-utilization ' + inst.gpuMemUtil.toFixed(2), null, true),
+          line('# so the router has nowhere to send its requests: they get 503s', null, true)
+        ] });
+        return;
+      }
       var where = inst.profile !== '7g.80gb' ? 'MIG ' + inst.profile : inst.timeSliced ? 'H100 ' + (inst.gpu + 1) + ', time-sliced' :
         sim.instances.length > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
       var title = where + ' · ' + label + (st.state === 'down' ? ' · failed' : st.state === 'starting' ? ' · starting' : '');
@@ -1426,12 +1445,12 @@
     place(sim, r);
   }
 
-  // Starts a replacement H100 in a dead instance's slot: it's billed from now and serves after COLD_START_MS
-  function startReplacement(sim, inst) {
-    inst.deadGpu = inst.gpu;
-    inst.gpu = sim.nextGpu++;
-    inst.readyAt = sim.t + COLD_START_MS;
-    sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' starting' });
+  // Starts one replacement H100 in a dead GPU's place, for all its servers (MIG slices or time-sliced processes
+  // come back together on the one new GPU): it's billed from now and serves after COLD_START_MS
+  function startReplacement(sim, dead) {
+    var gpu = sim.nextGpu++;
+    dead.forEach(function (inst) { inst.deadGpu = inst.gpu; inst.gpu = gpu; inst.readyAt = sim.t + COLD_START_MS; });
+    sim.events.push({ t: sim.t, label: 'H100 ' + (gpu + 1) + ' starting' });
     countGpus(sim);
   }
 
@@ -1439,7 +1458,8 @@
     inst.readyAt = null;
     inst.deadGpu = null;
     inst.up = true;
-    sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' up' });
+    var still = sim.instances.some(function (o) { return o.gpu === inst.gpu && o.readyAt !== null && o.readyAt !== undefined; });
+    if (!still) sim.events.push({ t: sim.t, label: 'H100 ' + (inst.gpu + 1) + ' up' });   // once its last server is up
     countGpus(sim);
   }
 
@@ -1459,7 +1479,7 @@
     sim.events.push({ t: sim.t, label: 'H100 ' + (g + 1) + ' killed' });
     countGpus(sim);
     reqs.forEach(function (r) { retry(sim, r); });
-    if (sim.autoscaler) dead.forEach(function (inst) { startReplacement(sim, inst); });
+    if (sim.autoscaler) startReplacement(sim, dead);
     return g;
   }
 
@@ -1468,11 +1488,13 @@
     if (on === sim.autoscaler) return;
     sim.autoscaler = on;
     sim.events.push({ t: sim.t, label: on ? 'autoscaler on' : 'autoscaler off' });
+    var byGpu = {};
     sim.instances.forEach(function (inst) {
       if (inst.api || inst.up) return;
-      if (on && inst.readyAt === null) startReplacement(sim, inst);
+      if (on && inst.readyAt === null) (byGpu[inst.gpu] = byGpu[inst.gpu] || []).push(inst);
       else if (!on && inst.readyAt !== null) { inst.gpu = inst.deadGpu; inst.deadGpu = null; inst.readyAt = null; }
     });
+    Object.keys(byGpu).forEach(function (g) { startReplacement(sim, byGpu[g]); });   // one new H100 per dead one
     countGpus(sim);
   }
 
@@ -1682,6 +1704,7 @@
     sendBurst: sendBurst,
     traceClock: traceClock,
     killGpu: killGpu,
+    challengeDone: challengeDone,
     requestSummary: requestSummary,
     sandboxPreset: sandboxPreset,
     sandboxCommand: sandboxCommand,

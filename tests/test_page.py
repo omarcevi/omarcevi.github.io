@@ -484,6 +484,26 @@ class Simulator(unittest.TestCase):
         deploy = js[js.index("function deploy("):js.index("function switchTab(")]
         self.assertIn("id === 'challenge' ? 0", deploy)   # the challenge starts from empty servers, at minute 20
 
+    def test_sandbox_challenge_holds(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        judge = js[js.index("function judge("):]
+        judge = judge[:judge.index("\n  }\n")]
+        self.assertIn("E.challengeDone(sim)", judge)          # done once the whole window is served, not when it drains
+        self.assertIn("challenge.result", judge)              # the verdict and cost freeze at done
+        run = js[js.index("function run(line)"):]
+        run = run[:run.index("\n  }\n")]
+        self.assertIn("not during the challenge", run)       # pause, play and burst would change the workload
+        switch = js[js.index("function switchTab("):js.index("function setMode(")]
+        self.assertIn("stopChallenge(false)", switch)
+        self.assertIn("sbGo.focus()", js)                     # try again / back to free play keep the keyboard's place
+        knob = js[js.index("function knob("):]
+        self.assertIn("aria-checked') === 'true'", knob[:knob.index("\n  }\n")])   # re-clicking the choice made does nothing
+        said = find_all(self.box, id="sb-chal-said")[0]
+        self.assertEqual(said.attrs.get("role"), "status")
+        self.assertIn("vh", said.classes)
+        self.assertIn("doesn't fit", js)                      # a model too big for its slice is drawn as such
+        self.assertNotIn("Everything the other tabs", self.lesson("sim-tab-sandbox"))
+
     def test_popover_placed_by_its_button(self):
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
         self.assertIn("addEventListener('toggle'", js)

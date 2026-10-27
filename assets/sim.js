@@ -112,7 +112,7 @@
   var sbWork = $('sb-work'), sbLog = $('sb-log'), sbCmd = $('sb-cmd'), sbConfig = $('sb-config'), sbGo = $('sb-go');
   var sbModels = $('sb-models'), sbMem = $('sb-mem'), sbMemOut = $('sb-mem-v'), sbSeqs = $('sb-seqs'), sbRate = $('sb-rate');
   var sbRateOut = $('sb-rate-v'), sbLengths = $('sb-lengths'), sbKill = $('sb-kill'), wrapSpent = $('m-spent-wrap');
-  var sbChal = $('sb-chal'), sbChalWhat = $('sb-chal-what'), sbChalBar = $('sb-chal-bar'), sbChalNums = $('sb-chal-nums'), sbChalBtns = $('sb-chal-btns');
+  var sbChalSaid = $('sb-chal-said'), sbChal = $('sb-chal'), sbChalWhat = $('sb-chal-what'), sbChalBar = $('sb-chal-bar'), sbChalNums = $('sb-chal-nums'), sbChalBtns = $('sb-chal-btns');
   var sbRadios = [].slice.call(sbWork.querySelectorAll('[role=radio][data-sb]'));
   function copySettings(st) { return Object.assign({}, st, { models: st.models.slice() }); }
   var SANDBOX = copySettings(E.SANDBOX_DEFAULTS);   // kept while the visitor stays on the page
@@ -429,7 +429,10 @@
     var short = E.MODELS[inst.model].short, target = sim.slo ? sim.slo[inst.model] : undefined;
     var st = inst.api ? null : E.instanceStatus(sim, inst);
     inst.running.forEach(function (r) { if (r.state === 'running') n += 1; });
-    if (st && st.state !== 'up') {   // tab 06: a killed GPU, or its replacement starting
+    if (st && st.state === 'up' && !inst.fits) {   // the sandbox: a model too big for its slice never starts
+      var nm = boxName(inst) + ' · ' + short;
+      levels = [[nm + " · doesn't fit", []], [nm, [["doesn't fit", COL.muted]]], ["doesn't fit", []]];
+    } else if (st && st.state !== 'up') {   // tab 06: a killed GPU, or its replacement starting
       var gpu = 'H100 ' + (st.gpu + 1), what = st.state === 'down' ? 'failed' : 'starting ' + Math.ceil(st.readyInMs / 1000) + 's';
       levels = [[gpu + ' · ' + what, []], [gpu, [[what, COL.muted]]], [what, []]];
     } else if (inst.model === 'system1') {
@@ -492,8 +495,8 @@
     var st = inst.api ? null : E.instanceStatus(sim, inst);
     if (inst.api) {
       ctx.fillStyle = COL.panel; ctx.fill(); ctx.strokeStyle = COL.muted; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
-    } else if (st.state !== 'up') {   // tab 06: failed (dashed red), or a replacement starting (dashed, its cold start as the bar)
-      ctx.fillStyle = COL.panel; ctx.fill(); ctx.strokeStyle = st.state === 'down' ? COL.badDim : COL.faint;
+    } else if (st.state !== 'up' || !inst.fits) {   // tab 06: failed (dashed red), or a replacement starting (dashed, its cold start as the bar); a model that doesn't fit, as failed
+      ctx.fillStyle = COL.panel; ctx.fill(); ctx.strokeStyle = st.state === 'starting' ? COL.faint : COL.badDim;
       ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
       drawHeader(h, level, b);
       var cy = b.y + b.h - 8;
@@ -895,8 +898,16 @@
     if (V.hist.length > SAMPLES) V.hist.shift();
   }
 
+  // The SLO challenge replays a fixed window: it may be started from a frozen start, but not paused, and bursts
+  // aren't sent, or the workload it scores would change. True when the click is refused.
+  function holdWorkload() {
+    if (preset !== 'challenge' || frozen || E.playState(sim, frozen) === 'stopped') return false;
+    log('not during the challenge: it runs its window to the end (stop the challenge to pause)', 'err');
+    return true;
+  }
   function renderPlay() {
     var st = E.playState(sim, frozen);
+    burstBtn.setAttribute('aria-disabled', preset === 'challenge' ? 'true' : 'false');
     if (st === shown) return;
     shown = st;
     playBtn.textContent = PLAY[st][0];
@@ -1062,7 +1073,7 @@
     showRoute();
     pickedRandom = false;
     lastKey = null;
-    challenge = null;
+    stopChallenge(false);
     var sb = id === 'sandbox';
     sbWork.hidden = !sb; sbChal.hidden = true; cfgBtn.hidden = sb;
     if (sb) { cfgBox.hidden = true; cfgBtn.setAttribute('aria-expanded', 'false'); cfgBtn.textContent = 'config \u25be'; }
@@ -1199,12 +1210,20 @@
     if (r.ok && !a) return;
     log('› ' + line, 'cmd');
     if (!r.ok) { log(r.message, 'err'); return; }
+    if (preset === 'challenge' && (a === 'pause' || a === 'burst' || (a === 'play' && !frozen))) {
+      log('not during the challenge: it replays a fixed window of traffic', 'err');
+      return;
+    }
     SANDBOX = r.settings;
+    if ((a === 'deploy' || a === 'reset') && preset === 'challenge') log('challenge stopped: the deployment changed', 'hint');
     if (a === 'deploy' || a === 'reset') {
       if (a === 'reset') { SANDBOX = copySettings(E.SANDBOX_DEFAULTS); msg = 'back to the defaults: ' + describe(SANDBOX); }
       lastKey = /gpu-mem/.test(line) ? 'gpu-memory-utilization' : /max-num-seqs/.test(line) ? 'max-num-seqs' : null;
       stopChallenge(false);
       deploy('sandbox');
+      sim.instances.forEach(function (inst) {
+        if (!inst.api && !inst.fits) msg += ' · ' + E.MODELS[inst.model].label + " doesn't fit " + inst.profile + ': its requests get 503s';
+      });
     } else if (a === 'batching') { E.setBatching(sim, SANDBOX.batching); lastKey = 'batching'; }
     else if (a === 'router') { E.setRouter(sim, SANDBOX.router); lastKey = 'router'; }
     else if (a === 'autoscaler') { E.setAutoscaler(sim, SANDBOX.autoscaler); lastKey = 'autoscaler'; }
@@ -1256,7 +1275,7 @@
   }
   var WORD = { 'llama-3-8b': '8b', 'llama-3.2-3b': '3b', 'llama-3.2-1b': '1b' };
   function knob(b) {
-    if (b.getAttribute('aria-disabled') === 'true') return;
+    if (b.getAttribute('aria-disabled') === 'true' || b.getAttribute('aria-checked') === 'true') return;
     var key = b.getAttribute('data-sb'), v = b.getAttribute('data-v');
     run(key === 'gpus' || key === 'layout' || key === 'batching' || key === 'traffic' || key === 'bursts' || key === 'router' || key === 'autoscaler' ? key + ' ' + v : '');
   }
@@ -1292,7 +1311,8 @@
     if (!TRACE) { log('the Azure trace is still loading: try again in a moment', 'err'); return; }
     try { E.challengePreset(SANDBOX, TRACE); } catch (err) { log(err.message, 'err'); return; }
     log('› challenge: Azure\'s peak against ' + describe(SANDBOX) + ' · p99 ≤ 2 s, no 503s', 'cmd');
-    challenge = { failedAt: null, why: '', peak: 0, done: false };
+    challenge = { failedAt: null, why: '', peak: 0, result: null };
+    sbChalSaid.textContent = '';
     lastKey = null;
     deploy('challenge');
     sbChal.hidden = false; sbChalBtns.hidden = true; sbGo.textContent = 'stop the challenge';
@@ -1307,22 +1327,28 @@
   function judge() {
     var f = E.fmt, p = E.metrics(sim, 'llama-3-8b', E.CHALLENGE.windowMs).ttftP99, rej = sim.stats.rejected, slo = E.CHALLENGE.sloMs;
     var cost = sim.stats.outputTokens ? E.spentUsd(sim) / sim.stats.outputTokens * 1e6 : null;
+    if (challenge.result) return;   // done: nothing after the window changes the verdict
     if (p !== null) challenge.peak = Math.max(challenge.peak, p);
     if (challenge.failedAt === null && ((p !== null && p > slo) || rej > 0)) {
       challenge.failedAt = sim.t;
       challenge.why = p !== null && p > slo ? 'p99 ' + f.ms(p) + ' over the 2 s target' : rej + ' requests turned away (503)';
     }
-    if (!challenge.done && E.isDrained(sim)) challenge.done = true;
     var perM = function (v) { return v === null ? '\u2013' : f.usd(v); }, par = 'par ' + perM(E.CHALLENGE.parUsdPer1M) + ' (2 × H100)';
-    if (challenge.done) {
-      sbChalWhat.innerHTML = challenge.failedAt === null ?
-        '<b class="ok">Passed.</b> ' + describe(SANDBOX) + ': p99 peaked at ' + f.ms(challenge.peak) + ', no 503s' :
-        '<b class="bad">Failed at ' + clock(challenge.failedAt) + '.</b> ' + challenge.why;
-      sbChalNums.innerHTML = 'you: <b>' + perM(cost) + '</b> · ' + par;
+    if (!challenge.result && E.challengeDone(sim)) {
+      // the verdict and the cost are final once the window's last request is served
+      challenge.result = {
+        what: challenge.failedAt === null ? '<b class="ok">Passed.</b> ' + describe(SANDBOX) + ': p99 peaked at ' + f.ms(challenge.peak) + ', no 503s' :
+          '<b class="bad">Failed at ' + clock(challenge.failedAt) + '.</b> ' + challenge.why,
+        nums: 'you: <b>' + perM(cost) + '</b> · ' + par,
+        said: (challenge.failedAt === null ? 'Challenge passed at ' : 'Challenge failed at ' + clock(challenge.failedAt) + ', ') + perM(cost)
+      };
+      sbChalWhat.innerHTML = challenge.result.what;
+      sbChalNums.innerHTML = challenge.result.nums;
+      sbChalSaid.textContent = challenge.result.said;
       sbChalBar.style.width = '100%';
       sbChalBtns.hidden = false;
-      return;
     }
+    if (challenge.result) return;
     sbChalWhat.innerHTML = '<b>SLO challenge</b> · the Azure hour\'s peak (minutes 20–35, 12× faster) · TTFT p99 ≤ 2 s, no 503s';
     sbChalBar.style.width = Math.min(100, sim.t / CHALLENGE_MS * 100).toFixed(1) + '%';
     sbChalNums.innerHTML = (challenge.failedAt !== null ? '<b class="bad">failed at ' + clock(challenge.failedAt) + '</b> · ' : '') +
@@ -1330,13 +1356,15 @@
       '</b> · <b>' + perM(cost) + '</b>';
   }
   sbGo.addEventListener('click', function () { if (preset === 'challenge') stopChallenge(true); else startChallenge(); });
-  $('sb-again').addEventListener('click', startChallenge);
-  $('sb-free').addEventListener('click', function () { stopChallenge(true); });
+  // both hide themselves: the keyboard goes back to the challenge button
+  $('sb-again').addEventListener('click', function () { startChallenge(); sbGo.focus(); });
+  $('sb-free').addEventListener('click', function () { stopChallenge(true); sbGo.focus(); });
   log('sandbox · type help for the commands, or use the knobs', 'hint');
   syncKnobs();
 
   // Pause stops new arrivals and lets in-flight work drain; play (also from draining) restarts them
   playBtn.addEventListener('click', function () {
+    if (holdWorkload()) return;
     if (E.playState(sim, frozen) === 'running') E.setArrivals(sim, false);
     else { frozen = false; E.setArrivals(sim, true); }
     renderPlay();
@@ -1345,6 +1373,7 @@
   // A burst while stopped plays just that burst. A frozen start (reduced motion) still has arrivals
   // on from the warm-up, so they go off first: the button read "▶ play" and must keep meaning stopped.
   burstBtn.addEventListener('click', function () {
+    if (preset === 'challenge') { log('not during the challenge: it replays a fixed window of traffic', 'err'); return; }
     if (frozen) { frozen = false; E.setArrivals(sim, false); }
     E.sendBurst(sim, BURST, 0);   // stream 0: tab 03's 8B, and in tab 04 the System1 model, so it's routed
     renderPlay();

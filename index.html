@@ -310,6 +310,7 @@
     .paused .live { animation: none; background: var(--p-faint); }
     @keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
     .p-ctrl { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .p-ctrl button[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }   /* send burst during the SLO challenge */
     .p-ctrl button, .p-ctrl select {
       font: inherit; color: var(--p-text); background: #181b21; border: 1px solid #2a2f38; border-radius: 999px;
       padding: 0.26rem 0.7rem; cursor: pointer; transition: border-color 0.15s, color 0.15s;
@@ -378,6 +379,7 @@
     /* the sandbox: its tab set apart on the right; the SLO challenge's bar over the footer; and under it the
        workbench, knobs, a terminal and the config they make, side by side (stacked on phones) */
     .sim-tabs .sb-tab { margin-left: auto; }
+    .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* read out, not shown */
     .sb-go { font: 0.72rem/1.65 var(--mono); color: var(--p-accent); background: #181b21; border: 1px solid var(--p-accent); border-radius: 999px; padding: 0.26rem 0.7rem; cursor: pointer; flex: none; }
     .sb-go:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
     .sb-chal { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1.2rem; padding: 0.55rem 0.9rem; border-top: 1px solid var(--p-line2); background: rgba(122, 162, 255, 0.06); font: 0.72rem/1.5 var(--mono); color: var(--p-muted); }
@@ -960,7 +962,7 @@
           <button type="button" id="sb-go" class="sb-go">take the SLO challenge ›</button>
           <div class="sim-pop" id="sim-more-sandbox" popover>
             <div class="pop-head"><span>about this tab</span><button type="button" popovertarget="sim-more-sandbox" popovertargetaction="hide" aria-label="Close">×</button></div>
-            <p><b>Sandbox.</b> Everything the other tabs fix, you choose here: up to three H100s, each whole, split by MIG or time-sliced, a model per slice, batching, GPU memory, traffic and the router, and you can kill a GPU. The terminal under the footer does the same by typing (try help), the config pane shows what you'd deploy, and the footer's meter what this deployment has cost so far. The SLO challenge replays the peak of tab 05's Azure hour against your deployment: keep TTFT p99 within 2 s with no 503s, as cheaply as you can. <span class="sim-note">Par: two whole H100s pass at $0.77 per 1M output tokens; one H100 falls behind at the peak.</span></p>
+            <p><b>Sandbox.</b> Much of what the other tabs fix, you choose here: up to three H100s, each whole, split by MIG or time-sliced, a model per slice (the same on every GPU), batching, GPU memory, traffic and the router, and you can kill a GPU; tab 04's routing gateway stays in tab 04. The terminal under the footer does the same by typing (try help), the config pane shows what you'd deploy, and the footer's meter what this deployment has cost so far. The SLO challenge replays the peak of tab 05's Azure hour against your deployment: keep TTFT p99 within 2 s with no 503s, as cheaply as you can. <span class="sim-note">Par: two whole H100s pass at $0.77 per 1M output tokens; one H100 falls behind at the peak.</span></p>
           </div>
         </div>
         <canvas id="sim" role="img" aria-label="Animated simulation: requests are routed to an LLM server on one H100 and batched step by step"></canvas>
@@ -983,6 +985,7 @@
           <span id="sb-chal-what"></span>
           <span class="sb-bar" aria-hidden="true"><span id="sb-chal-bar"></span></span>
           <span id="sb-chal-nums"></span>
+          <span class="vh" id="sb-chal-said" role="status"></span>
           <span class="sb-chal-btns" id="sb-chal-btns" hidden><button type="button" id="sb-again">try again</button> <button type="button" id="sb-free">back to free play</button></span>
         </div>
         <div class="p-foot">

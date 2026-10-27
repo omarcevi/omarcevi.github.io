@@ -1722,3 +1722,45 @@ test('config: with several servers the router block names its policy and the que
   assert.match(r.lines.find(l => l.key === 'router').text, /policy: round-robin/);
   assert.equal(E.serverConfig(E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 })))[0].kind, 'vllm');   // one server: no router block
 });
+test('challenge: done only once the whole window is served: a pause, a drain or play afterwards doesn\'t end it early or keep it going', () => {
+  const sim = E.createSim(Object.assign({}, E.challengePreset(Object.assign({}, E.SANDBOX_DEFAULTS, E.CHALLENGE.par), D), { seed: 1 }));
+  runExact(sim, 5000);
+  E.setArrivals(sim, false);
+  runExact(sim, 30000);
+  assert.ok(E.isDrained(sim));
+  assert.equal(E.challengeDone(sim), false);   // paused and drained, but most of the window is still to come
+  E.setArrivals(sim, true);
+  while (!E.challengeDone(sim) && sim.t < 300000) E.tick(sim, 50);
+  assert.ok(E.challengeDone(sim));
+  E.setArrivals(sim, true);                     // play after the end: nothing is left to arrive, so it stays done
+  assert.equal(sim.arrivalsOn, false);
+  assert.ok(E.challengeDone(sim));
+  assert.equal(E.challengeDone(E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 }))), false);
+});
+test('sandbox: with the autoscaler on, a killed MIG H100 comes back as one H100, slices and all', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { gpus: 2, autoscaler: true })), { seed: 1 }));
+  runExact(sim, 2000);
+  assert.equal(E.killGpu(sim), 1);
+  assert.equal(sim.gpuCount, 2);   // the replacement is billed from now on: one GPU, not three
+  assert.deepEqual(sim.events.filter(e => / starting$/.test(e.label)).map(e => e.label), ['H100 3 starting']);
+  assert.deepEqual(sim.instances.slice(3).map(i => [E.instanceStatus(sim, i).state, i.gpu]), [['starting', 2], ['starting', 2], ['starting', 2]]);
+  runExact(sim, E.COLD_START_MS + 100);
+  assert.equal(sim.gpuCount, 2);
+  assert.deepEqual(sim.events.filter(e => / up$/.test(e.label)).map(e => e.label), ['H100 3 up']);
+  assert.equal(E.killGpu(sim), 2);   // the next kill takes the whole replacement
+  assert.deepEqual(sim.instances.slice(3).map(i => E.instanceStatus(sim, i).state), ['starting', 'starting', 'starting']);
+  assert.equal(sim.gpuCount, 2);
+});
+test('sandbox: time-sliced processes share the memory the gpu-mem knob gives, in tab 03\'s proportions', () => {
+  const at = u => E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: 'time-sliced', gpuMemUtil: u })).instances.map(i => +i.gpuMemUtil.toFixed(4));
+  assert.deepEqual(at(0.9), [0.45, 0.25, 0.2]);
+  assert.deepEqual(at(0.5), [0.25, +(0.5 * 0.25 / 0.9).toFixed(4), +(0.5 * 0.2 / 0.9).toFixed(4)]);
+});
+test('config: a model that doesn\'t fit its slice says so instead of printing a command that won\'t start', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(Object.assign({}, E.SANDBOX_DEFAULTS, { layout: '2g+2g+2g+1g', models: ['llama-3.2-1b', 'llama-3.2-1b', 'llama-3.2-1b', 'llama-3-8b'] })), { seed: 1 }));
+  const b = E.serverConfig(sim).find(x => /1g\.10gb/.test(x.title));
+  assert.equal(b.kind, 'unfit');
+  assert.match(b.title, /doesn't fit/);
+  assert.match(b.lines.map(l => l.text).join('\n'), /won't start: 16\.06 GB of weights/);
+  assert.ok(!b.lines.some(l => /vllm serve/.test(l.text)));
+});
