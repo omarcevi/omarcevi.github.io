@@ -1154,6 +1154,116 @@
     }
   }
 
+  // The sandbox's router policy, live: requests routed from now on use it
+  function setRouter(sim, policy) {
+    if (policy !== 'least' && policy !== 'round-robin') throw new Error('unknown router policy: ' + policy);
+    if (policy === sim.router) return;
+    sim.router = policy;
+    sim.rrNext = {};
+    sim.events.push({ t: sim.t, label: policy === 'least' ? 'least outstanding' : 'round-robin' });
+  }
+
+  // The sandbox terminal: one command line against the current settings. Returns { ok, message, settings (a
+  // copy, changed), action, value }: action 'deploy' rebuilds the sim; 'batching', 'router' and 'autoscaler'
+  // change it live; the rest ('kill', 'burst', 'pause', 'play', 'challenge', 'status', 'reset', 'clear',
+  // 'help') are the page's to carry out. At most SANDBOX_MAX_SERVERS servers, so every box stays readable.
+  var SANDBOX_MAX_SERVERS = 6;
+  var MODEL_WORDS = { '8b': 'llama-3-8b', '3b': 'llama-3.2-3b', '1b': 'llama-3.2-1b' };
+  var SANDBOX_HELP = [
+    'gpus 1-3 · layout ' + Object.keys(SANDBOX_LAYOUTS).join('|') + ' · models 8b 3b 1b (one per slice)',
+    'batching continuous|request · set gpu-mem 0.5-0.95 · set max-num-seqs 1-512',
+    'traffic random|trace · rate 1-40 (req/s) · bursts on|off · lengths chat|long|short',
+    'router least|round-robin · kill · autoscaler on|off · burst [n] · pause · play',
+    'challenge · status · reset · clear · help'
+  ].join('\n');
+  function sandboxCommand(settings, line) {
+    var w = String(line).trim().toLowerCase().split(/\s+/), cmd = w[0], arg = w[1], s = Object.assign({}, settings);
+    s.models = settings.models.slice();
+    var done = function (action, message, value) { return { ok: true, message: message, settings: s, action: action, value: value }; };
+    var bad = function (message) { return { ok: false, message: message, settings: settings, action: null }; };
+    var num = function (x, lo, hi) { var v = +x; return x !== undefined && isFinite(v) && v >= lo && v <= hi ? v : null; };
+    var fits = function () {
+      var n = s.gpus * SANDBOX_LAYOUTS[s.layout].length;
+      return n <= SANDBOX_MAX_SERVERS ? null : bad(n + ' servers won\'t fit: at most ' + SANDBOX_MAX_SERVERS + ' servers (GPUs × slices)');
+    };
+    if (!cmd) return { ok: true, message: '', settings: settings, action: null };
+    if (cmd === 'gpus') {
+      if (num(arg, 1, 3) === null || Math.round(+arg) !== +arg) return bad('gpus takes 1, 2 or 3');
+      s.gpus = +arg;
+      return fits() || done('deploy', s.gpus + ' × H100');
+    }
+    if (cmd === 'layout') {
+      if (!SANDBOX_LAYOUTS[arg]) return bad('layout takes ' + Object.keys(SANDBOX_LAYOUTS).join(', '));
+      s.layout = arg;
+      return fits() || done('deploy', arg === 'whole' ? 'a whole H100 per server' : arg === 'time-sliced' ? 'three processes time-sharing each H100' :
+        'each H100 split ' + SANDBOX_LAYOUTS[arg].join(' + '));
+    }
+    if (cmd === 'models') {
+      var ms = w.slice(1).map(function (x) { return MODEL_WORDS[x]; });
+      if (!ms.length || ms.some(function (m) { return !m; })) return bad('models takes 8b, 3b or 1b, one per slice');
+      s.models = ms;
+      return done('deploy', ms.map(function (m) { return MODELS[m].label; }).join(', '));
+    }
+    if (cmd === 'batching') {
+      if (arg !== 'continuous' && arg !== 'request') return bad('batching takes continuous or request');
+      s.batching = arg;
+      return done('batching', arg === 'request' ? 'request-level batching (Triton\'s dynamic batcher)' : 'continuous batching (vLLM)');
+    }
+    if (cmd === 'set') {
+      var v = w[2];
+      if (arg === 'gpu-mem') {
+        if (num(v, 0.5, 0.95) === null) return bad('set gpu-mem takes 0.5 to 0.95');
+        s.gpuMemUtil = +v;
+        return done('deploy', '--gpu-memory-utilization ' + s.gpuMemUtil.toFixed(2));
+      }
+      if (arg === 'max-num-seqs') {
+        if (num(v, 1, 512) === null || Math.round(+v) !== +v) return bad('set max-num-seqs takes 1 to 512');
+        s.maxNumSeqs = +v;
+        return done('deploy', '--max-num-seqs ' + s.maxNumSeqs);
+      }
+      return bad('set takes gpu-mem or max-num-seqs');
+    }
+    if (cmd === 'traffic') {
+      if (arg !== 'random' && arg !== 'trace') return bad('traffic takes random or trace');
+      s.traffic = arg;
+      return done('deploy', arg === 'trace' ? 'the Azure hour, 12× faster, to the 8B (or the first model)' : 'random traffic');
+    }
+    if (cmd === 'rate') {
+      if (num(arg, 1, 40) === null) return bad('rate takes 1 to 40 requests/s');
+      s.rate = +arg;
+      return done('deploy', s.rate + ' requests/s in all, split across the models');
+    }
+    if (cmd === 'bursts') {
+      if (arg !== 'on' && arg !== 'off') return bad('bursts takes on or off');
+      s.bursts = arg === 'on';
+      return done('deploy', 'bursts ' + arg);
+    }
+    if (cmd === 'lengths') {
+      if (arg !== 'chat' && arg !== 'long' && arg !== 'short') return bad('lengths takes chat, long or short');
+      s.lengths = arg;
+      return done('deploy', arg === 'chat' ? 'each model\'s own kind of request' : arg + ' prompts and replies');
+    }
+    if (cmd === 'router') {
+      var policy = arg === 'least' ? 'least' : arg === 'round-robin' ? 'round-robin' : null;
+      if (!policy) return bad('router takes least or round-robin');
+      s.router = policy;
+      return done('router', policy === 'least' ? 'least outstanding requests' : 'round-robin: each server in turn, however busy');
+    }
+    if (cmd === 'autoscaler') {
+      if (arg !== 'on' && arg !== 'off') return bad('autoscaler takes on or off');
+      s.autoscaler = arg === 'on';
+      return done('autoscaler', 'autoscaler ' + arg);
+    }
+    if (cmd === 'burst') {
+      var n = arg === undefined ? 24 : num(arg, 1, 200);
+      if (n === null) return bad('burst takes 1 to 200');
+      return done('burst', n + ' requests at once', Math.round(n));
+    }
+    if (cmd === 'help') return done('help', SANDBOX_HELP);
+    if (['kill', 'pause', 'play', 'challenge', 'status', 'reset', 'clear'].indexOf(cmd) >= 0) return done(cmd, '');
+    return bad('unknown command: ' + cmd + ' (type help)');
+  }
+
   // The sandbox's cost meter: what the GPUs billed so far cost, plus any API spend (USD)
   function spentUsd(sim) { return GPU_HOUR_USD * sim.stats.gpuMs / 3.6e6 + sim.stats.apiUsd; }
 
@@ -1573,6 +1683,9 @@
     killGpu: killGpu,
     requestSummary: requestSummary,
     sandboxPreset: sandboxPreset,
+    sandboxCommand: sandboxCommand,
+    setRouter: setRouter,
+    SANDBOX_MAX_SERVERS: SANDBOX_MAX_SERVERS,
     challengePreset: challengePreset,
     spentUsd: spentUsd,
     SANDBOX_DEFAULTS: SANDBOX_DEFAULTS,

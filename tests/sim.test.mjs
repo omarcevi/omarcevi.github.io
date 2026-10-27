@@ -1670,3 +1670,44 @@ test('challenge: one H100 fails at the peak; two pass, and their cost per 1M is 
   assert.equal(two.failedAt, null);
   near(two.cost, E.CHALLENGE.parUsdPer1M, E.CHALLENGE.parUsdPer1M * 0.02);
 });
+test('sandbox: the router policy can change live, marked on the sparkline', () => {
+  const sim = E.createSim(Object.assign({}, E.sandboxPreset(E.SANDBOX_DEFAULTS), { seed: 1 }));
+  E.setRouter(sim, 'round-robin');
+  assert.equal(sim.router, 'round-robin');
+  assert.equal(sim.events[sim.events.length - 1].label, 'round-robin');
+  E.setRouter(sim, 'least');
+  assert.equal(sim.events[sim.events.length - 1].label, 'least outstanding');
+  assert.throws(() => E.setRouter(sim, 'random'), /router/);
+});
+test('terminal: commands change the settings, or say what\'s wrong', () => {
+  const S = E.SANDBOX_DEFAULTS, run = (line, s = S) => E.sandboxCommand(s, line);
+  let r = run('gpus 2');
+  assert.deepEqual([r.ok, r.action, r.settings.gpus], [true, 'deploy', 2]);
+  assert.equal(S.gpus, 1);   // the defaults are left alone
+  r = run('layout whole');
+  assert.deepEqual([r.ok, r.action, r.settings.layout], [true, 'deploy', 'whole']);
+  r = run('models 8b 8b');
+  assert.deepEqual(r.settings.models, ['llama-3-8b', 'llama-3-8b']);
+  r = run('set gpu-mem 0.75');
+  assert.deepEqual([r.ok, r.settings.gpuMemUtil], [true, 0.75]);
+  assert.equal(run('set gpu-mem 1.2').ok, false);
+  r = run('set max-num-seqs 64');
+  assert.equal(r.settings.maxNumSeqs, 64);
+  assert.deepEqual([run('rate 18').settings.rate, run('bursts off').settings.bursts, run('lengths long').settings.lengths], [18, false, 'long']);
+  assert.deepEqual([run('traffic trace').settings.traffic, run('traffic trace').action], ['trace', 'deploy']);
+  // live ones don't redeploy
+  assert.deepEqual([run('batching request').action, run('batching request').settings.batching], ['batching', 'request']);
+  assert.deepEqual([run('router round-robin').action, run('router round-robin').settings.router], ['router', 'round-robin']);
+  assert.deepEqual([run('autoscaler on').action, run('autoscaler on').settings.autoscaler], ['autoscaler', true]);
+  for (const a of ['kill', 'pause', 'play', 'challenge', 'status', 'reset', 'clear', 'help']) assert.equal(run(a).action, a, a);
+  assert.deepEqual([run('burst').action, run('burst').value, run('burst 40').value], ['burst', 24, 40]);
+  // more servers than the canvas can show, an unknown command, a bad value
+  r = run('gpus 3', Object.assign({}, S, { layout: '3g+2g+2g' }));
+  assert.equal(r.ok, false);
+  assert.match(r.message, /6 servers/);
+  assert.equal(run('layout 2g+2g+2g+1g', Object.assign({}, S, { gpus: 2 })).ok, false);
+  assert.match(run('frobnicate').message, /help/);
+  assert.equal(run('models 7b').ok, false);
+  assert.equal(run('').action, null);
+  assert.match(run('help').message, /gpus/);
+});
