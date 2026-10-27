@@ -1426,3 +1426,155 @@ test('tab 06 as a visitor sees it: with the autoscaler on, the replacement bring
   assert.ok(green >= 9, `green from ${from / 1000} s on ${green}/10`);
   assert.ok(quiet >= 9, `no new 503 on ${quiet}/10`);
 });
+
+// ---- Following a request, and the server config ----
+
+// Every request a sim has seen, queued, running, finished or rejected: collect them as they arrive
+function watchAll(sim) {
+  const all = {};
+  const grab = () => { for (const inst of sim.instances) for (const r of inst.queue.concat(inst.running)) all[r.id] = r; for (const r of sim.finished) all[r.id] = r; };
+  return { tick(ms) { const end = sim.t + ms; while (sim.t < end) { E.tick(sim, Math.min(16, end - sim.t)); grab(); } }, all };
+}
+const kinds = r => r.spans.map(s => s.kind).join(' ');
+test('follow: a finished request\'s spans run queue, prefill, decode, edge to edge from arrival to done', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 3 })), w = watchAll(sim);
+  w.tick(20000);
+  const done = Object.values(w.all).filter(r => r.tDone !== null && r.preemptions === 0);
+  assert.ok(done.length > 50);
+  for (const r of done) {
+    assert.equal(kinds(r), 'queue prefill decode', `#${r.id}`);
+    const [q, p, d] = r.spans;
+    assert.deepEqual([q.t0, q.t1, p.t1, d.t1], [r.t0, r.tAdmit, r.tFirst, r.tDone], `#${r.id}`);
+    assert.deepEqual([p.t0, d.t0], [q.t1, p.t1], `#${r.id}`);
+    assert.ok(r.spans.every(s => s.inst === 0));
+  }
+});
+test('follow: a preempted request goes back to the queue, marked, and redoes its prefill', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.kvcache, { seed: 1, config: { gpuMemUtil: 0.5 } })), w = watchAll(sim);
+  w.tick(60000);
+  const pre = Object.values(w.all).filter(r => r.preemptions > 0 && r.tDone !== null);
+  assert.ok(pre.length > 0);
+  for (const r of pre) {
+    const marks = r.marks.filter(m => m.kind === 'preempted');
+    assert.equal(marks.length, r.preemptions, `#${r.id}`);
+    for (const m of marks) {
+      const i = r.spans.findIndex(s => s.t0 === m.t && s.kind === 'queue');
+      assert.ok(i > 0, `#${r.id}: no queue span starts at the preemption`);
+      assert.equal(r.spans[i - 1].t1, m.t);
+      assert.equal(r.spans[i + 1].kind, 'prefill');
+    }
+    for (let i = 1; i < r.spans.length; i++) assert.equal(r.spans[i].t0, r.spans[i - 1].t1, `#${r.id}: a gap`);
+  }
+});
+test('follow: a scored request shows its System1 hop, its score and its serving hop', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS['routing-onprem'], { seed: 1 })), w = watchAll(sim);
+  w.tick(20000);
+  const r = Object.values(w.all).find(x => x.tDone !== null && x.preemptions === 0);
+  assert.equal(kinds(r), 'queue prefill queue prefill decode');
+  assert.equal(r.spans[0].inst, 0);   // the System1 model
+  const scored = r.marks.find(m => m.kind === 'scored');
+  assert.deepEqual([scored.t, scored.score, scored.target], [r.tScored, r.score, r.target]);
+  assert.equal(r.spans[2].t0, r.tScored);
+  assert.notEqual(r.spans[2].inst, 0);
+});
+test('follow: a request retried off a dead GPU is marked and starts over on the survivor', () => {
+  const sim = failSim(1), w = watchAll(sim);
+  w.tick(20000);
+  const victims = sim.instances[1].running.slice();
+  E.killGpu(sim);
+  w.tick(30000);
+  const r = victims.find(x => x.tDone !== null);
+  const m = r.marks.find(x => x.kind === 'retried');
+  assert.ok(m);
+  const i = r.spans.findIndex(s => s.t0 === m.t);
+  assert.deepEqual([r.spans[i - 1].t1, r.spans[i].kind, r.spans[i].inst], [m.t, 'queue', 0]);
+});
+test('follow: an API request waits for its first token, then decodes', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS['routing-api'], { seed: 1, routing: Object.assign({}, E.PRESETS['routing-api'].routing, { threshold: 0 }) })), w = watchAll(sim);
+  w.tick(20000);
+  const r = Object.values(w.all).find(x => x.tDone !== null && sim.instances[x.inst].api);
+  assert.equal(kinds(r), 'queue prefill queue prefill decode');
+  const [, , q, p, d] = r.spans;
+  assert.equal(q.t1, q.t0);                  // an API request never queues
+  assert.deepEqual([p.t1, d.t1], [r.tFirst, r.tDone]);
+});
+test('follow: requestSummary gives the strip its numbers', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 3 })), w = watchAll(sim);
+  w.tick(20000);
+  const r = Object.values(w.all).find(x => x.tDone !== null && x.generated > 1);
+  const s = E.requestSummary(sim, r);
+  assert.deepEqual([s.id, s.prompt, s.state], [r.id, r.prompt, 'done']);
+  near(s.ttftMs, r.tFirst - r.t0, 1e-9);
+  near(s.totalMs, r.tDone - r.t0, 1e-9);
+  near(s.tpotMs, (r.tDone - r.tFirst) / (r.generated - 1), 1e-9);
+  assert.deepEqual(s.byKind, { queue: r.tAdmit - r.t0, prefill: r.tFirst - r.tAdmit, decode: r.tDone - r.tFirst });
+  // a request still running: its open span runs to now
+  const live = sim.instances[0].running.find(x => x.state === 'running');
+  const ls = E.requestSummary(sim, live);
+  assert.equal(ls.spans[ls.spans.length - 1].t1, sim.t);
+  assert.equal(ls.totalMs, sim.t - live.t0);
+});
+test('follow: a rejected request ends at its 503', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1, config: { queueCap: 0 } }));
+  const r = E.enqueue(sim, { prompt: 100, output: 10, model: 'llama-3-8b' });   // no queue room anywhere
+  assert.equal(r.state, 'rejected');
+  assert.deepEqual([r.marks.map(m => m.kind), r.spans.length], [['rejected'], 0]);
+  assert.equal(E.requestSummary(sim, r).state, 'rejected');
+});
+test('config: continuous batching shows each server\'s vllm serve flags, with the slice and its memory share', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.kvcache, { seed: 1, config: { gpuMemUtil: 0.7 } }));
+  const [b] = E.serverConfig(sim);
+  assert.equal(b.kind, 'vllm');
+  assert.equal(b.title, 'MIG 3g.40gb · Llama 3 8B');
+  const text = b.lines.map(l => l.text).join('\n');
+  assert.match(text, /^vllm serve meta-llama\/Meta-Llama-3-8B-Instruct \\/);
+  assert.match(text, /--gpu-memory-utilization 0\.70 \\/);
+  assert.match(text, /--max-num-seqs 256 \\/);
+  assert.match(text, /--max-num-batched-tokens 8192 \\/);
+  assert.match(text, new RegExp('--max-model-len ' + sim.instances[0].maxModelLen + '$'));
+  assert.equal(b.lines.find(l => /gpu-memory/.test(l.text)).key, 'gpu-memory-utilization');
+  // switching back to continuous batching highlights the vllm serve line, as switching to request-level does Triton's
+  assert.equal(b.lines.find(l => /^vllm serve/.test(l.text)).key, 'batching');
+});
+test('config: request-level batching is Triton\'s config.pbtxt with its dynamic_batching block', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS.batching, { seed: 1 }));
+  E.setBatching(sim, 'request');
+  const [b] = E.serverConfig(sim);
+  assert.equal(b.kind, 'triton');
+  const text = b.lines.map(l => l.text).join('\n');
+  assert.match(text, /backend: "python"/);
+  assert.match(text, /max_batch_size: 16/);
+  assert.match(text, /max_queue_delay_microseconds: 25000/);
+  assert.ok(b.lines.filter(l => l.key === 'batching').length >= 3);
+});
+test('config: tab 04 adds the gateway\'s routing block, and in API mode the API model has nothing to deploy', () => {
+  const sim = E.createSim(Object.assign({}, E.PRESETS['routing-onprem'], { seed: 1 }));
+  E.setThreshold(sim, 0.6);
+  const blocks = E.serverConfig(sim);
+  assert.deepEqual(blocks.map(b => b.kind), ['router', 'vllm', 'vllm', 'vllm']);
+  assert.match(blocks[0].lines.find(l => l.key === 'threshold').text, /threshold: 0\.60/);
+  assert.match(blocks[0].lines.find(l => l.key === 'large').text, /large: llama-3-8b/);
+  assert.match(blocks[1].title, /System1/);
+  // System1 is modelled, not a known checkpoint: the drawer says so rather than describing how it was built
+  const s1 = blocks[1].lines.map(l => l.text).join('\n');
+  assert.doesNotMatch(s1, /fine-tuned/);
+  assert.match(s1, /sized like Llama 3\.2 1B here/);
+  assert.match(s1, /no public checkpoint/);
+  const api = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['routing-api'], { seed: 1 })));
+  assert.deepEqual(api.map(b => b.kind), ['router', 'vllm', 'vllm', 'api']);
+  assert.match(api[3].lines.map(l => l.text).join('\n'), /\$2 .*\$10/);
+});
+test('config: time-slicing shows each process\'s share of the one GPU, and tab 06 its load balancer and autoscaler', () => {
+  const ts = E.serverConfig(E.createSim(Object.assign({}, E.PRESETS['mig-time'], { seed: 1 })));
+  assert.deepEqual(ts.map(b => b.lines.find(l => l.key === 'gpu-memory-utilization').text.trim()),
+    ['--gpu-memory-utilization 0.45 \\', '--gpu-memory-utilization 0.25 \\', '--gpu-memory-utilization 0.20 \\']);
+  assert.ok(ts.every(b => /time-sliced/.test(b.title)));
+  const sim = failSim(1);
+  let blocks = E.serverConfig(sim);
+  assert.equal(blocks[0].kind, 'router');
+  assert.match(blocks[0].lines.find(l => l.key === 'autoscaler').text, /autoscaler: off/);
+  E.setAutoscaler(sim, true);
+  blocks = E.serverConfig(sim);
+  assert.match(blocks[0].lines.find(l => l.key === 'autoscaler').text, /autoscaler: on/);
+  assert.deepEqual(blocks.slice(1).map(b => b.title), ['H100 1 · Llama 3 8B', 'H100 2 · Llama 3 8B']);
+});

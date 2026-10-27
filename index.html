@@ -118,6 +118,7 @@
       --p-faint: #5c626d;
       --p-accent: #7aa2ff;
       --p-ok: #4ade80;
+      --p-warn: #f5a524;
       --p-bad: #ef4444;
       /* display values for elements shown in one theme only */
       --only-light: block;
@@ -347,6 +348,41 @@
     .sim-counters { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.35rem 1.3rem; padding-top: 0.45rem; border-top: 1px dashed var(--p-line2); }
     .sim-counters > span[hidden] { display: none; }
     @media (max-width: 900px) { #simbox .p-foot { grid-template-columns: repeat(4, auto); } }
+    /* following one request: its queue, prefill and decode spans on one time axis, under the key. The same
+       height whether it follows a request or not, so nothing below moves */
+    .sim-follow { height: 7.9rem; padding: 0.55rem 0.9rem 0.6rem; border-top: 1px solid var(--p-line2); font-family: var(--mono); font-size: 0.72rem; color: var(--p-muted); overflow: hidden; }
+    /* one header line (two on phones): what's followed shortens with an ellipsis rather than wrapping, so the
+       rows and the note always fit the strip's height */
+    .fl-head { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem 1rem; flex-wrap: nowrap; min-height: 1.6rem; margin-bottom: 0.3rem; }
+    #fl-what { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fl-head b { color: var(--p-text); font-weight: 500; }
+    .fl-nums { display: inline-flex; align-items: center; gap: 0.6rem; flex: none; }
+    #fl-what.idle { color: var(--p-faint); }
+    .fl-warn { color: var(--p-warn); }
+    .fl-row { display: grid; grid-template-columns: 4.6rem 1fr 3.6rem; gap: 0.6rem; align-items: center; height: 1.15rem; }
+    .sim-follow.idle .fl-row { opacity: 0.45; }
+    .fl-track { position: relative; height: 6px; border-radius: 2px; background: repeating-linear-gradient(90deg, #1c2027 0 1px, transparent 1px 25%); }
+    .fl-seg { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 2px; }
+    .fl-row[data-kind=queue] .fl-seg { background: rgba(208, 213, 222, 0.45); }
+    .fl-row[data-kind=prefill] .fl-seg { background: #7aa2ff; }
+    .fl-row[data-kind=decode] .fl-seg { background: rgba(122, 162, 255, 0.6); }
+    .fl-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--p-warn); }
+    .fl-mark.scored { background: var(--p-accent); }
+    .fl-time { text-align: right; color: var(--p-text); }
+    .fl-note { padding-left: 5.2rem; margin-top: 0.15rem; color: var(--p-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #fl-next, #fl-stop, .sim-cfg { font: inherit; color: var(--p-muted); background: #181b21; border: 1px solid #2a2f38; border-radius: 999px; padding: 0.1rem 0.65rem; cursor: pointer; }
+    #fl-next:hover, #fl-stop:hover, .sim-cfg:hover { color: var(--p-accent); }
+    #fl-next:focus-visible, #fl-stop:focus-visible, .sim-cfg:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
+    #fl-next[hidden], #fl-stop[hidden] { display: none; }
+    #sim.picking { cursor: pointer; }
+    /* the config drawer: the setup being simulated, one block per server, the value last changed highlighted */
+    .sim-counters .sim-cfg { margin-left: auto; margin-block: -0.15rem; }   /* no taller than a counter's line */
+    .sim-config { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); gap: 0.7rem; padding: 0.7rem 0.9rem 0.9rem; border-top: 1px solid var(--p-line2); }
+    .sim-config[hidden] { display: none; }
+    .cfg-block { margin: 0; padding: 0.6rem 0.75rem; overflow-x: auto; background: #13161c; border: 1px solid #1c2027; border-radius: 8px; font: 0.72rem/1.65 var(--mono); color: var(--p-muted); white-space: pre; }
+    .cfg-block .c { color: var(--p-muted); opacity: 0.8; }
+    .cfg-block .k { color: var(--p-text); }
+    .cfg-block .hl { background: rgba(122, 162, 255, 0.18); color: var(--p-accent); border-radius: 3px; }
     /* simulator tabs, the lesson line and its segmented switch (assets/sim.js wires them) */
     .sim-tabs {
       display: flex; gap: 0.15rem; padding: 0.35rem 0.6rem 0; overflow-x: auto;
@@ -704,6 +740,11 @@
       #sim { height: 290px; }
       #simbox .p-foot { grid-template-columns: repeat(2, auto); justify-content: start; gap: 0.35rem 1.5rem; }
       .sim-counters { min-height: 3.25rem; align-content: flex-start; }   /* two rows (with its padding and border) on every tab, however many counters */
+      .sim-follow { height: 9.4rem; }
+      .fl-head { flex-wrap: wrap; }
+      #fl-what { flex-basis: 100%; }
+      .fl-row { grid-template-columns: 3.6rem 1fr 3rem; }
+      .fl-note { display: none; }
       .p-title .note { display: none; }
       .span { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.6rem; }
       .sp-track { grid-column: 1 / -1; grid-row: 2; }
@@ -878,6 +919,13 @@
           <span><i class="k-pre" aria-hidden="true"></i>preempted</span>
           <span><i class="k-kv" aria-hidden="true"></i>KV cache</span>
         </div>
+        <div class="sim-follow" id="sim-follow">
+          <div class="fl-head"><span id="fl-what">click a dot or a row on the canvas to follow one request</span><span class="fl-nums"><span id="fl-nums"></span><button type="button" id="fl-next">follow the next request</button><button type="button" id="fl-stop" aria-label="Stop following" hidden>×</button></span></div>
+          <div class="fl-row" data-kind="queue"><span>queue</span><span class="fl-track"></span><span class="fl-time">–</span></div>
+          <div class="fl-row" data-kind="prefill"><span>prefill</span><span class="fl-track"></span><span class="fl-time">–</span></div>
+          <div class="fl-row" data-kind="decode"><span>decode</span><span class="fl-track"></span><span class="fl-time">–</span></div>
+          <div class="fl-note" id="fl-note">its spans, TTFT, TPOT and total time appear here</div>
+        </div>
         <div class="p-foot">
           <span>TTFT p50 <b id="m-ttft50">–</b></span>
           <span>TTFT p99 <b id="m-ttft99">–</b></span>
@@ -893,8 +941,10 @@
             <span id="m-retry-wrap" title="requests a dead GPU sent back to the router as client retries" hidden>retried <b id="m-retry">0</b></span>
             <span id="m-pre-wrap">preempted <b id="m-pre">0</b></span>
             <span id="m-503-wrap">rejected <b id="m-503">0</b></span>
+            <button type="button" id="sim-cfg" class="sim-cfg" aria-expanded="false" aria-controls="sim-config">config ▾</button>
           </div>
         </div>
+        <div class="sim-config" id="sim-config" hidden></div>
       </div>
       <p class="cap js-only">A model of LLM serving, not a benchmark: step times come from the H100's specs and each model's real size. Pick a tab, send a burst, then pause and watch it drain.</p>
     </header>

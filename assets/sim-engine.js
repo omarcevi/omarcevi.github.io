@@ -305,6 +305,7 @@
       gpu: 0,              // the physical GPU it runs on; createSim sets it from the spec
       timeSliced: false,   // whether it time-slices a whole GPU with other processes; createSim sets it
       fits: kvBudget > 0,
+      gpuMemUtil: pick(config, 'gpuMemUtil'),   // its --gpu-memory-utilization, for the config drawer
       kvBudget: kvBudget,
       // Like vLLM's max-model-len: a request longer than this is refused, so any one
       // admitted sequence fits the KV pool on its own and preemption always terminates
@@ -509,10 +510,13 @@
     if (!inst) {
       r.state = 'rejected';
       sim.stats.rejected += 1;
+      phase(r, sim.t, null);
+      r.marks.push({ t: sim.t, kind: 'rejected' });
       return;
     }
     r.inst = sim.instances.indexOf(inst);
     r.model = inst.model;
+    phase(r, sim.t, 'queue');
     if (inst.api) {
       startApi(sim, inst, r);
       return;
@@ -521,11 +525,21 @@
     inst.queue.push(r);
   }
 
+  // A request's timeline, for following it: closes its open span at t and, given a kind, opens the next on its
+  // instance. A queue span opens when it's placed, prefill when it's admitted (an API request at once, so its
+  // queue span is empty), decode when its prefill completes, and nothing once it's done or turned away.
+  function phase(r, t, kind) {
+    var s = r.spans[r.spans.length - 1];
+    if (s && s.t1 === null) s.t1 = t;
+    if (kind) r.spans.push({ kind: kind, t0: t, t1: null, inst: r.inst });
+  }
+
   // An API request runs the moment it enters, however many already run. Its prompt is billed now, and its first
   // token is due API.baseMs plus API.msPerInputToken per prompt token from now.
   function startApi(sim, inst, r) {
     r.state = 'running';
     if (r.tAdmit === null) r.tAdmit = sim.t;
+    phase(r, sim.t, 'prefill');   // the API model's own prefill and queueing, until its first token
     r.apiStart = sim.t;
     r.apiFirst = sim.t + API.baseMs + r.prompt * API.msPerInputToken;
     inst.running.push(r);
@@ -559,7 +573,9 @@
       tAdmit: null, tFirst: null, tDone: null, preemptions: 0,
       difficulty: null, noiseZ: null, score: null, tScored: null, hop: 'serve', target: null,
       apiStart: null, apiFirst: null,  // on an API instance: when r entered it, and when its first token is due
-      retries: 0                       // tab 06: how often a dead GPU sent it back to the router
+      retries: 0,                      // tab 06: how often a dead GPU sent it back to the router
+      spans: [],                       // its timeline for the follow strip: { kind: 'queue' | 'prefill' | 'decode', t0, t1, inst }
+      marks: []                        // and what happened to it: { t, kind: 'preempted' | 'retried' | 'scored' | 'rejected', ... }
     };
     if (sim.routing) {
       r.difficulty = Math.pow(sim.rng(), DIFFICULTY_POWER);
@@ -590,6 +606,8 @@
     if (hard && r.target === 'small') sim.stats.misrouted += 1;
     sim.routeLog.push([t, r.target, hard]);
     trimLog(sim.routeLog, t, ROUTE_WINDOW_MS, Infinity);
+    phase(r, t, null);
+    r.marks.push({ t: t, kind: 'scored', score: r.score, target: r.target });
     r.hop = 'serve';
     r.model = r.target === 'large' ? R.large : R.small;
     r.inst = null;
@@ -630,6 +648,8 @@
     r.prefillDone = 0;
     r.preemptions += 1;
     sim.stats.preemptions += 1;
+    phase(r, sim.t, 'queue');
+    r.marks.push({ t: sim.t, kind: 'preempted' });
     inst.queue.unshift(r);
     inst.kvUsed = kvUsedBytes(inst);
   }
@@ -668,6 +688,7 @@
       inst.queue.shift();
       q.state = 'running';
       if (q.tAdmit === null) q.tAdmit = sim.t;  // first admission: queue wait is tAdmit - t0
+      phase(q, sim.t, 'prefill');
       inst.running.push(q);
       take(q, qChunk, qAdd);
     }
@@ -721,6 +742,7 @@
       var r = taken[k];
       r.state = 'running';
       if (r.tAdmit === null) r.tAdmit = sim.t;
+      phase(r, sim.t, 'prefill');
       padLen = Math.max(padLen, r.prefillTarget);   // a re-prefill after preemption also redoes the tokens it made
       inst.running.push(r);
     }
@@ -832,6 +854,7 @@
         r.prefillDone += items[k].chunk;
         r.kvTokens += items[k].chunk;
         if (r.prefillDone < r.prefillTarget) continue;   // more chunks to go
+        if (r.hop !== 'score') phase(r, t, 'decode');    // its prefill is done (a scoring hop's ends with its score)
       }
       r.generated += 1;                                  // a decode token, or the first token after prefill
       r.kvTokens += 1;
@@ -853,6 +876,7 @@
       }
       if (r.state === 'running' && r.generated >= Math.min(r.output, sim.cfg.maxTokens)) {
         r.tDone = t;
+        phase(r, t, null);
         r.kvTokens = 0;
         sim.finished.push(r);
         if (sim.finished.length > FINISHED_KEEP) sim.finished.shift();
@@ -913,6 +937,7 @@
       var r = inst.running[k], n = apiMade(sim, r, t);
       if (n > 0 && r.generated === 0) {
         r.tFirst = r.apiFirst;
+        phase(r, r.apiFirst, 'decode');
         r.prefillDone = r.prefillTarget;
         sim.ttftLog.push([r.tFirst, r.tFirst - r.t0, r.model]);
       }
@@ -923,6 +948,7 @@
         continue;
       }
       r.tDone = apiDone(sim, r);
+      phase(r, r.tDone, null);
       r.state = 'done';
       sim.finished.push(r);
       if (sim.finished.length > FINISHED_KEEP) sim.finished.shift();
@@ -1050,6 +1076,103 @@
     }
   }
 
+  // ---- Following a request, and the config drawer ----
+
+  // What the follow strip shows for r: its spans (the open one running to now), the time it spent in each
+  // phase, and its TTFT, TPOT and total time so far
+  function requestSummary(sim, r) {
+    var end = r.tDone !== null ? r.tDone : r.state === 'rejected' && r.marks.length ? r.marks[r.marks.length - 1].t : sim.t;
+    var by = { queue: 0, prefill: 0, decode: 0 };
+    var spans = r.spans.map(function (s) {
+      var t1 = s.t1 === null ? sim.t : s.t1;
+      by[s.kind] += t1 - s.t0;
+      return { kind: s.kind, t0: s.t0, t1: t1, inst: s.inst };
+    });
+    return {
+      id: r.id, model: r.model, inst: r.inst, prompt: r.prompt, output: Math.min(r.output, sim.cfg.maxTokens), generated: r.generated,
+      state: r.state === 'idle' ? 'done' : r.state, t0: r.t0, end: end, spans: spans, marks: r.marks.slice(), byKind: by,
+      ttftMs: r.tFirst !== null ? r.tFirst - r.t0 : null,
+      tpotMs: r.tFirst !== null && r.generated > 1 ? ((r.tDone !== null ? r.tDone : sim.t) - r.tFirst) / (r.generated - 1) : null,
+      totalMs: end - r.t0
+    };
+  }
+
+  // Hugging Face ids for the config drawer. The System1 model is modelled, a 1B-class classifier with Llama 3.2
+  // 1B's numbers, not a known checkpoint, so it's served from a local path.
+  var HF_IDS = {
+    'llama-3-8b': 'meta-llama/Meta-Llama-3-8B-Instruct', 'llama-3.2-3b': 'meta-llama/Llama-3.2-3B-Instruct',
+    'llama-3.2-1b': 'meta-llama/Llama-3.2-1B-Instruct', system1: '/models/system1'
+  };
+
+  // The config of the system being simulated, one block per server, for the config drawer:
+  // { kind: 'router' | 'vllm' | 'triton' | 'api', title, lines: [{ text, key, comment? }] }. key names the
+  // knob a line shows ('gpu-memory-utilization', 'batching', 'threshold', 'autoscaler', ...), so the page can
+  // highlight the one the visitor last changed. Continuous batching is vLLM's; request-level batching is
+  // Triton's dynamic batcher in front of a Python backend, since vLLM has no request-level mode.
+  function serverConfig(sim) {
+    var cfg = sim.cfg, blocks = [], counts = {};
+    function line(text, key, comment) { return { text: text, key: key || null, comment: !!comment }; }
+    sim.instances.forEach(function (inst) { if (!inst.api) counts[inst.model] = (counts[inst.model] || 0) + 1; });
+    var replicas = Object.keys(counts).filter(function (m) { return counts[m] > 1; })[0];
+    if (sim.routing) {
+      var x = sim.routing.threshold;
+      blocks.push({ kind: 'router', title: 'gateway · routes on the System1 score', lines: [
+        line('router:'),
+        line('  scorer: system1   # one token: a difficulty score'),
+        line('  small: ' + sim.routing.small),
+        line('  large: ' + sim.routing.large, 'large'),
+        line('  threshold: ' + x.toFixed(2) + (x >= 1 ? '   # none → large' : '   # score ≥ ' + x.toFixed(2) + ' → large'), 'threshold')
+      ] });
+    } else if (replicas) {
+      blocks.push({ kind: 'router', title: 'load balancer · ' + counts[replicas] + ' replicas', lines: [
+        line('router:'),
+        line('  policy: least outstanding requests'),
+        line('  replicas: ' + counts[replicas]),
+        line('  autoscaler: ' + (sim.autoscaler ? 'on' : 'off'), 'autoscaler'),
+        line('  cold start: ' + COLD_START_MS / 1000 + ' s   # assumed', null)
+      ] });
+    }
+    sim.instances.forEach(function (inst) {
+      if (inst.api) {
+        blocks.push({ kind: 'api', title: 'API model', lines: [
+          line('# billed per token, nothing to deploy', null, true),
+          line('# input $' + API.inputPer1M + ' / output $' + API.outputPer1M + ' per 1M tokens', null, true)
+        ] });
+        return;
+      }
+      var label = MODELS[inst.model].label, st = instanceStatus(sim, inst);
+      var where = inst.profile !== '7g.80gb' ? 'MIG ' + inst.profile : inst.timeSliced ? 'H100 ' + (inst.gpu + 1) + ', time-sliced' :
+        sim.instances.length > 1 ? 'H100 ' + (inst.gpu + 1) : 'H100';
+      var title = where + ' · ' + label + (st.state === 'down' ? ' · failed' : st.state === 'starting' ? ' · starting' : '');
+      if (sim.batching === 'request') {
+        blocks.push({ kind: 'triton', title: title + ' · Triton, Python backend', lines: [
+          line('# models/' + inst.model + '/config.pbtxt', null, true),
+          line('name: "' + inst.model + '"'),
+          line('backend: "python"   # model.py runs generate(), max_new_tokens ' + cfg.maxTokens),
+          line('max_batch_size: ' + cfg.maxBatch, 'max-batch'),
+          line('dynamic_batching {', 'batching'),
+          line('  max_queue_delay_microseconds: ' + cfg.maxQueueDelayMs * 1000, 'batching'),
+          line('}', 'batching'),
+          line('instance_group [{ kind: KIND_GPU, count: 1 }]')
+        ] });
+        return;
+      }
+      var lines = [];
+      if (inst.model === SYSTEM1) {
+        lines.push(line('# a 1B-class classifier, sized like Llama 3.2 1B here; no public checkpoint', null, true));
+        lines.push(line('# the gateway asks it for one token, the score', null, true));
+      }
+      blocks.push({ kind: 'vllm', title: title, lines: lines.concat([
+        line('vllm serve ' + HF_IDS[inst.model] + ' \\', 'batching'),   // continuous batching is vLLM's own
+        line('  --gpu-memory-utilization ' + inst.gpuMemUtil.toFixed(2) + ' \\', 'gpu-memory-utilization'),
+        line('  --max-num-seqs ' + cfg.maxNumSeqs + ' \\', 'max-num-seqs'),
+        line('  --max-num-batched-tokens ' + cfg.maxNumBatchedTokens + ' \\', 'max-num-batched-tokens'),
+        line('  --max-model-len ' + inst.maxModelLen, 'max-model-len')
+      ]) });
+    });
+    return blocks;
+  }
+
   // Where tab 05's replay is in its hour: { ms, totalMs }, or null when no stream replays a trace
   function traceClock(sim) {
     for (var k = 0; k < sim.streams.length; k++) {
@@ -1103,6 +1226,8 @@
     r.prefillDone = 0;
     r.generated = 0;
     r.tFirst = null;
+    phase(r, sim.t, null);
+    r.marks.push({ t: sim.t, kind: 'retried' });
     r.inst = null;
     r.retries += 1;
     sim.stats.retried += 1;
@@ -1360,6 +1485,8 @@
     sendBurst: sendBurst,
     traceClock: traceClock,
     killGpu: killGpu,
+    requestSummary: requestSummary,
+    serverConfig: serverConfig,
     setAutoscaler: setAutoscaler,
     instanceStatus: instanceStatus,
     COLD_START_MS: COLD_START_MS,
