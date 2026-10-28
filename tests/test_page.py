@@ -808,9 +808,11 @@ class AboutExperience(unittest.TestCase):
         ul = sib[sib.index(h3[0]) + 1]
         self.assertEqual((ul.tag, "list" in ul.classes), ("ul", True))
         self.assertEqual([n.text().strip() for n in find_all(ul, cls="item-title")],
-                         ["Google Developer Expert, Cloud AI", "Co-organizer, GDG Istanbul", "Gemma Train-the-Trainer"])
+                         ["Google Developer Expert, Cloud AI", "Mentor, Google for Startups Accelerator",
+                          "Co-organizer, GDG Istanbul", "Gemma Train-the-Trainer"])
         self.assertEqual([n.text().strip() for n in find_all(ul, cls="item-meta")],
-                         ["Google · 2026", "Google Developer Groups", "Google Developer Experts · 2026"])
+                         ["Google · 2026", "Google for Startups · 2026", "Google Developer Groups",
+                          "Google Developer Experts · 2026"])
         self.assertFalse([h for h in find_all(exp, "h3") if "Education" in h.text()])
 
 
