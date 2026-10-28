@@ -1,0 +1,43 @@
+name: Update events
+
+# Writes the talks and workshops in events.md into the Speaking section of
+# index.html and into llms.txt (scripts/update_events.py).
+# Runs when events.md changes on main, or by hand from the Actions tab.
+# A bad entry fails the run and changes nothing; GitHub emails the reason.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - events.md
+      - scripts/update_events.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: events   # one at a time, so a quick second edit builds on the first one's commit
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main   # the latest main, not the pushed commit: an earlier run may have committed since
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/update_events.py
+      - name: Commit if the page changed
+        run: |
+          if git diff --quiet -- index.html llms.txt; then
+            echo "Nothing new."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update events from events.md" -- index.html llms.txt
+          git push

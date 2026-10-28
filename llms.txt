@@ -26,16 +26,31 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 
 ## Talks and workshops
 
-- Managing Agentic Systems on Google Cloud: From Deployment to Monitoring — Google Developer Day, September 2026
-- Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye, October 2026 · Istanbul, 27 October 2026 · [guide](https://omarcevi.dev/workshops/cloud-agents-workshop/) · [repo](https://github.com/omarcevi/cloud-agents-workshop)
-- Deploy your first AI agent to Google Cloud (hands-on lab of the talk The Google Cloud Stack for Production AI Agents) — DevFest Samsun, October 2026 · Samsun, 24 October 2026 · [guide](https://omarcevi.dev/workshops/devfest-samsun-agent/) · [repo](https://github.com/omarcevi/devfest-samsun-assistant)
-- Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, October 2026 · [guide](https://omarcevi.dev/workshops/adk-multi-agent-workshop/) · [repo](https://github.com/omarcevi/adk-multi-agent-workshop)
+- Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye – Builder Connect, 27 October 2026 · Istanbul, Wyndham Grand Levent · [guide](https://omarcevi.dev/workshops/cloud-agents-workshop/) · [repo](https://github.com/omarcevi/cloud-agents-workshop)
+- Deploy your first AI agent to Google Cloud (workshop) — DevFest Samsun 2026, 24 October 2026 · Samsun, Colombia Coffee Ömürevleri · [guide](https://omarcevi.dev/workshops/devfest-samsun-agent/) · [repo](https://github.com/omarcevi/devfest-samsun-assistant)
+- Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day Istanbul, 9 October 2026 · [guide](https://omarcevi.dev/workshops/adk-multi-agent-workshop/) · [repo](https://github.com/omarcevi/adk-multi-agent-workshop)
+- Managing Agentic Systems on Google Cloud: From Deployment to Monitoring — Google Developer Day Istanbul, September 2026
 - Gemma Train-the-Trainer: Running AI Models (workshop) — Google Developer Experts, August 2026
 - Agentverse: Multi-Agent Systems with ADK, MCP and A2A (workshop) — May 2026
-- Build with AI: Gemini SDK & Cloud Run; Build with AI: Google Antigravity — 42 Türkiye, April 2026
-- Architecture of High Performance ML Solutions — GDG Baku, November 2025
-- [MLOps in the Age of GenAI](https://www.youtube.com/watch?v=PKqyohMo4I8) — DevFest Istanbul, 2023
-- The Dark Side of ML: Exploring Vulnerabilities — DevFest Trabzon, 2023
+- Build with AI: Google Antigravity — 42 Türkiye, 25 April 2026
+- Build with AI: Vertex AI Studio — 42 Türkiye, 18 April 2026
+- Build with AI: Build a Gemini-Powered YouTube Summarizer with the GenAI SDK — 42 Türkiye, 11 April 2026
+- Vapurda Tech Talk 2025 — GDSC Marmara, 2025 · [photos](https://www.instagram.com/p/DSJzQRmDYa2/)
+- Architecture of High Performance ML Solutions — GDG Baku, 22 November 2025
+- How AI Agents Can Save You: Google Agent Development Kit Demo — GDG Istanbul – Build with AI Extended, 17 May 2025 · Istanbul, Trendyol Campus
+- Supercharging AI Agents with Gemini 2.0 (workshop) — GDG Istanbul – Build with AI, 27 February 2025 · Istanbul, Google Istanbul Office
+- Vapurda Tech Talk 2024 — GDSC Marmara, 2024 · [photos](https://www.instagram.com/p/DDM_0NWgiXV/)
+- The Dark Side of ML: Exploring Vulnerabilities in ML Systems — DevFest Trabzon 2023, 2023 · [photos](https://www.instagram.com/p/CzMdVHatqDF/)
+- MLOps in the Age of GenAI — DevFest Izmir 2023, December 2023 · [photos](https://www.instagram.com/p/CzEh2MAMk6B/)
+- Machine Learning Event — GDSC Sabancı, November 2023 · [photos](https://www.instagram.com/p/CzT_LVKt2Vp/)
+- MLOps in the Age of GenAI — DevFest Istanbul 2023, 26 November 2023 · Istanbul, UNIQ Istanbul · [video](https://www.youtube.com/watch?v=PKqyohMo4I8&t=928s)
+- MLOps in the Age of GenAI — DevFest Kocaeli 2023, 4 November 2023 · Kocaeli, Kocaeli Kongre Merkezi · [photos](https://www.instagram.com/p/CzJqZuHN2bi/)
+- TensorFlow Applications — GDG Samsun – Talk About ML, 20 August 2023 · [video](https://www.youtube.com/live/7eqp89f7GiA)
+- TensorFlow Workshop: Cloud Computer Vision (workshop) — GDSC Marmara, 20 May 2023 · [video](https://www.youtube.com/live/Q5DB-fs1lkU)
+- Beyond ML Notebook — GDG Istanbul, 18 March 2023 · Istanbul, Zemin İstanbul
+- TensorFlow Workshop 2: Computer Vision and CNNs (workshop) — GDSC Bilkent, 31 December 2022 · [video](https://www.youtube.com/live/MzlWHu2D1z4)
+- TensorFlow Workshop 1: Intro to TensorFlow (workshop) — GDSC Bilkent, December 2022 · [video](https://youtu.be/TPJp42fF12I)
+- But What Is TensorFlow? — GDSC Üsküdar & GDSC 29 Mayıs, 30 December 2022 · [video](https://www.youtube.com/live/5llTde9TLdA)
 
 ## Writing
 

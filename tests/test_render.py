@@ -1,6 +1,7 @@
+import re
 import unittest
 
-from pagecheck import find_all, parse
+from pagecheck import ROOT, find_all, parse
 from render import dump_dom
 
 TITLE = "Deploying your agents on Google Cloud Agent Platform"
@@ -14,6 +15,18 @@ def one(doc, **attrs):
 
 def squash(s):
     return " ".join(s.split())
+
+
+def given(today):
+    """The strip's count, straight from events.md: everything except full dates still to come."""
+    text = (ROOT / "events.md").read_text(encoding="utf-8")
+    n = {"talk": 0, "workshop": 0}
+    for block in text.split("\n## ")[1:]:
+        kind = re.search(r"^- type: (\w+)", block, re.M).group(1)
+        date = re.search(r"^- date: (\S+)", block, re.M).group(1)
+        if not (len(date) == 10 and date >= today):
+            n[kind] += 1
+    return f"{n['talk']} talks · {n['workshop']} workshops"
 
 
 class SpeakingRender(unittest.TestCase):
@@ -33,7 +46,7 @@ class SpeakingRender(unittest.TestCase):
         self.assertIn("/workshops/devfest-samsun-agent/", hrefs)
         self.assertIn("https://github.com/omarcevi/devfest-samsun-assistant", hrefs)
         self.assertEqual(squash(one(doc, id="strip-next").text()), "next talk · DevFest Samsun 2026 · 24 Oct 2026 · tomorrow")
-        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 3 workshops")
+        self.assertEqual(squash(one(doc, id="strip-count").text()), given("2026-10-23"))
         first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
         self.assertIn(TITLE, first.text())   # the 27 Oct workshop waits in the list, marked upcoming
         self.assertIn("upcoming", first.text())
@@ -52,7 +65,19 @@ class SpeakingRender(unittest.TestCase):
         self.assertNotIn(TITLE, one(doc, id="workshop-list").text())
         self.assertEqual(squash(one(doc, id="strip-next").text()),
                          "next talk · Google Cloud Day Türkiye – Builder Connect · 27 Oct 2026 · in 2 days")
-        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 4 workshops")
+        self.assertEqual(squash(one(doc, id="strip-count").text()), given("2026-10-25"))
+
+    def test_lists_fold_after_five(self):
+        doc = self.render("2026-10-23")  # the Samsun workshop sits in the card, not the list
+        for list_id in ("talk-list", "workshop-list"):
+            lis = [c for c in one(doc, id=list_id).elements() if c.tag == "li"]
+            self.assertGreater(len(lis), 5, list_id)
+            self.assertEqual([li for li in lis if "hidden" not in li.attrs], lis[:5])
+            [btn] = [b for b in find_all(doc, "button") if b.attrs.get("aria-controls") == list_id]
+            self.assertEqual(btn.attrs.get("aria-expanded"), "false")
+            self.assertEqual(squash(btn.text()), f"show {len(lis) - 5} more ↓")
+        first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
+        self.assertIn("upcoming", first.text())  # what's coming stays above the fold
 
     def test_on_the_day(self):
         doc = self.render("2026-10-27")
@@ -65,7 +90,7 @@ class SpeakingRender(unittest.TestCase):
         self.assertIn("no talks scheduled", nxt.text())
         self.assertNotIn("NaN", nxt.text())
         self.assertIn("#contact", [a.attrs.get("href") for a in find_all(nxt, "a")])
-        self.assertEqual(squash(one(doc, id="strip-count").text()), "6 talks · 5 workshops")
+        self.assertEqual(squash(one(doc, id="strip-count").text()), given("2026-10-28"))
         first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
         self.assertIn(TITLE, first.text())
 

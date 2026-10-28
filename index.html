@@ -693,6 +693,9 @@
 
     .rows > li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px dashed var(--border); }
     .rows > li:last-child { border-bottom: none; }
+    .rows > li[hidden] { display: none; }
+    .fold { font: inherit; font-family: var(--mono); font-size: 0.9rem; color: var(--accent); background: none; border: 0; padding: 0.4rem 0; margin-top: 0.6rem; cursor: pointer; } /* the padding makes a thumb-sized target */
+    .fold:hover { text-decoration: underline; }
     .rows .date { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); padding-top: 0.2rem; }
     .tag {
       display: inline-block; font-family: var(--mono); font-size: 0.66rem; font-weight: 500; color: var(--accent);
@@ -1152,55 +1155,135 @@
         <div class="sub">
           <h3>Talks</h3>
           <ul class="rows" id="talk-list">
-            <li data-date="2026-09">
+            <!-- TALKS:START -->
+            <li data-date="2026-09" data-event="Google Developer Day Istanbul">
               <span class="date">Sep 2026</span>
               <div>
                 <div class="item-title">Managing Agentic Systems on Google Cloud: From Deployment to Monitoring</div>
                 <div class="item-meta">Google Developer Day Istanbul</div>
               </div>
             </li>
-            <li data-date="2026-04">
-              <span class="date">Apr 2026</span>
-              <div>
-                <div class="item-title">Build with AI: Gemini SDK &amp; Cloud Run</div>
-                <div class="item-meta">42 Türkiye</div>
-              </div>
-            </li>
-            <li data-date="2026-04">
+            <li data-date="2026-04-25" data-event="42 Türkiye">
               <span class="date">Apr 2026</span>
               <div>
                 <div class="item-title">Build with AI: Google Antigravity</div>
                 <div class="item-meta">42 Türkiye</div>
               </div>
             </li>
-            <li data-date="2025-11">
+            <li data-date="2026-04-18" data-event="42 Türkiye">
+              <span class="date">Apr 2026</span>
+              <div>
+                <div class="item-title">Build with AI: Vertex AI Studio</div>
+                <div class="item-meta">42 Türkiye</div>
+              </div>
+            </li>
+            <li data-date="2026-04-11" data-event="42 Türkiye">
+              <span class="date">Apr 2026</span>
+              <div>
+                <div class="item-title">Build with AI: Build a Gemini-Powered YouTube Summarizer with the GenAI SDK</div>
+                <div class="item-meta">42 Türkiye</div>
+              </div>
+            </li>
+            <li data-date="2025" data-event="GDSC Marmara">
+              <span class="date">2025</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/DSJzQRmDYa2/">Vapurda Tech Talk 2025</a></div>
+                <div class="item-meta">GDSC Marmara</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/DSJzQRmDYa2/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+            <li data-date="2025-11-22" data-event="GDG Baku">
               <span class="date">Nov 2025</span>
               <div>
                 <div class="item-title">Architecture of High Performance ML Solutions</div>
                 <div class="item-meta">GDG Baku</div>
               </div>
             </li>
-            <li data-date="2023">
-              <span class="date">2023</span>
+            <li data-date="2025-05-17" data-event="GDG Istanbul – Build with AI Extended" data-place="Istanbul, Trendyol Campus" data-url="https://gdg.community.dev/events/details/google-gdg-istanbul-presents-build-with-ai-extended-1/">
+              <span class="date">May 2025</span>
               <div>
-                <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8">MLOps in the Age of GenAI</a></div>
-                <div class="item-meta">DevFest Istanbul</div>
-                <div class="mats"><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8" aria-label="Watch the recording">▶ video</a></div>
+                <div class="item-title">How AI Agents Can Save You: Google Agent Development Kit Demo</div>
+                <div class="item-meta">GDG Istanbul – Build with AI Extended</div>
               </div>
             </li>
-            <li data-date="2023">
+            <li data-date="2024" data-event="GDSC Marmara">
+              <span class="date">2024</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/DDM_0NWgiXV/">Vapurda Tech Talk 2024</a></div>
+                <div class="item-meta">GDSC Marmara</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/DDM_0NWgiXV/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+            <li data-date="2023" data-event="DevFest Trabzon 2023">
               <span class="date">2023</span>
               <div>
-                <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities</a></div>
-                <div class="item-meta">DevFest Trabzon</div>
+                <div class="item-title"><a href="https://www.instagram.com/p/CzMdVHatqDF/">The Dark Side of ML: Exploring Vulnerabilities in ML Systems</a></div>
+                <div class="item-meta">DevFest Trabzon 2023</div>
                 <div class="mats"><a class="tag" href="https://www.instagram.com/p/CzMdVHatqDF/" aria-label="Photos from the talk">photos</a></div>
               </div>
             </li>
+            <li data-date="2023-12" data-event="DevFest Izmir 2023">
+              <span class="date">Dec 2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/CzEh2MAMk6B/">MLOps in the Age of GenAI</a></div>
+                <div class="item-meta">DevFest Izmir 2023</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/CzEh2MAMk6B/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+            <li data-date="2023-11" data-event="GDSC Sabancı">
+              <span class="date">Nov 2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/CzT_LVKt2Vp/">Machine Learning Event</a></div>
+                <div class="item-meta">GDSC Sabancı</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/CzT_LVKt2Vp/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+            <li data-date="2023-11-26" data-event="DevFest Istanbul 2023" data-place="Istanbul, UNIQ Istanbul">
+              <span class="date">Nov 2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/watch?v=PKqyohMo4I8&amp;t=928s">MLOps in the Age of GenAI</a></div>
+                <div class="item-meta">DevFest Istanbul 2023</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/watch?v=PKqyohMo4I8&amp;t=928s" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <li data-date="2023-11-04" data-event="DevFest Kocaeli 2023" data-place="Kocaeli, Kocaeli Kongre Merkezi">
+              <span class="date">Nov 2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.instagram.com/p/CzJqZuHN2bi/">MLOps in the Age of GenAI</a></div>
+                <div class="item-meta">DevFest Kocaeli 2023</div>
+                <div class="mats"><a class="tag" href="https://www.instagram.com/p/CzJqZuHN2bi/" aria-label="Photos from the talk">photos</a></div>
+              </div>
+            </li>
+            <li data-date="2023-08-20" data-event="GDG Samsun – Talk About ML">
+              <span class="date">Aug 2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/live/7eqp89f7GiA">TensorFlow Applications</a></div>
+                <div class="item-meta">GDG Samsun – Talk About ML</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/live/7eqp89f7GiA" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <li data-date="2023-03-18" data-event="GDG Istanbul" data-place="Istanbul, Zemin İstanbul" data-url="https://gdg.community.dev/events/details/google-gdg-istanbul-presents-flutter-mobil-gelistirme-yapay-zeka-uclusu/">
+              <span class="date">Mar 2023</span>
+              <div>
+                <div class="item-title">Beyond ML Notebook</div>
+                <div class="item-meta">GDG Istanbul</div>
+              </div>
+            </li>
+            <li data-date="2022-12-30" data-event="GDSC Üsküdar &amp; GDSC 29 Mayıs">
+              <span class="date">Dec 2022</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/live/5llTde9TLdA">But What Is TensorFlow?</a></div>
+                <div class="item-meta">GDSC Üsküdar &amp; GDSC 29 Mayıs</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/live/5llTde9TLdA" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <!-- TALKS:END -->
           </ul>
         </div>
         <div class="sub">
           <h3>Workshops</h3>
           <ul class="rows" id="workshop-list">
+            <!-- WORKSHOPS:START -->
             <li data-date="2026-10-27" data-event="Google Cloud Day Türkiye – Builder Connect" data-place="Istanbul, Wyndham Grand Levent" data-format="in person" data-lang="EN" data-url="https://cloudonair.withgoogle.com/events/cloud-day-tr">
               <span class="date">Oct 2026</span>
               <div>
@@ -1213,11 +1296,11 @@
               <span class="date">Oct 2026</span>
               <div>
                 <div class="item-title"><a href="/workshops/devfest-samsun-agent/">Deploy your first AI agent to Google Cloud</a></div>
-                <div class="item-meta">DevFest Samsun</div>
+                <div class="item-meta">DevFest Samsun 2026</div>
                 <div class="mats"><a class="tag" href="/workshops/devfest-samsun-agent/" aria-label="Open the workshop guide">guide</a><a class="tag" href="https://github.com/omarcevi/devfest-samsun-assistant" aria-label="Workshop repository on GitHub">repo</a></div>
               </div>
             </li>
-            <li data-date="2026-10-09">
+            <li data-date="2026-10-09" data-event="Google Developer Day Istanbul">
               <span class="date">Oct 2026</span>
               <div>
                 <div class="item-title"><a href="/workshops/adk-multi-agent-workshop/">Architecting Multi-Agent Systems with Google ADK</a></div>
@@ -1225,7 +1308,7 @@
                 <div class="mats"><a class="tag" href="/workshops/adk-multi-agent-workshop/" aria-label="Open the workshop guide">guide</a><a class="tag" href="https://github.com/omarcevi/adk-multi-agent-workshop" aria-label="Workshop repository on GitHub">repo</a></div>
               </div>
             </li>
-            <li data-date="2026-08">
+            <li data-date="2026-08" data-event="Google Developer Experts">
               <span class="date">Aug 2026</span>
               <div>
                 <div class="item-title">Gemma Train-the-Trainer: Running AI Models</div>
@@ -1239,6 +1322,38 @@
                 <p class="item-desc">A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.</p>
               </div>
             </li>
+            <li data-date="2025-02-27" data-event="GDG Istanbul – Build with AI" data-place="Istanbul, Google Istanbul Office" data-url="https://gdg.community.dev/events/details/google-gdg-istanbul-presents-supercharging-ai-agents-with-gemini-20-a-hands-on-workshop/">
+              <span class="date">Feb 2025</span>
+              <div>
+                <div class="item-title">Supercharging AI Agents with Gemini 2.0</div>
+                <div class="item-meta">GDG Istanbul – Build with AI</div>
+              </div>
+            </li>
+            <li data-date="2023-05-20" data-event="GDSC Marmara">
+              <span class="date">May 2023</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/live/Q5DB-fs1lkU">TensorFlow Workshop: Cloud Computer Vision</a></div>
+                <div class="item-meta">GDSC Marmara</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/live/Q5DB-fs1lkU" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <li data-date="2022-12-31" data-event="GDSC Bilkent">
+              <span class="date">Dec 2022</span>
+              <div>
+                <div class="item-title"><a href="https://www.youtube.com/live/MzlWHu2D1z4">TensorFlow Workshop 2: Computer Vision and CNNs</a></div>
+                <div class="item-meta">GDSC Bilkent</div>
+                <div class="mats"><a class="tag" href="https://www.youtube.com/live/MzlWHu2D1z4" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <li data-date="2022-12" data-event="GDSC Bilkent">
+              <span class="date">Dec 2022</span>
+              <div>
+                <div class="item-title"><a href="https://youtu.be/TPJp42fF12I">TensorFlow Workshop 1: Intro to TensorFlow</a></div>
+                <div class="item-meta">GDSC Bilkent</div>
+                <div class="mats"><a class="tag" href="https://youtu.be/TPJp42fF12I" aria-label="Watch the recording">▶ video</a></div>
+              </div>
+            </li>
+            <!-- WORKSHOPS:END -->
           </ul>
         </div>
       </div>
