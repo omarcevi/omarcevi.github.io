@@ -1,3 +1,4 @@
+import datetime
 import re
 import unittest
 
@@ -27,6 +28,12 @@ def given(today):
         if not (len(date) == 10 and date >= today):
             n[kind] += 1
     return f"{n['talk']} talks · {n['workshop']} workshops"
+
+
+def day_after_last_event():
+    text = (ROOT / "events.md").read_text(encoding="utf-8")
+    last = max(re.findall(r"^- date: (\d{4}-\d{2}-\d{2})\s*$", text, re.M))
+    return (datetime.date.fromisoformat(last) + datetime.timedelta(days=1)).isoformat()
 
 
 class SpeakingRender(unittest.TestCase):
@@ -85,14 +92,19 @@ class SpeakingRender(unittest.TestCase):
 
     def test_after_workshop(self):
         doc = self.render("2026-10-28")
+        self.assertNotIn(TITLE, one(doc, id="up-card").text())
+        self.assertEqual(squash(one(doc, id="strip-count").text()), given("2026-10-28"))
+        shops = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"]
+        [li] = [li for li in shops if TITLE in li.text()]
+        self.assertNotIn("upcoming", li.text())  # it's over: listed with the past ones
+
+    def test_nothing_scheduled(self):
+        doc = self.render(day_after_last_event())
         self.assertIn("hidden", one(doc, id="up-card").attrs)
         nxt = one(doc, id="strip-next")
         self.assertIn("no talks scheduled", nxt.text())
         self.assertNotIn("NaN", nxt.text())
         self.assertIn("#contact", [a.attrs.get("href") for a in find_all(nxt, "a")])
-        self.assertEqual(squash(one(doc, id="strip-count").text()), given("2026-10-28"))
-        first = [c for c in one(doc, id="workshop-list").elements() if c.tag == "li"][0]
-        self.assertIn(TITLE, first.text())
 
     def test_booking_rendered(self):
         html = dump_dom("?today=2026-10-23")

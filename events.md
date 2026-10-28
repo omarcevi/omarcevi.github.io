@@ -17,6 +17,14 @@ Order doesn't matter: the site lists newest first, and the next event with a ful
 date becomes the "next up" card. If an entry has a mistake, the update stops,
 nothing on the site changes, and GitHub emails you the reason.
 
+## Recipes for your AI agents
+- type: workshop
+- event: DevFest Trabzon 2026
+- date: 2026-10-31
+- place: Trabzon
+- link: https://devfest.gdgtrabzon.com/
+- format: in person
+
 ## Deploying your agents on Google Cloud Agent Platform
 - type: workshop
 - event: Google Cloud Day Türkiye – Builder Connect
