@@ -61,29 +61,117 @@ nothing on the site changes, and GitHub emails you the reason.
 - date: 2026-05
 - about: A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.
 
-## Build with AI: Gemini SDK & Cloud Run
-- type: talk
-- event: 42 Türkiye
-- date: 2026-04
-
 ## Build with AI: Google Antigravity
 - type: talk
 - event: 42 Türkiye
-- date: 2026-04
+- date: 2026-04-25
+
+## Build with AI: Vertex AI Studio
+- type: talk
+- event: 42 Türkiye
+- date: 2026-04-18
+
+## Build with AI: Build a Gemini-Powered YouTube Summarizer with the GenAI SDK
+- type: talk
+- event: 42 Türkiye
+- date: 2026-04-11
+
+## Vapurda Tech Talk 2025
+- type: talk
+- event: GDSC Marmara
+- date: 2025
+- photos: https://www.instagram.com/p/DSJzQRmDYa2/
 
 ## Architecture of High Performance ML Solutions
 - type: talk
 - event: GDG Baku
-- date: 2025-11
+- date: 2025-11-22
+
+## How AI Agents Can Save You: Google Agent Development Kit Demo
+- type: talk
+- event: GDG Istanbul – Build with AI Extended
+- date: 2025-05-17
+- place: Istanbul, Trendyol Campus
+- link: https://gdg.community.dev/events/details/google-gdg-istanbul-presents-build-with-ai-extended-1/
+
+## Supercharging AI Agents with Gemini 2.0
+- type: workshop
+- event: GDG Istanbul – Build with AI
+- date: 2025-02-27
+- place: Istanbul, Google Istanbul Office
+- link: https://gdg.community.dev/events/details/google-gdg-istanbul-presents-supercharging-ai-agents-with-gemini-20-a-hands-on-workshop/
+
+## Vapurda Tech Talk 2024
+- type: talk
+- event: GDSC Marmara
+- date: 2024
+- photos: https://www.instagram.com/p/DDM_0NWgiXV/
+
+## The Dark Side of ML: Exploring Vulnerabilities in ML Systems
+- type: talk
+- event: DevFest Trabzon 2023
+- date: 2023
+- photos: https://www.instagram.com/p/CzMdVHatqDF/
 
 ## MLOps in the Age of GenAI
 - type: talk
-- event: DevFest Istanbul
-- date: 2023
-- video: https://www.youtube.com/watch?v=PKqyohMo4I8
+- event: DevFest Izmir 2023
+- date: 2023-12
+- photos: https://www.instagram.com/p/CzEh2MAMk6B/
 
-## The Dark Side of ML: Exploring Vulnerabilities
+## MLOps in the Age of GenAI
 - type: talk
-- event: DevFest Trabzon
-- date: 2023
-- photos: https://www.instagram.com/p/CzMdVHatqDF/
+- event: DevFest Istanbul 2023
+- date: 2023-11-26
+- place: Istanbul, UNIQ Istanbul
+- video: https://www.youtube.com/watch?v=PKqyohMo4I8&t=928s
+
+## Machine Learning Event
+- type: talk
+- event: GDSC Sabancı
+- date: 2023-11
+- photos: https://www.instagram.com/p/CzT_LVKt2Vp/
+
+## MLOps in the Age of GenAI
+- type: talk
+- event: DevFest Kocaeli 2023
+- date: 2023-11-04
+- place: Kocaeli, Kocaeli Kongre Merkezi
+- photos: https://www.instagram.com/p/CzJqZuHN2bi/
+
+## TensorFlow Applications
+- type: talk
+- event: GDG Samsun – Talk About ML
+- date: 2023-08-20
+- video: https://www.youtube.com/live/7eqp89f7GiA
+
+## TensorFlow Workshop: Cloud Computer Vision
+- type: workshop
+- event: GDSC Marmara
+- date: 2023-05-20
+- video: https://www.youtube.com/live/Q5DB-fs1lkU
+
+## Beyond ML Notebook
+- type: talk
+- event: GDG Istanbul
+- date: 2023-03-18
+- place: Istanbul, Zemin İstanbul
+- link: https://gdg.community.dev/events/details/google-gdg-istanbul-presents-flutter-mobil-gelistirme-yapay-zeka-uclusu/
+
+## TensorFlow Workshop 2: Computer Vision and CNNs
+- type: workshop
+- event: GDSC Bilkent
+- date: 2022-12-31
+- video: https://www.youtube.com/live/MzlWHu2D1z4
+
+## But What Is TensorFlow?
+- type: talk
+- event: GDSC Üsküdar & GDSC 29 Mayıs
+- date: 2022-12-30
+- video: https://www.youtube.com/live/5llTde9TLdA
+
+## TensorFlow Workshop 1: Intro to TensorFlow
+- type: workshop
+- event: GDSC Bilkent
+- date: 2022-12
+- video: https://youtu.be/TPJp42fF12I
