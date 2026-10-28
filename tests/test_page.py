@@ -504,6 +504,41 @@ class Simulator(unittest.TestCase):
         self.assertIn("doesn't fit", js)                      # a model too big for its slice is drawn as such
         self.assertNotIn("Everything the other tabs", self.lesson("sim-tab-sandbox"))
 
+    def test_start_screen_markup(self):
+        # the panel opens small: one live flow, a line on what's inside, and a start button where play will be
+        self.assertIn("start", self.box.classes)
+        start = find_all(self.box, "button", id="sim-start")[0]
+        self.assertEqual([start.attrs.get("type"), " ".join(start.text().split())], ["button", "▶ start inference sim"])
+        shrink = find_all(self.box, "button", id="sim-shrink")[0]
+        self.assertEqual([shrink.attrs.get("type"), shrink.attrs.get("aria-label")], ["button", "Shrink the simulator"])
+        self.assertEqual(start.parent.attrs.get("class"), shrink.parent.attrs.get("class"))   # both in the header's controls
+        intro = find_all(self.box, cls="sim-intro")[0]
+        self.assertEqual(" ".join(intro.text().split()),
+                         "a live LLM serving simulator: batching · KV cache · MIG · routing · real traffic · failure · sandbox")
+
+    def test_start_screen_hides_the_rest(self):
+        page = (ROOT / "index.html").read_text(encoding="utf-8")
+        rule = re.search(r"(#simbox\.start [^{]*)\{ display: none; \}", page)
+        self.assertIsNotNone(rule, "the start screen's hide rule")
+        for sel in (".sim-tabs", "[role=tabpanel]", ".sim-key", ".sim-follow", ".sb-chal", ".p-foot", ".sim-config", ".sb-work",
+                    "#sim-play", "#sim-burst", "#sim-shrink"):
+            self.assertIn("#simbox.start " + sel, rule.group(1), sel)
+        self.assertRegex(page, r"#simbox:not\(\.start\) \.sim-intro, #simbox:not\(\.start\) #sim-start \{ display: none; \}")
+        self.assertRegex(page, r"#simbox\.start #sim \{ height: \d+px; \}")
+
+    def test_start_and_shrink_wiring(self):
+        js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
+        start = js[js.index("function startSim("):]
+        start = start[:start.index("\n  }\n")]
+        self.assertIn("box.classList.remove('start')", start)
+        self.assertIn(".focus()", start)                       # the keyboard lands on the tab list
+        shrink = js[js.index("function shrinkSim("):]
+        shrink = shrink[:shrink.index("\n  }\n")]
+        self.assertIn("switchTab('batching')", shrink)         # the small screen always shows tab 01's flow
+        self.assertIn("box.classList.add('start')", shrink)
+        self.assertIn("startBtn.focus()", shrink)
+        self.assertIn("REDUCE", js[js.index("function grow("):js.index("function startSim(")])   # no grow animation with reduced motion
+
     def test_popover_placed_by_its_button(self):
         js = (ROOT / "assets/sim.js").read_text(encoding="utf-8")
         self.assertIn("addEventListener('toggle'", js)
