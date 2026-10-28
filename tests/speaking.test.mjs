@@ -46,3 +46,17 @@ test('past sorted newest first, ties stable', () => {
   const r = S.partition([{ date: '2023', id: 'a' }, { date: '2026-04', id: 'b' }, { date: '2023', id: 'c' }, { date: '2026-04', id: 'd' }], '2026-10-23');
   assert.deepEqual(r.past.map(i => i.id), ['b', 'd', 'a', 'c']);
 });
+
+test('fold keeps the first five rows and counts the rest on the button', () => {
+  const items = Array.from({ length: 8 }, () => ({ hidden: false }));
+  const attrs = {};
+  const btn = { setAttribute: (k, v) => { attrs[k] = v; }, textContent: '' };
+  S.fold(items, btn, false);
+  assert.deepEqual(items.map(i => i.hidden), [false, false, false, false, false, true, true, true]);
+  assert.equal(attrs['aria-expanded'], 'false');
+  assert.equal(btn.textContent, 'show 3 more ↓');
+  S.fold(items, btn, true);
+  assert.ok(items.every(i => !i.hidden));
+  assert.equal(attrs['aria-expanded'], 'true');
+  assert.equal(btn.textContent, 'show fewer ↑');
+});

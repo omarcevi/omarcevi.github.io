@@ -93,6 +93,30 @@
     next.hidden = false;
   }
 
+  var SHOWN = 5; // rows a list shows before its "show more" button
+
+  // the first SHOWN rows stay; the rest wait behind the button
+  function fold(items, btn, open) {
+    items.forEach(function (li, i) { li.hidden = !open && i >= SHOWN; });
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'show fewer ↑' : 'show ' + (items.length - SHOWN) + ' more ↓';
+  }
+
+  function foldList(doc, list) {
+    var items = [].slice.call(list.children);
+    if (items.length <= SHOWN) return;
+    var btn = el(doc, 'button', 'fold'), open = false;
+    btn.type = 'button';
+    btn.setAttribute('aria-controls', list.id);
+    fold(items, btn, open);
+    btn.addEventListener('click', function () {
+      open = !open;
+      fold(items, btn, open);
+      if (!open && btn.getBoundingClientRect().top < 0) btn.scrollIntoView({ block: 'center' }); // folding up from the bottom of a long list
+    });
+    list.parentNode.insertBefore(btn, list.nextSibling);
+  }
+
   function initSpeaking(doc) {
     var talks = doc.getElementById('talk-list'), shops = doc.getElementById('workshop-list');
     var card = doc.getElementById('up-card'), next = doc.getElementById('strip-next'), count = doc.getElementById('strip-count');
@@ -110,6 +134,8 @@
     });
     r.upcoming.concat(r.past).forEach(function (it) { it.list.appendChild(it.li); }); // upcoming first, then newest past
     if (r.featured && card) { fillCard(doc, card, r.featured.li); r.featured.li.parentNode.removeChild(r.featured.li); }
+    foldList(doc, talks);
+    foldList(doc, shops);
     if (next) fillStrip(doc, next, r.featured, today);
     if (count) { // only what has already happened
       var given = function (list) { return r.past.filter(function (it) { return it.list === list; }).length; };
@@ -122,7 +148,7 @@
     }
   }
 
-  var api = { istanbulToday: istanbulToday, periodEnd: periodEnd, daysBetween: daysBetween, daysLabel: daysLabel, partition: partition, initSpeaking: initSpeaking };
+  var api = { istanbulToday: istanbulToday, periodEnd: periodEnd, daysBetween: daysBetween, daysLabel: daysLabel, partition: partition, fold: fold, initSpeaking: initSpeaking };
 
   if (typeof module === 'object' && module.exports) module.exports = api;
   else {

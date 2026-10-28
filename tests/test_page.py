@@ -800,6 +800,11 @@ class Speaking(unittest.TestCase):
         dated = [li.attrs.get("data-date") for li in self.items("workshop-list")]
         self.assertIn("2026-10-27", dated)
 
+    def test_every_row_shows_without_js(self):
+        for li in self.items("talk-list") + self.items("workshop-list"):
+            self.assertNotIn("hidden", li.attrs)
+        self.assertFalse(find_all(self.sec, "button"))  # speaking.js adds the fold buttons
+
     def test_strip_hidden_without_js(self):
         strip = find_all(self.doc, id="strip")
         self.assertEqual(len(strip), 1)

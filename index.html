@@ -693,6 +693,9 @@
 
     .rows > li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px dashed var(--border); }
     .rows > li:last-child { border-bottom: none; }
+    .rows > li[hidden] { display: none; }
+    .fold { font: inherit; font-family: var(--mono); font-size: 0.9rem; color: var(--accent); background: none; border: 0; padding: 0.4rem 0; margin-top: 0.6rem; cursor: pointer; } /* the padding makes a thumb-sized target */
+    .fold:hover { text-decoration: underline; }
     .rows .date { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); padding-top: 0.2rem; }
     .tag {
       display: inline-block; font-family: var(--mono); font-size: 0.66rem; font-weight: 500; color: var(--accent);
