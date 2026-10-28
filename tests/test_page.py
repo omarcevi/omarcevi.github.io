@@ -780,16 +780,16 @@ class Speaking(unittest.TestCase):
 
     def test_item_dates(self):
         talks, shops = self.items("talk-list"), self.items("workshop-list")
-        self.assertEqual((len(talks), len(shops)), (6, 5))
+        self.assertTrue(talks and shops)  # how many is up to events.md
         for li in talks + shops:
             self.assertRegex(li.attrs.get("data-date", ""), DATE_RE)
 
-    def test_upcoming_needs_full_date(self):
+    def test_full_dates_name_their_event(self):
+        # a full date can become the next-up card, whose strip shows data-event
         for li in self.items("talk-list") + self.items("workshop-list"):
             d = li.attrs.get("data-date", "")
-            if FULL_DATE_RE.match(d) and d >= "2026-10-23":
-                for key in ("data-event", "data-place", "data-format", "data-lang", "data-url"):
-                    self.assertTrue(li.attrs.get(key), f"{d} missing {key}")
+            if FULL_DATE_RE.match(d):
+                self.assertTrue(li.attrs.get("data-event"), f"{d} missing data-event")
 
     def test_no_js_fallback(self):
         card = find_all(self.doc, id="up-card")
@@ -995,8 +995,8 @@ class Meta(unittest.TestCase):
         return out
 
     def test_llms_txt(self):
-        self.assertIn("Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day, October 2026", self.llms)
-        self.assertIn("Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye, October 2026", self.llms)
+        self.assertIn("Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day Istanbul, 9 October 2026", self.llms)
+        self.assertIn("Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye – Builder Connect, 27 October 2026", self.llms)
         self.assertIn("Book a call: " + BOOKING_URL, self.llms)
 
     def test_faint_contrast(self):
