@@ -1026,5 +1026,19 @@ class Meta(unittest.TestCase):
         self.assertGreaterEqual(m.group(1), "2026-10-23")
 
 
+
+class Resume(unittest.TestCase):
+    """omarcevi.dev/resume is shared by link only."""
+
+    def test_page_exists_and_stays_out_of_search(self):
+        doc = parse((ROOT / "resume/index.html").read_text(encoding="utf-8"))
+        robots = [m for m in find_all(doc, "meta") if m.attrs.get("name") == "robots"]
+        self.assertEqual([m.attrs.get("content") for m in robots], ["noindex"])
+
+    def test_nothing_on_the_site_points_to_it(self):
+        for name in ("index.html", "sitemap.xml", "llms.txt", "robots.txt"):
+            self.assertNotIn("/resume", (ROOT / name).read_text(encoding="utf-8"), name)
+
+
 if __name__ == "__main__":
     unittest.main()
