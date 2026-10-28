@@ -105,7 +105,7 @@ class Hero(unittest.TestCase):
         row = find_all(header, cls="links")[0]
         links = find_all(row, "a")
         self.assertEqual([a.attrs.get("href") for a in links], [
-            "#contact", "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            "#contact", "mailto:hello@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
             "https://github.com/omarcevi", "https://omarcevi.medium.com"])
         for a in links:
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
@@ -966,7 +966,7 @@ class Booking(unittest.TestCase):
         contact = find_all(self.doc, "section", id="contact")[0]
         links = find_all(find_all(contact, cls="links")[0], "a")
         self.assertEqual([a.attrs.get("href") for a in links], [
-            BOOKING_URL, "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            BOOKING_URL, "mailto:hello@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
             "https://github.com/omarcevi", "https://omarcevi.medium.com"])
         for a in links:
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
