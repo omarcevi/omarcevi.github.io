@@ -231,8 +231,10 @@
     .hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 3rem; align-items: end; }
     .hero-text { position: relative; } /* the GPT-2 token popup is positioned inside the h1's parent */
     .hero .links { margin-top: 1.5rem; }
-    .hero .badge { margin-top: 1.4rem; }
+    .hero .badges { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin-top: 1.4rem; }
+    .hero .badge { margin-top: 0; }
     .hero .badge img { width: 220px; }
+    .hero .badge-white img { border-radius: 5px; box-shadow: 0 0 0 1px var(--border); } /* a white badge needs an edge on the light page */
     .hero-photo { margin: 0; }
     .hero-photo img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--border); }
     .hero-photo .cap { margin-top: 0.55rem; }
@@ -853,9 +855,14 @@
             <a href="https://github.com/omarcevi"><svg class="ic" aria-hidden="true"><use href="#i-gh"/></svg>GitHub</a>
             <a href="https://omarcevi.medium.com"><svg class="ic" aria-hidden="true"><use href="#i-md"/></svg>Medium</a>
           </div>
-          <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
-            <img src="gde-cloud-ai-2026.png" width="900" height="319" decoding="async" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
-          </a>
+          <div class="badges">
+            <a class="badge" href="https://developers.google.com/community/experts" aria-label="Google Developer Experts program">
+              <img src="gde-cloud-ai-2026.png" width="900" height="319" decoding="async" alt="Google Developer Experts 2026 badge — Google Cloud: Cloud AI">
+            </a>
+            <a class="badge badge-white" href="https://startup.google.com/programs/accelerator/" aria-label="Google for Startups Accelerator">
+              <img src="google-for-startups-mentor-2026.png" width="900" height="315" decoding="async" alt="Google for Startups Accelerator Mentor 2026 badge">
+            </a>
+          </div>
         </div>
         <figure class="hero-photo">
           <img src="assets/photos/omar-gdd-istanbul.jpg" width="720" height="900" decoding="async" fetchpriority="high" alt="Omar Elcircevi speaking at Google for Developers Day Istanbul">

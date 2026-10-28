@@ -797,8 +797,8 @@ class AboutExperience(unittest.TestCase):
         about = find_all(self.doc, "section", id="about")[0]
         self.assertFalse(find_all(about, cls="badge"))
         badges = find_all(self.doc, cls="badge")
-        self.assertEqual(len(badges), 1)
-        self.assertTrue(find_all(find_all(self.doc, "header")[0], cls="badge"))
+        self.assertEqual(len(badges), 2)
+        self.assertEqual(len(find_all(find_all(self.doc, "header")[0], cls="badge")), 2)
 
     def test_community_list(self):
         exp = find_all(self.doc, "section", id="experience")[0]
