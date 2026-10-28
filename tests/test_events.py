@@ -191,6 +191,12 @@ class Rows(unittest.TestCase):
         row = ev.rows(ev.parse(BASE + "- tickets: https://t\n"))
         self.assertIn('<div class="item-title">Talk title</div>', row)
 
+    def test_title_falls_back_to_the_event_page(self):
+        row = ev.rows(ev.parse(BASE + "- link: https://e\n"))
+        self.assertIn('<a href="https://e">Talk title</a>', row)
+        row = ev.rows(ev.parse(BASE + "- link: https://e\n- photos: https://p\n"))
+        self.assertIn('<a href="https://p">Talk title</a>', row)  # what happened there beats the event page
+
     def test_title_falls_back_to_slides_then_photos(self):
         row = ev.rows(ev.parse(BASE + "- photos: https://p\n- slides: https://s\n"))
         self.assertIn('<a href="https://s">Talk title</a>', row)

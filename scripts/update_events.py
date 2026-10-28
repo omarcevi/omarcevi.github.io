@@ -21,7 +21,7 @@ MONTHS = ["January", "February", "March", "April", "May", "June", "July",
           "August", "September", "October", "November", "December"]
 DATE_RE = re.compile(r"^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$")
 ITEM_RE = re.compile(r"^- ([A-Za-z]+):(.*)$")
-# the tags under an item, in order; the title links to the first of guide, video, slides, photos
+# the tags under an item, in order; the title links to the first of guide, video, slides, photos, else the event page
 TAGS = {
     "tickets": ("tickets", "Get tickets"),
     "guide": ("guide", "Open the {type} guide"),
@@ -30,7 +30,7 @@ TAGS = {
     "slides": ("slides", "Slides from the {type}"),
     "photos": ("photos", "Photos from the {type}"),
 }
-TITLE_LINK = ("guide", "video", "slides", "photos")
+TITLE_LINK = ("guide", "video", "slides", "photos", "link")
 INDENT = " " * 12  # rows sit inside <ul class="rows"> at this depth
 
 

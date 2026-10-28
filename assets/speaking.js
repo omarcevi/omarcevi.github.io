@@ -81,7 +81,9 @@
     if (featured) {
       var p = featured.date.split('-');
       next.appendChild(doc.createTextNode('next talk · '));
-      next.appendChild(el(doc, 'b', null, featured.li.getAttribute('data-event')));
+      var name = el(doc, 'a', null, featured.li.getAttribute('data-event'));
+      name.href = '#speaking'; // down to its card
+      next.appendChild(name);
       next.appendChild(doc.createTextNode(' · ' + (+p[2]) + ' ' + MONTHS[+p[1] - 1] + ' ' + p[0] + ' · '));
       next.appendChild(el(doc, 'span', 'soon', daysLabel(daysBetween(today, featured.date))));
     } else {

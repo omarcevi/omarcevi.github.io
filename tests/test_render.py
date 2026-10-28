@@ -74,6 +74,18 @@ class SpeakingRender(unittest.TestCase):
                          "next talk · Google Cloud Day Türkiye – Builder Connect · 27 Oct 2026 · in 2 days")
         self.assertEqual(squash(one(doc, id="strip-count").text()), given("2026-10-25"))
 
+    def test_strip_event_links_to_its_card(self):
+        doc = self.render("2026-10-23")
+        [a] = find_all(one(doc, id="strip-next"), "a")
+        self.assertEqual(a.attrs.get("href"), "#speaking")
+        self.assertEqual(squash(a.text()), "DevFest Samsun 2026")
+
+    def test_card_title_is_a_link(self):
+        doc = self.render("2026-10-28")  # DevFest Trabzon: no guide or recording yet, just its event page
+        title = find_all(one(doc, id="up-card"), cls="item-title")[0]
+        [a] = find_all(title, "a")
+        self.assertTrue(a.attrs.get("href", "").startswith("https://"))
+
     def test_lists_fold_after_five(self):
         doc = self.render("2026-10-23")  # the Samsun workshop sits in the card, not the list
         for list_id in ("talk-list", "workshop-list"):
