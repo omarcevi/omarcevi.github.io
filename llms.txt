@@ -68,13 +68,13 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 - Open to new roles: senior or staff-level ML inference, model serving or ML platform engineering, including AI agents in production. Remote (global) or Istanbul.
 - Open to collaborations: conference talks and workshops (Turkish or English), open-source work, and advising teams on serving models and AI agents in production.
 - Yeni rollere ve iş birliklerine açık: ML inference / ML platform mühendisliği (uzaktan veya İstanbul), konuşmalar, atölyeler ve açık kaynak.
-- Best way to reach him: hi@omarcevi.dev
+- Best way to reach him: hello@omarcevi.dev
 - Book a call: https://calendar.google.com/calendar/appointments/schedules/AcZssZ0eb5WUAIpBMx4QPBcHLYvEkpsTizdL89jBUa6UXEfyqFAB_blGgZgBPyEFoXzoag5z6xWIRzHT?gv=true
 
 ## Contact
 
 - Website: https://omarcevi.dev/
-- Email: hi@omarcevi.dev
+- Email: hello@omarcevi.dev
 - LinkedIn: https://www.linkedin.com/in/omarcevi/
 - GitHub: https://github.com/omarcevi
 - Medium: https://omarcevi.medium.com

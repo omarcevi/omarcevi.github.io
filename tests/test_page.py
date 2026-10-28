@@ -105,7 +105,7 @@ class Hero(unittest.TestCase):
         row = find_all(header, cls="links")[0]
         links = find_all(row, "a")
         self.assertEqual([a.attrs.get("href") for a in links], [
-            "#contact", "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            "#contact", "mailto:hello@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
             "https://github.com/omarcevi", "https://omarcevi.medium.com"])
         for a in links:
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
@@ -966,7 +966,7 @@ class Booking(unittest.TestCase):
         contact = find_all(self.doc, "section", id="contact")[0]
         links = find_all(find_all(contact, cls="links")[0], "a")
         self.assertEqual([a.attrs.get("href") for a in links], [
-            BOOKING_URL, "mailto:hi@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
+            BOOKING_URL, "mailto:hello@omarcevi.dev", "https://www.linkedin.com/in/omarcevi/",
             "https://github.com/omarcevi", "https://omarcevi.medium.com"])
         for a in links:
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
@@ -1024,6 +1024,20 @@ class Meta(unittest.TestCase):
     def test_date_modified(self):
         m = re.search(r'"dateModified": "(\d{4}-\d{2}-\d{2})"', self.html)
         self.assertGreaterEqual(m.group(1), "2026-10-23")
+
+
+
+class Resume(unittest.TestCase):
+    """omarcevi.dev/resume is shared by link only."""
+
+    def test_page_exists_and_stays_out_of_search(self):
+        doc = parse((ROOT / "resume/index.html").read_text(encoding="utf-8"))
+        robots = [m for m in find_all(doc, "meta") if m.attrs.get("name") == "robots"]
+        self.assertEqual([m.attrs.get("content") for m in robots], ["noindex"])
+
+    def test_nothing_on_the_site_points_to_it(self):
+        for name in ("index.html", "sitemap.xml", "llms.txt", "robots.txt"):
+            self.assertNotIn("/resume", (ROOT / name).read_text(encoding="utf-8"), name)
 
 
 if __name__ == "__main__":
