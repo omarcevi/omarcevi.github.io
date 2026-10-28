@@ -183,6 +183,14 @@ class Rows(unittest.TestCase):
             '<a class="tag" href="https://p" aria-label="Photos from the talk">photos</a>'
             '</div>', row)
 
+    def test_tickets_come_first_and_leave_the_title_plain(self):
+        row = ev.rows(ev.parse(BASE + "- video: https://v\n- tickets: https://t\n"))
+        self.assertIn('<a href="https://v">Talk title</a>', row)
+        self.assertIn('<div class="mats"><a class="tag" href="https://t" aria-label="Get tickets">tickets</a>'
+                      '<a class="tag" href="https://v" aria-label="Watch the recording">▶ video</a></div>', row)
+        row = ev.rows(ev.parse(BASE + "- tickets: https://t\n"))
+        self.assertIn('<div class="item-title">Talk title</div>', row)
+
     def test_title_falls_back_to_slides_then_photos(self):
         row = ev.rows(ev.parse(BASE + "- photos: https://p\n- slides: https://s\n"))
         self.assertIn('<a href="https://s">Talk title</a>', row)

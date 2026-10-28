@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = "https://omarcevi.dev"
-KEYS = ("type", "event", "date", "place", "link", "guide", "repo", "video", "slides", "photos", "lang", "format", "about")
+KEYS = ("type", "event", "date", "place", "link", "tickets", "guide", "repo", "video", "slides", "photos", "lang", "format", "about")
 TYPES = ("talk", "workshop")
 MONTHS = ["January", "February", "March", "April", "May", "June", "July",
           "August", "September", "October", "November", "December"]
@@ -23,6 +23,7 @@ DATE_RE = re.compile(r"^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$")
 ITEM_RE = re.compile(r"^- ([A-Za-z]+):(.*)$")
 # the tags under an item, in order; the title links to the first of guide, video, slides, photos
 TAGS = {
+    "tickets": ("tickets", "Get tickets"),
     "guide": ("guide", "Open the {type} guide"),
     "repo": ("repo", "{Type} repository"),
     "video": ("▶ video", "Watch the recording"),

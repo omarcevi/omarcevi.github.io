@@ -10,7 +10,7 @@ One block per event: a `## Title` line, then `- key: value` lines.
 - `date`: 2026-10-27, or 2026-10 / 2023 when the day doesn't matter (required)
 - `event`: the event's name (required when the date has a day)
 - `place`, `link` (the event's page), `lang` (EN, TR), `format` (in person, online)
-- `guide`, `repo`, `video`, `slides`, `photos`: links shown as tags under the title
+- `tickets`, `guide`, `repo`, `video`, `slides`, `photos`: links shown as tags under the title
 - `about`: one sentence shown under the title
 
 Order doesn't matter: the site lists newest first, and the next event with a full
@@ -23,6 +23,7 @@ nothing on the site changes, and GitHub emails you the reason.
 - date: 2026-12-05
 - place: İzmir, Tepekule Congress Center, Bayraklı
 - link: https://gdg.community.dev/events/details/google-gdg-izmir-presents-devfest-izmir-2026/cohost-gdg-cloud-izmir
+- tickets: https://kommunity.com/gdg-izmir/events/devfest-izmir-2026-16cae32b
 - format: in person
 
 ## Recipes for Your Agent Systems
