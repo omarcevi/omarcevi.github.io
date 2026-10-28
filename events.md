@@ -17,12 +17,20 @@ Order doesn't matter: the site lists newest first, and the next event with a ful
 date becomes the "next up" card. If an entry has a mistake, the update stops,
 nothing on the site changes, and GitHub emails you the reason.
 
-## Recipes for your AI agents
-- type: workshop
+## Retrieval Is All You Need (Almost)
+- type: talk
+- event: DevFest İzmir 2026
+- date: 2026-12-05
+- place: İzmir, Tepekule Congress Center, Bayraklı
+- link: https://gdg.community.dev/events/details/google-gdg-izmir-presents-devfest-izmir-2026/cohost-gdg-cloud-izmir
+- format: in person
+
+## Recipes for Your Agent Systems
+- type: talk
 - event: DevFest Trabzon 2026
 - date: 2026-10-31
-- place: Trabzon
-- link: https://devfest.gdgtrabzon.com/
+- place: Trabzon, Prof. Dr. Osman Turan Congress Center, KTÜ
+- link: https://gdg.community.dev/events/details/google-gdg-trabzon-presents-devfest-trabzon-2026/
 - format: in person
 
 ## Deploying your agents on Google Cloud Agent Platform

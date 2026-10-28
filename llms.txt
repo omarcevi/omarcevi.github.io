@@ -26,7 +26,8 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 
 ## Talks and workshops
 
-- Recipes for your AI agents (workshop) — DevFest Trabzon 2026, 31 October 2026 · Trabzon
+- Retrieval Is All You Need (Almost) — DevFest İzmir 2026, 5 December 2026 · İzmir, Tepekule Congress Center, Bayraklı
+- Recipes for Your Agent Systems — DevFest Trabzon 2026, 31 October 2026 · Trabzon, Prof. Dr. Osman Turan Congress Center, KTÜ
 - Deploying your agents on Google Cloud Agent Platform (workshop) — Google Cloud Day Türkiye – Builder Connect, 27 October 2026 · Istanbul, Wyndham Grand Levent · [guide](https://omarcevi.dev/workshops/cloud-agents-workshop/) · [repo](https://github.com/omarcevi/cloud-agents-workshop)
 - Deploy your first AI agent to Google Cloud (workshop) — DevFest Samsun 2026, 24 October 2026 · Samsun, Colombia Coffee Ömürevleri · [guide](https://omarcevi.dev/workshops/devfest-samsun-agent/) · [repo](https://github.com/omarcevi/devfest-samsun-assistant)
 - Architecting Multi-Agent Systems with Google ADK (workshop) — Google Developer Day Istanbul, 9 October 2026 · [guide](https://omarcevi.dev/workshops/adk-multi-agent-workshop/) · [repo](https://github.com/omarcevi/adk-multi-agent-workshop)
