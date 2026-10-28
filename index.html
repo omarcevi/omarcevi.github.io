@@ -332,6 +332,17 @@
     .cap a { color: var(--muted); }
 
     #simbox { margin-top: 2.25rem; }
+    /* the start screen: the panel opens small, one live flow (tab 01) with a line on what's inside and a start
+       button where play will be; assets/sim.js grows it into the full sim, and shrinks it back */
+    #simbox.start .sim-tabs, #simbox.start [role=tabpanel], #simbox.start .sim-key, #simbox.start .sim-follow, #simbox.start .sb-chal,
+    #simbox.start .p-foot, #simbox.start .sim-config, #simbox.start .sb-work, #simbox.start #sim-play, #simbox.start #sim-burst,
+    #simbox.start #sim-shrink { display: none; }
+    #simbox:not(.start) .sim-intro, #simbox:not(.start) #sim-start { display: none; }
+    #simbox.start #sim { height: 190px; }
+    .sim-intro { margin: 0; padding: 0.6rem 0.9rem 0.7rem; border-top: 1px solid var(--p-line2); font: 0.72rem/1.6 var(--mono); color: var(--p-muted); }
+    .p-ctrl .sim-start { color: #0f1115; background: var(--p-accent); border-color: var(--p-accent); }
+    .p-ctrl .sim-start:hover { color: #0f1115; filter: brightness(1.08); }
+    #simbox.growing { overflow: hidden; transition: height 0.32s ease; }
     /* one height on every tab, so switching tabs never moves what's below */
     #sim { display: block; width: 100%; height: 300px; cursor: default; }
     #m-503.bad { color: var(--p-bad); }   /* red once something was turned away */
@@ -877,12 +888,14 @@
         </div>
       </div>
 
-      <div class="panel js-only" id="simbox">
+      <div class="panel js-only start" id="simbox">
         <div class="p-head">
           <div class="p-title"><span class="live"></span>inference.sim <span class="note">· Llama 3 8B on one H100 · real time</span></div>
           <div class="p-ctrl">
+            <button type="button" id="sim-start" class="sim-start">▶ start inference sim</button>
             <button type="button" id="sim-play" aria-label="Pause: stop new requests and let in-flight ones finish">❚❚</button>
             <button type="button" id="sim-burst">send burst</button>
+            <button type="button" id="sim-shrink" aria-label="Shrink the simulator">shrink</button>
           </div>
         </div>
         <div class="sim-tabs" role="tablist" aria-label="Simulator lessons">
@@ -995,6 +1008,8 @@
           <span class="vh" id="sb-chal-said" role="status"></span>
           <span class="sb-chal-btns" id="sb-chal-btns" hidden><button type="button" id="sb-again">try again</button> <button type="button" id="sb-free">back to free play</button></span>
         </div>
+        <!-- the start screen's line: everything between the canvas and here is hidden there -->
+        <p class="sim-intro">a live LLM serving simulator: batching · KV cache · MIG · routing · real traffic · failure · sandbox</p>
         <div class="p-foot">
           <span>TTFT p50 <b id="m-ttft50">–</b></span>
           <span>TTFT p99 <b id="m-ttft99">–</b></span>

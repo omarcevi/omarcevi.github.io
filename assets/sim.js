@@ -11,6 +11,8 @@
 // lane. In API mode the large model is a dashed box with no lane or KV that names the API model's spend.
 // Tab 05 replays an hour of Azure's real traffic (assets/sim/azure-conv.json, fetched when the panel first
 // comes into view) or random traffic at the same load; on the trace, the arrivals label is the trace's clock.
+// The panel opens small (#simbox.start): tab 01's live flow in a short canvas, and a start button that grows it
+// into the full sim; shrink brings it back to that small screen.
 // Each tab's lesson line is one sentence; its "?" opens the full lesson in a popover placed under it.
 // Clicking a request's dot or row follows it: it's outlined on the canvas, and the strip under the key shows
 // its queue, prefill and decode spans, what happened to it, and its TTFT, TPOT and total time. The config
@@ -102,7 +104,7 @@
 
   var playBtn = $('sim-play'), burstBtn = $('sim-burst');
   var wrapSmall = $('m-small-wrap'), wrapMis = $('m-mis-wrap'), wrapApi = $('m-api-wrap'), wrapRetry = $('m-retry-wrap');
-  var killBtn = $('sim-kill');
+  var killBtn = $('sim-kill'), startBtn = $('sim-start'), shrinkBtn = $('sim-shrink');
   var followEl = $('sim-follow'), flWhat = $('fl-what'), flNums = $('fl-nums'), flNext = $('fl-next'), flStop = $('fl-stop');
   var flNote = $('fl-note'), flRows = [].slice.call(followEl.querySelectorAll('.fl-row'));
   var cfgBtn = $('sim-cfg'), cfgBox = $('sim-config');
@@ -1361,6 +1363,40 @@
   $('sb-free').addEventListener('click', function () { stopChallenge(true); sbGo.focus(); });
   log('sandbox · type help for the commands, or use the knobs', 'hint');
   syncKnobs();
+
+  // ---- Start screen ----
+
+  // Animates the panel's height from what it was to what it is now (none with reduced motion)
+  function grow(from) {
+    if (REDUCE) return;
+    var to = box.getBoundingClientRect().height;
+    box.style.height = from + 'px';
+    box.getBoundingClientRect();   // lay out at the old height first
+    box.classList.add('growing');
+    box.style.height = to + 'px';
+    var done = function () { box.classList.remove('growing'); box.style.height = ''; box.removeEventListener('transitionend', done); };
+    box.addEventListener('transitionend', done);
+    setTimeout(done, 400);
+  }
+  // Start: the full sim, on tab 01 (already running), with the keyboard on its tab
+  function startSim() {
+    var from = box.getBoundingClientRect().height;
+    box.classList.remove('start');
+    resize();   // the canvas is taller now, and the lesson lines can be measured
+    grow(from);
+    tabs[0].focus();
+  }
+  // Shrink: back to the small screen, which always shows tab 01's flow
+  function shrinkSim() {
+    var from = box.getBoundingClientRect().height;
+    switchTab('batching');
+    box.classList.add('start');
+    resize();
+    grow(from);
+    startBtn.focus();
+  }
+  startBtn.addEventListener('click', startSim);
+  shrinkBtn.addEventListener('click', shrinkSim);
 
   // Pause stops new arrivals and lets in-flight work drain; play (also from draining) restarts them
   playBtn.addEventListener('click', function () {
