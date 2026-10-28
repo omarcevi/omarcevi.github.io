@@ -408,7 +408,7 @@
     .sb-pane { min-width: 0; height: 21rem; padding: 0.6rem 0.75rem; background: #13161c; border: 1px solid #1c2027; border-radius: 8px; overflow: auto; }
     .sb-knobs { height: 24.5rem; }
     .sb-term, .sb-cfgpane { height: 24.5rem; }
-    .sb-pane h4 { margin: 0 0 0.45rem; font: inherit; font-weight: 400; color: var(--p-muted); opacity: 0.8; }
+    .sb-pane .sb-h { margin: 0 0 0.45rem; color: var(--p-muted); opacity: 0.8; }   /* a pane's label; the pane is a named region, not a section */
     .sb-knobs .kr { display: grid; grid-template-columns: 4rem minmax(0, 1fr); gap: 0.5rem; align-items: center; justify-items: start; margin-bottom: 0.45rem; }
     .sb-knobs .kr > span:first-child { color: var(--p-muted); opacity: 0.8; }
     .sb-knobs .kv { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.6rem; }
@@ -1032,7 +1032,7 @@
         <div class="sim-config" id="sim-config" hidden></div>
         <div class="sb-work" id="sb-work" hidden>
           <div class="sb-pane sb-knobs" role="region" aria-label="Knobs">
-            <h4>knobs</h4>
+            <p class="sb-h">knobs</p>
             <div class="kr"><span>GPUs</span><div class="seg sm" role="radiogroup" aria-label="GPUs"><button type="button" role="radio" data-sb="gpus" data-v="1" aria-checked="false">1</button><button type="button" role="radio" data-sb="gpus" data-v="2" aria-checked="false">2</button><button type="button" role="radio" data-sb="gpus" data-v="3" aria-checked="false">3</button></div></div>
             <div class="kr"><span>layout</span><div class="seg sm" role="radiogroup" aria-label="Layout"><button type="button" role="radio" data-sb="layout" data-v="whole" aria-checked="false">whole</button><button type="button" role="radio" data-sb="layout" data-v="4g+3g" aria-checked="false">4g+3g</button><button type="button" role="radio" data-sb="layout" data-v="3g+2g+2g" aria-checked="false">3g+2g+2g</button><button type="button" role="radio" data-sb="layout" data-v="2g+2g+2g+1g" aria-checked="false">2g+2g+2g+1g</button><button type="button" role="radio" data-sb="layout" data-v="time-sliced" aria-checked="false">time-sliced</button></div></div>
             <div class="kr"><span>models</span><span class="sb-models" id="sb-models"></span></div>
@@ -1045,12 +1045,12 @@
             <div class="kr"><span>failure</span><span class="kv"><span class="seg sm"><button type="button" id="sb-kill">kill a GPU</button></span><span class="kn">autoscaler</span><div class="seg sm" role="radiogroup" aria-label="Autoscaler"><button type="button" role="radio" data-sb="autoscaler" data-v="off" aria-checked="false">off</button><button type="button" role="radio" data-sb="autoscaler" data-v="on" aria-checked="false">on</button></div></span></div>
           </div>
           <div class="sb-pane sb-term" role="region" aria-label="Terminal">
-            <h4>terminal · type help</h4>
+            <p class="sb-h">terminal · type help</p>
             <div class="sb-log" id="sb-log" role="log" aria-live="polite"></div>
             <label class="sb-prompt"><span aria-hidden="true">›</span><input type="text" id="sb-cmd" autocomplete="off" spellcheck="false" aria-label="Sandbox command" placeholder="help"></label>
           </div>
           <div class="sb-pane sb-cfgpane" role="region" aria-label="Config">
-            <h4>config · what you'd deploy</h4>
+            <p class="sb-h">config · what you'd deploy</p>
             <div id="sb-config"></div>
           </div>
         </div>
