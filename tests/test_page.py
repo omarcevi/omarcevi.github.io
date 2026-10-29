@@ -79,6 +79,47 @@ class Hero(unittest.TestCase):
         self.assertEqual(img.attrs.get("alt"), "Omar Elcircevi speaking at Google for Developers Day Istanbul")
         self.assertNotEqual(img.attrs.get("loading"), "lazy")
 
+    def test_photo_noise_canvas_over_the_photo(self):
+        frame = find_all(self.doc, cls="pn-frame")[0]
+        self.assertEqual(len(find_all(frame, "img", src="assets/photos/omar-gdd-istanbul.jpg")), 1)
+        cv = find_all(frame, "canvas", id="pn")[0]
+        self.assertEqual((cv.attrs.get("width"), cv.attrs.get("height")), ("720", "900"))  # the photo's own size
+        self.assertEqual(cv.attrs.get("aria-hidden"), "true")                             # the img's alt describes it
+        self.assertIn("js-only", cv.classes)
+
+    def test_photo_noise_formula_is_latex(self):
+        info = find_all(self.doc, cls="pn-info")[0]
+        self.assertIn("js-only", info.classes)
+        tex = find_all(info, "math")[0].iter()
+        tex = [n for n in tex if n.tag == "annotation"][0]
+        self.assertEqual(tex.attrs.get("encoding"), "application/x-tex")
+        self.assertEqual(tex.text().strip(), r"x_t = \sqrt{\bar{\alpha}_t}\,x_0 + \sqrt{1-\bar{\alpha}_t}\,\epsilon")
+
+    def test_photo_noise_controls(self):
+        info = find_all(self.doc, cls="pn-info")[0]
+        replay = find_all(info, "button", id="pn-replay")[0]
+        self.assertIn("disabled", replay.attrs)          # enabled once the load-in is over
+        more = find_all(info, "button", cls="pn-more")[0]
+        self.assertEqual(more.attrs.get("popovertarget"), "pn-about")
+        self.assertTrue(more.attrs.get("aria-label"))
+        pop = find_all(self.doc, id="pn-about")[0]
+        self.assertIn("popover", pop.attrs)
+        self.assertIn("No model runs here", pop.text())
+        self.assertEqual(find_all(info, id="pn-status")[0].attrs.get("aria-hidden"), "true")
+
+    def test_photo_noise_script(self):
+        scripts = [s for s in find_all(self.doc, "script") if s.attrs.get("src") == "assets/photo-noise.js"]
+        self.assertEqual(len(scripts), 1)
+        self.assertIn("defer", scripts[0].attrs)
+
+    def test_photo_shows_without_the_script(self):
+        # hidden only while the canvas takes over, revealed by CSS alone if the script never runs,
+        # and never hidden for reduced motion
+        self.assertIn(".js .pn-frame img { visibility: hidden; animation: pn-reveal 0s 1.5s forwards; }", self.html)
+        self.assertIn("@keyframes pn-reveal { to { visibility: visible; } }", self.html)
+        motion = re.search(r"@media \(prefers-reduced-motion: reduce\) \{(.*?)\n    \}", self.html, re.S)
+        self.assertIn(".js .pn-frame img { visibility: visible; animation: none; }", motion.group(1))
+
     def test_sprite_symbols(self):
         ids = {n.attrs.get("id") for n in find_all(self.doc, "symbol")}
         self.assertLessEqual({"i-gh", "i-li", "i-md", "i-mail", "i-cal"}, ids)
