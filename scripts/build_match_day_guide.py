@@ -1,9 +1,9 @@
 """Build workshops/match-day-agents/ from the written guide in the trabzonspor_analyst repo.
 
 The guide has one source: guide/match-day-agents.md in github.com/omarcevi/trabzonspor_analyst
-(a test there keeps its code snippets identical to the repo). This script turns that Markdown into
-a page with the same look as the other workshop guides (the CSS is read from
-workshops/devfest-samsun-agent/index.html) and copies its SVG diagrams next to it.
+(a test there keeps its code snippets identical to the repo). This script splits that Markdown into
+pages, one per part of the guide, with the same look and navigation as workshops/cloud-agents-workshop
+(side index of pages, previous/next links, shared guide.css and guide.js), and copies its SVG diagrams.
 
     python3 scripts/build_match_day_guide.py                       # repo checked out next to this one
     python3 scripts/build_match_day_guide.py ~/code/trabzonspor_analyst
@@ -16,6 +16,7 @@ blockquotes, tables, fenced code, linked images with a caption line, and HTML co
 from __future__ import annotations
 
 import html
+import math
 import re
 import shutil
 import sys
@@ -28,39 +29,52 @@ OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/trabzonspor_analyst"
 COLAB = "https://colab.research.google.com/github/omarcevi/trabzonspor_analyst/blob/main/notebook/match_day_agents.ipynb"
 EVENT = "Recipes for Your Agent Systems"
-STYLE_FROM = ROOT / "workshops" / "devfest-samsun-agent" / "index.html"
+GUIDE_SHORT = "Trabzonspor's AI Analysis Room"
+CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"   # the multi-page guide styles
 
-# section ids and the short names in the side index, by heading
-SECTIONS = {
-    "Setup": ("setup", "Setup"),
-    "The data": ("data", "The data"),
-    "Step 1 · The Scout": ("step-1", "1 · Scout"),
-    "Step 2 · Match Prep": ("step-2", "2 · Match Prep"),
-    "Step 3 · Scouting Department": ("step-3", "3 · Scouting Dept"),
-    "Step 4 · Tribün": ("step-4", "4 · Tribün"),
-    "Step 5 · Technical Director": ("step-5", "5 · Technical Director"),
-    "Bonus · Live data over MCP": ("bonus", "Bonus · live MCP"),
-    "Which recipe when": ("recipes", "Which recipe when"),
-    "Try it yourself": ("try-it", "Try it yourself"),
-}
-GROUPS = {"step-1": "Steps", "recipes": "Wrap-up"}
+# (slug, name in the side index, the guide's ## headings on this page, one-line description)
+PAGES = [
+    ("", "Overview", [], None),
+    ("setup", "Setup", ["Setup"], "Install uv, get a free Gemini API key, clone the repo and open the ADK dev UI."),
+    ("data", "The data", ["The data"], "The FotMob and ESPN snapshot behind every agent, and why the tools return computed numbers."),
+    ("step-1", "1 · Scout", ["Step 1 · The Scout"], "One LlmAgent with five tools: an instruction, docstrings, and tools that do the counting."),
+    ("step-2", "2 · Match Prep", ["Step 2 · Match Prep"], "A SequentialAgent: three agents in a fixed order, handing work over with output_key and placeholders."),
+    ("step-3", "3 · Scouting Dept", ["Step 3 · Scouting Department"], "A ParallelAgent inside a SequentialAgent: three scouts at once, then a writer merges their reports."),
+    ("step-4", "4 · Tribün", ["Step 4 · Tribün"], "A LoopAgent: the lineup picker proposes, the home crowd objects, and exit_loop ends it."),
+    ("step-5", "5 · Tech Director", ["Step 5 · Technical Director"], "An orchestrator with AgentTool: descriptions drive routing, and every agent has one parent."),
+    ("bonus", "Bonus · live MCP", ["Bonus · Live data over MCP"], "The same scout on a live football MCP server over SSE, with no change to the agent."),
+    ("cheat-sheet", "Cheat sheet", ["Which recipe when", "Try it yourself"], "Which agent pattern to use when, and what to try next."),
+]
+GROUPS = {"setup": "Before you start", "step-1": "Steps", "bonus": "After the steps"}
 
 EXTRA_CSS = """
-    /* match-day-agents: what this guide needs beyond the shared workshop styles */
+/* match-day-agents: what this guide needs beyond the shared workshop styles */
+/* A hint of Trabzonspor (claret and sky blue, as on the workshop slides); links and buttons keep the site's blue. */
+    :root { --ts-claret: #70253b; --ts-sky: #82bfe6; --ts-ink: #70253b; --ts-line: #70253b; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ts-ink: #e58ea7; --ts-line: #a8445f; } }
+    :root[data-theme="dark"] { --ts-ink: #e58ea7; --ts-line: #a8445f; }
+    .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+                     background: repeating-linear-gradient(90deg, var(--ts-line) 0 56px, var(--ts-sky) 56px 112px); }
+    .ts-chips { display: inline-flex; gap: .3rem; margin-right: .6rem; vertical-align: -.05em; }
+    .ts-chips i { width: .62rem; height: .62rem; border-radius: 3px; background: var(--ts-claret); }
+    .ts-chips i + i { background: var(--ts-sky); }
     .intro { padding: 0 0 2rem; }
     .intro p, .intro li { max-width: 37em; }
     .intro ol.plain { margin: .8rem 0; }
     .intro p + ol, .intro ol + p { margin-top: .8rem; }
     section ul.plain, section ol.plain { margin: .7rem 0; }
+    .part-of { font-family: var(--mono); font-size: .8rem; color: var(--muted); margin-bottom: 1rem; }
+    .part-of em { font-style: normal; color: var(--text); }
+    figure.arch { margin: .9rem 0 1.4rem; }
+    .page-h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin-bottom: .9rem; }
     .src { display: block; font-family: var(--mono); font-size: .72rem; color: var(--faint); margin: 1.2rem 0 .3rem; }
     .src a { text-decoration: none; color: var(--faint); } .src a:hover { color: var(--accent); }
     .code { margin: .3rem 0 1rem; }
-    .code + .src { margin-top: 1.4rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
-    blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
     blockquote.sample::before { content: "agent output"; display: block; font-family: var(--mono); font-size: .68rem;
-                                letter-spacing: .07em; text-transform: uppercase; color: var(--accent); margin-bottom: .35rem; }
+                                letter-spacing: .07em; text-transform: uppercase; color: var(--ts-ink); margin-bottom: .35rem; }
     blockquote.sample ul, blockquote.sample ol { padding-left: 1.2rem; margin: .3rem 0; }
     blockquote.sample li + li { margin-top: .25rem; }
     blockquote.sample p + p, blockquote.sample p + ul, blockquote.sample ul + p { margin-top: .5rem; }
@@ -68,6 +82,7 @@ EXTRA_CSS = """
     table { width: 100%; border-collapse: collapse; font-size: .92rem; }
     th, td { text-align: left; vertical-align: top; padding: .55rem .7rem .55rem 0; border-bottom: 1px solid var(--border); }
     th { font-family: var(--mono); font-size: .7rem; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+    .steps-grid li a span.d { display: block; color: var(--muted); font-size: .9rem; margin-top: .25rem; }
 """
 
 
@@ -94,7 +109,7 @@ def inline(text: str) -> str:
 def link(url: str) -> str:
     if url.startswith("images/"):
         return BASE + "diagrams/" + url.removeprefix("images/")
-    if url.startswith("http") or url.startswith("/") or url.startswith("#"):
+    if url.startswith(("http", "/", "#")):
         return url
     return f"{REPO}/blob/main/{url}"
 
@@ -119,7 +134,7 @@ def code_block(lang: str, body: str, source: str | None) -> str:
     label = ""
     if source:
         label = f'<span class="src"><a href="{REPO}/blob/main/{source}">{html.escape(source)}</a></span>\n        '
-    if lang == "bash":   # shell lines: comments greyed and left out of the copy, long lines wrap
+    if lang == "bash":   # shell lines: comments greyed and left out of the copy
         rows = []
         for line in body.split("\n"):
             cmd, hash_, comment = line.partition("  #")
@@ -150,7 +165,7 @@ def list_html(lines: list[str]) -> str:
 
 def table_html(lines: list[str]) -> str:
     rows = [[c.strip() for c in line.strip().strip("|").split("|")] for line in lines]
-    head, body = rows[0], [r for r in rows[2:]]
+    head, body = rows[0], rows[2:]
     th = "".join(f"<th>{inline(c)}</th>" for c in head)
     tb = "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>" for r in body)
     return f'<div class="table-wrap"><table><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div>'
@@ -208,18 +223,34 @@ def blocks(md: str, images: Path) -> list[str]:
                 i += 1
             out.append(list_html(items))
         elif line.startswith("#"):
-            out.append(line)   # headings are handled by the page builder
-            i += 1
+            i += 1   # headings are placed by the page builder
         else:
             para = []
             while i < len(lines) and lines[i].strip() and not re.match(r"^(?:```|<!--|\[!\[|\||>|#|(?:[-*]|\d+\.) )", lines[i]):
                 para.append(lines[i].strip())
                 i += 1
-            out.append(f"<p>{inline(' '.join(para))}</p>")
+            text = " ".join(para)
+            cls = ' class="goal"' if text.startswith("**The pattern:**") else ""
+            out.append(f"<p{cls}>{inline(text)}</p>")
     return out
 
 
-# --- the page ---------------------------------------------------------------------------
+def reading_time(md: str) -> float:
+    """Minutes to read: prose at 238 words a minute, code at half that speed, 12 seconds a diagram."""
+    code = " ".join(re.findall(r"```.*?```", md, re.S))
+    prose = re.sub(r"```.*?```|<!--.*?-->", "", md, flags=re.S)
+    prose = re.sub(r"^\[!\[.*$", "", prose, flags=re.M)        # a diagram's alt text is not read
+    prose = re.sub(r"\]\([^)]*\)", "]", prose)                  # nor are link targets
+    words = [w for w in re.sub(r"[*_>#|`\[\]]", " ", prose).split() if re.search(r"\w", w)]
+    code_words = [w for w in code.split() if re.search(r"[A-Za-z]", w)]
+    return len(words) / 238 + len(code_words) / 476 + md.count("[![") / 5
+
+
+def minutes(md: str) -> int:
+    return max(1, round(reading_time(md)))
+
+
+# --- pages --------------------------------------------------------------------------------
 
 
 def frontmatter(md: str) -> tuple[dict, str]:
@@ -231,56 +262,104 @@ def frontmatter(md: str) -> tuple[dict, str]:
     return meta, md[m.end():]
 
 
+def grid_label(slug: str) -> str:
+    if slug.startswith("step-"):
+        return "STEP " + slug.removeprefix("step-")
+    return {"setup": "START", "data": "START", "bonus": "BONUS", "cheat-sheet": "WRAP-UP"}[slug]
+
+
+def url(slug: str) -> str:
+    return BASE + (slug + "/" if slug else "")
+
+
+def toc(current: str, times: dict[str, int]) -> str:
+    lines = []
+    for slug, short, _headings, _desc in PAGES:
+        if slug in GROUPS:
+            lines.append(f'        <li class="group">{GROUPS[slug]}</li>')
+        cls = ' class="here" aria-current="page"' if slug == current else ""
+        t = f'<span class="t">{times[slug]} min</span>' if slug else ""
+        lines.append(f'        <li><a{cls} href="{url(slug)}"><span class="n">{html.escape(short)}</span>{t}</a></li>')
+    return "\n".join(lines)
+
+
+def pager(index: int) -> str:
+    prev_link = next_link = ""
+    if index > 0:
+        slug, short = PAGES[index - 1][0], PAGES[index - 1][1]
+        prev_link = f'<a class="prev" href="{url(slug)}">← {html.escape(short)}</a>'
+    if index < len(PAGES) - 1:
+        slug, short = PAGES[index + 1][0], PAGES[index + 1][1]
+        next_link = f'<a class="next" href="{url(slug)}">{html.escape(short)} →</a>'
+    return f'      <nav class="pager" aria-label="Previous and next page">{prev_link}{next_link}</nav>'
+
+
 def build(source_repo: Path) -> None:
     guide = source_repo / "guide" / "match-day-agents.md"
     images = source_repo / "guide" / "images"
     meta, body = frontmatter(guide.read_text(encoding="utf-8"))
-    body = re.sub(r"^# .*\n", "", body, count=1, flags=re.M)   # the title goes in the hero
-
-    # split into the intro (before the first ##) and one chunk per ## section
+    body = re.sub(r"^# .*\n", "", body, count=1, flags=re.M)   # the title goes in the overview's hero
     parts = re.split(r"^## (.+)$", body, flags=re.M)
-    intro, sections = parts[0], list(zip(parts[1::2], parts[2::2]))
-    toc, html_sections = [], []
-    for title, text in sections:
-        sid, short = SECTIONS[title.strip()]
-        if sid in GROUPS:
-            toc.append(f'        <li class="group">{GROUPS[sid]}</li>')
-        toc.append(f'        <li><a href="#{sid}"><span class="n">{html.escape(short)}</span></a></li>')
-        inner = "\n        ".join(blocks(text, images))
-        html_sections.append(f'      <section id="{sid}">\n        <h2>{html.escape(title.strip())}</h2>\n        {inner}\n      </section>')
+    intro, sections = parts[0], {t.strip(): text for t, text in zip(parts[1::2], parts[2::2])}
+    placed = [h for _, _, headings, _ in PAGES for h in headings]
+    missing = set(sections) - set(placed)
+    if missing:
+        sys.exit(f"guide sections with no page: {sorted(missing)} (add them to PAGES)")
 
-    style = re.search(r"<style>(.*?)</style>", STYLE_FROM.read_text(encoding="utf-8"), re.S).group(1)
-    style = style.rstrip() + "\n" + EXTRA_CSS
+    times = {slug: minutes("\n".join(sections[h] for h in headings)) for slug, _, headings, _ in PAGES if slug}
     title, desc = meta["title"], meta["description"]
-    intro_html = "\n        ".join(blocks(intro, images))
+    total = minutes(body)
 
-    page = TEMPLATE.format(
-        title=html.escape(title), desc=html.escape(desc), base=BASE, style=style, repo=REPO, colab=COLAB,
-        event=html.escape(EVENT), toc="\n".join(toc), intro=intro_html, sections="\n\n".join(html_sections),
-        script=SCRIPT,
-    )
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "index.html").write_text(page, encoding="utf-8")
+    for index, (slug, short, headings, page_desc) in enumerate(PAGES):
+        if not slug:
+            grid = "\n".join(
+                f'          <li><a href="{url(s)}"><span class="num">{grid_label(s)} · {times[s]} MIN</span>'
+                f'<b>{html.escape(h[0].split(" · ", 1)[-1])}</b><span class="d">{html.escape(d)}</span></a></li>'
+                for s, n, h, d in PAGES[1:])
+            content = OVERVIEW.format(title=html.escape(title), desc=html.escape(desc), event=html.escape(EVENT), total=total,
+                                      repo=REPO, colab=COLAB, first=url("setup"),
+                                      intro="\n        ".join(blocks(intro, images)), grid=grid)
+        else:
+            chunks = []
+            for k, heading in enumerate(headings):
+                inner = "\n        ".join(blocks(sections[heading], images))
+                tag = f'<h1 class="page-h1">{html.escape(heading)}</h1>' if k == 0 else f"<h2>{html.escape(heading)}</h2>"
+                chunks.append(f"        {tag}\n        {inner}")
+            content = f'      <section id="{slug}">\n' + "\n\n".join(chunks) + "\n      </section>\n"
+        page_title = title if not slug else f"{headings[0]} · {GUIDE_SHORT}"
+        crumb = f'<span class="cur"> / <span class="here">{html.escape(short)}</span></span>' if slug else ""
+        page = HEAD.format(title=html.escape(page_title), desc=html.escape(page_desc or desc), url=url(slug), base=BASE,
+                           repo=REPO, crumb=crumb, toc=toc(slug, times)) + content + FOOT.format(pager=pager(index), base=BASE, repo=REPO)
+        target = OUT / slug / "index.html" if slug else OUT / "index.html"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(page, encoding="utf-8")
+
+    css = CSS_FROM.read_text(encoding="utf-8").split("\n")
+    css[0:2] = ["/* Shared styles for the match-day-agents guide pages. Generated by scripts/build_match_day_guide.py:",
+                "   workshops/cloud-agents-workshop/guide.css plus the extras at the end. */"]
+    (OUT / "guide.css").write_text("\n".join(css).rstrip() + "\n" + EXTRA_CSS, encoding="utf-8")
+    (OUT / "guide.js").write_text(SCRIPT.lstrip(), encoding="utf-8")
     (OUT / "diagrams").mkdir(exist_ok=True)
     for svg in sorted(images.glob("*.svg")):
         shutil.copyfile(svg, OUT / "diagrams" / svg.name)
-    print(f"wrote {OUT.relative_to(ROOT)}/index.html and {len(list(images.glob('*.svg')))} diagrams")
+    print(f"wrote {len(PAGES)} pages, guide.css, guide.js and {len(list(images.glob('*.svg')))} diagrams "
+          f"in {OUT.relative_to(ROOT)}/ ({total} min to read)")
 
 
-TEMPLATE = """<!doctype html>
+HEAD = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title} — DevFest Trabzon 2026 · Omar Elcircevi</title>
+  <title>{title} · Omar Elcircevi</title>
   <meta name="description" content="{desc}">
-  <link rel="canonical" href="https://omarcevi.dev{base}">
+  <link rel="canonical" href="https://omarcevi.dev{url}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
   <meta property="og:title" content="{title}">
   <meta property="og:description" content="{desc}">
-  <meta property="og:url" content="https://omarcevi.dev{base}">
+  <meta property="og:url" content="https://omarcevi.dev{url}">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
@@ -300,15 +379,16 @@ TEMPLATE = """<!doctype html>
   }})(document.documentElement);
   </script>
   <!-- Generated by scripts/build_match_day_guide.py from guide/match-day-agents.md in {repo}: edit the guide there, then rebuild. -->
-  <style>{style}  </style>
+  <link rel="stylesheet" href="{base}guide.css">
 </head>
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="{base}">match-day-agents</a></span>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="{base}">match-day-agents</a>{crumb}</span>
     <nav aria-label="Guide sections">
-      <a href="#step-1">Steps</a>
-      <a href="#recipes">Cheat sheet</a>
+      <a href="{base}">Overview</a>
+      <a href="{base}step-1/">Steps</a>
+      <a href="{base}cheat-sheet/">Cheat sheet</a>
       <a href="{repo}">GitHub</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
@@ -318,22 +398,23 @@ TEMPLATE = """<!doctype html>
   </div>
 
   <div class="layout">
-    <aside class="toc" aria-label="On this page">
-      <p class="label">On this page</p>
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Guide</p>
       <ol>
-        <li><a href="#overview"><span class="n">Overview</span></a></li>
 {toc}
       </ol>
     </aside>
 
     <main>
-      <header class="hero" id="overview">
-        <p class="kicker">DevFest Trabzon 2026 · Workshop guide · about 15 minutes to read</p>
+"""
+
+OVERVIEW = """      <header class="hero" id="overview">
+        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i></span>DevFest Trabzon 2026 · Workshop guide · about {total} minutes to read</p>
         <h1>{title}</h1>
         <p class="part-of">The written version of <em>{event}</em> by Omar Elcircevi</p>
         <p class="tagline">{desc}</p>
         <div class="actions">
-          <a class="btn primary" href="#setup">Start with the setup</a>
+          <a class="btn primary" href="{first}">Start with the setup</a>
           <a class="btn" href="{repo}">Code on GitHub</a>
           <a class="btn" href="{colab}">Open in Colab</a>
         </div>
@@ -343,8 +424,16 @@ TEMPLATE = """<!doctype html>
         {intro}
       </div>
 
-{sections}
+      <section id="pages">
+        <h2>The pages</h2>
+        <ul class="steps-grid">
+{grid}
+        </ul>
+      </section>
+"""
 
+FOOT = """
+{pager}
       <footer>
         <p><a href="/">omarcevi.dev</a> · <a href="{repo}">source</a></p>
         <p>DevFest Trabzon · 31 October 2026</p>
@@ -352,13 +441,14 @@ TEMPLATE = """<!doctype html>
     </main>
   </div>
 </div>
-
-<script>{script}</script>
+<script src="{base}guide.js"></script>
 </body>
 </html>
 """
 
 SCRIPT = """
+// Shared behaviour for the match-day-agents guide pages (copy buttons, diagram lightbox, theme toggle).
+// Generated by scripts/build_match_day_guide.py; adapted from workshops/cloud-agents-workshop/guide.js.
 (() => {
   // Copy buttons on code blocks. Shell blocks copy without their # comments; code keeps its blank lines.
   const fallbackCopy = text => {
@@ -387,20 +477,6 @@ SCRIPT = """
     });
     block.appendChild(b);
   });
-
-  // Highlight the section you're reading in the side index
-  const links = [...document.querySelectorAll('.toc a')];
-  const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
-  const targets = [...byId.keys()].map(id => document.getElementById(id)).filter(Boolean);
-  if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver(entries => {
-      entries.forEach(e => { if (e.isIntersecting) {
-        links.forEach(a => a.classList.remove('active'));
-        const a = byId.get(e.target.id); if (a) a.classList.add('active');
-      }});
-    }, { rootMargin: '-20% 0px -70% 0px' });
-    targets.forEach(t => io.observe(t));
-  }
 
   // Diagrams open magnified in a dialog over the page; Esc, a click anywhere or the close button closes it.
   // A modified click still opens the SVG itself, and so does any click in a browser without <dialog>.
