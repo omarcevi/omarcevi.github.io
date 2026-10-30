@@ -61,7 +61,7 @@
         <li><a class="here" aria-current="page" href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-2/"><span class="n">2 · Match Prep</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-3/"><span class="n">3 · Scouting Dept</span><span class="t">2 min</span></a></li>
-        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">3 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-5/"><span class="n">5 · Tech Director</span><span class="t">3 min</span></a></li>
         <li class="group">After the steps</li>
         <li><a href="/workshops/match-day-agents/bonus/"><span class="n">Bonus · live MCP</span><span class="t">1 min</span></a></li>
@@ -145,7 +145,11 @@ How you work:
         <span class="tk-ctl">for</span> <span class="tk-var">window</span>, <span class="tk-var">g</span> <span class="tk-kw">in</span> <span class="tk-var">t</span>[<span class="tk-str">&quot;goals_by_15min&quot;</span>].<span class="tk-fn">items</span>()
     }</code></pre></div>
         <p>The tools find names without Turkish or Polish letters: <code>simsir</code> finds Aral Şimşir. For bad input, a tool returns an error with suggestions. It does not raise an exception.</p>
-        <p><strong>Run it:</strong> Save the file. In the dev UI, select <code>step1_scout</code>. Ask <em>"Who's in form for us, and who can't play Sunday?"</em></p>
+        <p><strong>Run it:</strong> Save the file. Start the ADK dev UI:</p>
+        <div class="code" data-lang="bash"><pre>uv run adk web --reload_agents steps</pre></div>
+        <p>Open http://localhost:8000. The dropdown shows the six folders in <code>steps/</code>. The events panel shows each tool call and each hand-off. With <code>--reload_agents</code>, ADK loads a file again when you save it. Thus you start the dev UI only one time.</p>
+        <!-- SCREENSHOT: adk web with the app dropdown open, showing the six step folders -->
+        <p>In the dev UI, select <code>step1_scout</code>. Ask <em>"Who's in form for us, and who can't play Sunday?"</em></p>
         <p>In my run, the scout called <code>get_availability</code> one time and <code>get_top_players</code> three times (goals, assists, avg_rating). It answered in 12 seconds. A part of the answer:</p>
         <blockquote class="sample"><p><strong>In Form (Last 10 Matches)</strong></p><ul class="plain"><li><strong>Mohamed Salah</strong> (Available): 8 goals, 5 assists, and an 8.03 average rating in 10 matches (802 minutes).</li><li><strong>Ernest Muçi</strong> (Available): 2 goals, 5 assists, and a 7.14 average rating in 9 matches (549 minutes).</li><li><em>(Note: <strong>Franculino</strong> has also been in top form with 7 goals, 2 assists, and a 7.75 average rating in 8 matches / 545 minutes, but he is currently doubtful).</em> …</li></ul></blockquote>
         <!-- SCREENSHOT: adk web, step1_scout, the events panel showing the get_top_players and get_availability calls -->

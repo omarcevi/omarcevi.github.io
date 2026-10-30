@@ -61,7 +61,7 @@
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-2/"><span class="n">2 · Match Prep</span><span class="t">2 min</span></a></li>
         <li><a class="here" aria-current="page" href="/workshops/match-day-agents/step-3/"><span class="n">3 · Scouting Dept</span><span class="t">2 min</span></a></li>
-        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">3 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-5/"><span class="n">5 · Tech Director</span><span class="t">3 min</span></a></li>
         <li class="group">After the steps</li>
         <li><a href="/workshops/match-day-agents/bonus/"><span class="n">Bonus · live MCP</span><span class="t">1 min</span></a></li>
@@ -105,7 +105,9 @@ Use only facts from the reports; if they disagree, say so.&quot;&quot;&quot;</sp
     <span class="tk-var">scouts</span> = <span class="tk-cls">ParallelAgent</span>(<span class="tk-var">name</span>=<span class="tk-str">&quot;scouts&quot;</span>, <span class="tk-var">sub_agents</span>=[<span class="tk-var">attack_scout</span>, <span class="tk-var">defense_scout</span>, <span class="tk-var">discipline_scout</span>])
     <span class="tk-ctl">return</span> <span class="tk-cls">SequentialAgent</span>(<span class="tk-var">name</span>=<span class="tk-var">name</span>, <span class="tk-var">description</span>=<span class="tk-var">description</span>, <span class="tk-var">sub_agents</span>=[<span class="tk-var">scouts</span>, <span class="tk-var">report_writer</span>])</code></pre></div>
         <p>The instructions of the scouts do not name the opponent. Each scout calls <code>get_match_info</code> first to find it. No instruction in this repo contains a fact from the data. For a new fixture, you only change the JSON files.</p>
-        <p><strong>Run it:</strong> In the dev UI, select <code>step3_scouting_dept</code>. Ask <em>"Scout Gaziantep for us."</em></p>
+        <p><strong>Run it:</strong> Save the file. The dev UI from step 1 still runs this command. It loads the saved file again. If it stopped, start it again:</p>
+        <div class="code" data-lang="bash"><pre>uv run adk web --reload_agents steps</pre></div>
+        <p>In the dev UI, select <code>step3_scouting_dept</code>. Ask <em>"Scout Gaziantep for us."</em></p>
         <p>The three scouts made ten tool calls at the same time. Then the writer merged their reports. The full run took 43 seconds. A part of the brief:</p>
         <blockquote class="sample"><p><strong>Weaknesses to Attack</strong></p><ul class="plain"><li><strong>Second-half defensive collapse</strong> (last 10 matches – 15 goals conceded, 1.5 avg, 1.63 avg xGA across 9 matches with xG data):<ul><li><strong>10 of 15 goals conceded (67%)</strong> came in the second half.</li><li>Vulnerability peaks heavily in <strong>46–60 min</strong> (4 conceded, 27%) and <strong>76–90 min</strong> (5 conceded, 33%).</li></ul></li></ul><p><strong>Three Key Takeaways</strong></p><ol class="plain"><li><strong>Exploit the decimated backline:</strong> Gaziantep's defensive anchor Myenty Abena is suspended, while starting goalkeeper Kacper Tobiasz and three central defenders (Meleke, Kızıldağ, Sangaré) are doubtful with muscle injuries. …</li></ol></blockquote>
         <p><strong>Use it when</strong> you have independent questions about the same thing. Examples: three searches, three reviewers, three data sources.</p>

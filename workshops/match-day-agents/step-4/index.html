@@ -61,7 +61,7 @@
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-2/"><span class="n">2 · Match Prep</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-3/"><span class="n">3 · Scouting Dept</span><span class="t">2 min</span></a></li>
-        <li><a class="here" aria-current="page" href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">2 min</span></a></li>
+        <li><a class="here" aria-current="page" href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">3 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-5/"><span class="n">5 · Tech Director</span><span class="t">3 min</span></a></li>
         <li class="group">After the steps</li>
         <li><a href="/workshops/match-day-agents/bonus/"><span class="n">Bonus · live MCP</span><span class="t">1 min</span></a></li>
@@ -138,7 +138,9 @@ Don&#x27;t invent new demands each round: approve as soon as the checks pass.
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step4_tribun/</span></span></div><pre><span class="gutter" aria-hidden="true">1
 2</span><code><span class="tk-str">The Tribün&#x27;s last verdict (empty on the first round): <span class="tk-ph">{tribun_feedback?}</span>
 If it lists objections, fix every one and say in one line what you changed.</span></code></pre></div>
-        <p><strong>Run it:</strong> In the dev UI, select <code>step4_tribun</code>. Ask <em>"Pick the XI for Sunday."</em></p>
+        <p><strong>Run it:</strong> Save the file. The dev UI from step 1 still runs this command. It loads the saved file again. If it stopped, start it again:</p>
+        <div class="code" data-lang="bash"><pre>uv run adk web --reload_agents steps</pre></div>
+        <p>In the dev UI, select <code>step4_tribun</code>. Ask <em>"Pick the XI for Sunday."</em></p>
         <p>In round one, the lineup picker proposed a 4-2-3-1 with Melih Kabasakal in midfield. The crowd checked the lineup with <code>get_team_trends</code> and <code>get_discipline</code>. A part of its answer:</p>
         <blockquote class="sample"><ol class="plain"><li><strong>Unleash the Storm at Home (Attacking Intent Needed):</strong> … our home record is absolute perfection: <strong>4 matches, 4 wins, 0 draws, 0 losses</strong>, with <strong>13 goals scored and 0 conceded</strong> …</li><li><strong>Discipline Plan Required for High Card-Risk Starters:</strong> <strong>Melih Kabasakal:</strong> Picked up <strong>1 red card</strong> (straight red) and <strong>1 yellow card</strong> in his last 8 matches …</li></ol></blockquote>
         <p>In round two, the lineup picker changed the XI:</p>

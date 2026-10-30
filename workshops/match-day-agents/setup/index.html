@@ -61,7 +61,7 @@
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-2/"><span class="n">2 · Match Prep</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-3/"><span class="n">3 · Scouting Dept</span><span class="t">2 min</span></a></li>
-        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">3 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-5/"><span class="n">5 · Tech Director</span><span class="t">3 min</span></a></li>
         <li class="group">After the steps</li>
         <li><a href="/workshops/match-day-agents/bonus/"><span class="n">Bonus · live MCP</span><span class="t">1 min</span></a></li>
@@ -76,11 +76,9 @@
         <div class="code" data-lang="bash"><pre>curl -LsSf https://astral.sh/uv/install.sh | sh   <span class="c">  # installs uv</span>
 git clone https://github.com/omarcevi/trabzonspor_analyst
 cd trabzonspor_analyst
-cp .env.example .env                               <span class="c">  # paste your key into .env</span>
 uv sync
-uv run adk web --reload_agents steps</pre></div>
-        <p>Open http://localhost:8000. Select a step in the dropdown and ask it a question. The events panel shows each tool call and each hand-off. With <code>--reload_agents</code>, ADK loads a file again when you save it.</p>
-        <!-- SCREENSHOT: adk web with the app dropdown open, showing the six step folders -->
+uv run python scripts/set_key.py                   <span class="c">  # asks for your key and saves it in .env</span></pre></div>
+        <p>You start the ADK dev UI in step 1.</p>
         <p><strong>Cloud Shell.</strong> You can also do the workshop in your browser, with nothing to install. Click <a href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/trabzonspor_analyst.git&amp;amp;cloudshell_git_branch=main&amp;amp;cloudshell_tutorial=tutorial.md&amp;amp;cloudshell_workspace=.&amp;amp;show=ide%2Cterminal">Open in Cloud Shell</a>. In the dialog, select <strong>Trust repo</strong> and click <strong>Confirm</strong>. Cloud Shell copies the repo and opens a tutorial panel next to the editor. The tutorial shows each step, and its links open the files and select each BLANK for you.</p>
         <p>The <code>.env</code> file holds three values: your key, <code>GOOGLE_GENAI_USE_VERTEXAI=FALSE</code> and <code>MODEL=gemini-3.8-flash</code>. The second value selects the free Gemini API, not Vertex AI. The model name is in one place only, <code>matchday/config.py</code>:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/matchday/config.py">matchday/config.py</a></span>
