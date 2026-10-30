@@ -230,7 +230,8 @@
     header { padding: 4rem 0 2.5rem; position: relative; }
     .hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 3rem; align-items: end; }
     .hero-text { position: relative; } /* the GPT-2 token popup is positioned inside the h1's parent */
-    .hero .links { margin-top: 1.5rem; }
+    .hero .links { margin-top: 1.5rem; gap: 0.5rem; }
+    .hero .links a { padding: 0.5rem 0.8rem; } /* five pills on one row at the page's full width */
     .hero .badges { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin-top: 1.4rem; }
     .hero .badge { margin-top: 0; }
     .hero .badge img { width: 220px; }
@@ -1144,7 +1145,7 @@
                 <span class="company"><img class="logo-word logo-light" loading="lazy" decoding="async" src="assets/logos/trendyol.png" width="284" height="96" alt="Trendyol"><img class="logo-word logo-dark" loading="lazy" decoding="async" src="assets/logos/trendyol-dark.png" width="284" height="96" alt="Trendyol"></span>
                 <span class="when">Mar 2024 – Sep 2026</span>
               </div>
-              <div class="role">Machine Learning Engineer, Inference Platform</div>
+              <div class="role">Machine Learning Engineer, ML Platform</div>
               <ul class="bullets">
                 <li>Ran model serving for 100M+ users at 1M+ requests per minute with Triton and vLLM, on GKE and on-prem Kubernetes.</li>
                 <li>Reconfigured H100 GPUs with MIG so more models could share each card, for about 1.75x more serving capacity.</li>
@@ -1158,7 +1159,7 @@
                 <span class="company"><img class="logo-mark" loading="lazy" decoding="async" src="assets/logos/turkcell.png" width="191" height="192" alt="">Turkcell</span>
                 <span class="when">2022 – 2024</span>
               </div>
-              <div class="role">AI &amp; Analytical Solutions</div>
+              <div class="role">AI/ML Engineer, AI &amp; Analytical Solutions</div>
               <ul class="bullets">
                 <li>Helped build the backend and DevOps of an AutoML platform for corporate customers with Django REST Framework, AutoGluon, OpenShift, Jenkins, Kubernetes and S3: users upload a dataset, and preprocessing, feature engineering, splitting, training and testing run automatically before the best model is presented.</li>
                 <li>Helped build a customer insights platform, from segmentation to data visualization, serving SQL query results through FastAPI endpoints.</li>

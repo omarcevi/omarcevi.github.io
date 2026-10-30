@@ -151,6 +151,12 @@ class Hero(unittest.TestCase):
         for a in links:
             self.assertTrue(find_all(a, "svg", cls="ic"), a.attrs.get("href"))
 
+    def test_hero_links_fit_one_row(self):
+        # with hello@omarcevi.dev the five pills need 20px more than the 1120px page gives them at the default
+        # 1rem padding; measured in Chrome, these leave 18px spare
+        self.assertIn(".hero .links { margin-top: 1.5rem; gap: 0.5rem; }", self.html)
+        self.assertIn(".hero .links a { padding: 0.5rem 0.8rem; }", self.html)
+
 
 class Simulator(unittest.TestCase):
     @classmethod
