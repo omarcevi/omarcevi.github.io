@@ -330,9 +330,25 @@
     .src { display: block; font-family: var(--mono); font-size: .72rem; color: var(--faint); margin: 1.2rem 0 .3rem; }
     .src a { text-decoration: none; color: var(--faint); } .src a:hover { color: var(--accent); }
     .src.blank b { color: var(--ts-ink); font-weight: 600; }
+    .src.blank { scroll-margin-top: 5rem; }   /* the tutorial links to #blank-2a and so on */
     .code { margin: .3rem 0 1rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
     .code pre { padding-top: 2.4rem; }   /* the copy button gets its own row, so long or one-line code never runs under it */
+    /* Python blocks: a VS Code editor (Dark+ colours, the same in both site themes) */
+    .code.vsc { background: #1e1e1e; border-color: #2b2b2b; color: #d4d4d4; overflow: hidden; }
+    .code.vsc .vsc-bar { display: flex; align-items: flex-end; height: 2.15rem; background: #252526; border-bottom: 1px solid #2b2b2b; }
+    .code.vsc .vsc-tab { display: inline-flex; align-items: center; gap: .45rem; height: 100%; padding: 0 .95rem; background: #1e1e1e;
+                         border-top: 1px solid #0078d4; color: #ffffff; font-size: .74rem; }
+    .code.vsc .vsc-dir { color: #8b8b8b; margin-left: .35rem; }
+    .code.vsc .vsc-icon { width: .62rem; height: .62rem; border-radius: 2px; background: linear-gradient(135deg, #3572a5 50%, #ffd43b 50%); }
+    .code.vsc pre { display: grid; grid-template-columns: auto minmax(0, 1fr); padding: .8rem 1rem .9rem 0; overflow-x: auto; }
+    .code.vsc pre code { overflow: visible; }
+    .code.vsc .gutter { color: #6e7681; text-align: right; padding: 0 1.1rem 0 1rem; user-select: none; min-width: 2.8rem; }
+    .code.vsc .copy { top: .38rem; color: #a0a0a0; border-color: #3c3c3c; }
+    .code.vsc .copy:hover { color: #ffffff; border-color: #6e6e6e; }
+    .tk-kw { color: #569cd6; } .tk-ctl { color: #c586c0; } .tk-fn { color: #dcdcaa; } .tk-cls { color: #4ec9b0; }
+    .tk-var { color: #9cdcfe; } .tk-const { color: #4fc1ff; } .tk-str { color: #ce9178; } .tk-num { color: #b5cea8; }
+    .tk-com { color: #6a9955; } .tk-str .tk-ph, .tk-ph { color: #569cd6; }
     blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
     blockquote.sample::before { content: "agent output"; display: block; font-family: var(--mono); font-size: .68rem;

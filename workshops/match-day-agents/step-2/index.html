@@ -72,40 +72,52 @@
     <main>
       <section id="step-2">
         <h1 class="page-h1">Step 2 · Match Prep</h1>
-        <p class="goal"><strong>The pattern:</strong> a <code>SequentialAgent</code> runs its sub-agents in a fixed order, every time, with no model of its own. They hand work over through session state.</p>
+        <p class="goal"><strong>The pattern:</strong> a <code>SequentialAgent</code> runs its sub-agents in a fixed order, each time. It has no model. Each sub-agent gives its work to the next one through session state.</p>
         <figure class="arch" id="fig-step2-match-prep">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step2-match-prep.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step2-match-prep.svg" alt="Step 2: opponent_analyst, tactician and lineup_picker run in order inside a SequentialAgent, passing opponent_report and game_plan through session state" width="1300" height="620" loading="lazy"></a></div>
-          <figcaption>Three agents in a row. Each saves its answer with output_key; the next reads it with a placeholder. Tap to open full size.</figcaption>
+          <figcaption>Three agents in a row. Each agent saves its answer with output_key. The next agent reads it with a placeholder. Tap to open full size.</figcaption>
         </figure>
-        <p>The opponent analyst studies Gaziantep and writes a report. The tactician turns the report into a game plan. The lineup picker turns the plan into an XI. You write the middle one, and the line that chains them. ✏️ <strong>BLANK 2a</strong> · <code>steps/step2_match_prep/agent.py</code>:</p>
-        <span class="src blank"><b>✏️ BLANK 2a</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>    tactician = LlmAgent(
-        name=&quot;tactician&quot;,
-        model=MODEL,
-        instruction=&quot;&quot;&quot;
+        <p>The opponent analyst studies Gaziantep and writes a report. The tactician makes a game plan from the report. The lineup picker makes an XI from the plan. You write the tactician and the line that connects the three agents. ✏️ <strong>BLANK 2a</strong> · <code>steps/step2_match_prep/agent.py</code>:</p>
+        <span class="src blank" id="blank-2a"><b>✏️ BLANK 2a</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step2_match_prep/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</span><code>    <span class="tk-var">tactician</span> = <span class="tk-cls">LlmAgent</span>(
+        <span class="tk-var">name</span>=<span class="tk-str">&quot;tactician&quot;</span>,
+        <span class="tk-var">model</span>=<span class="tk-const">MODEL</span>,
+        <span class="tk-var">instruction</span>=<span class="tk-str">&quot;&quot;&quot;
 You are Trabzonspor&#x27;s tactician. Opponent report from the analyst:
-{opponent_report}
+<span class="tk-ph">{opponent_report}</span>
 
 Check our own form with get_team_trends(&quot;Trabzonspor&quot;), then write a game plan:
 formation, how we attack, how we defend, and what to do in each phase of the match.
-&quot;&quot;&quot; + HOUSE_RULES,
-        tools=[get_team_trends, get_match_info],
-        output_key=&quot;game_plan&quot;,
+&quot;&quot;&quot;</span> + <span class="tk-const">HOUSE_RULES</span>,
+        <span class="tk-var">tools</span>=[<span class="tk-var">get_team_trends</span>, <span class="tk-var">get_match_info</span>],
+        <span class="tk-var">output_key</span>=<span class="tk-str">&quot;game_plan&quot;</span>,
     )</code></pre></div>
-        <p>✏️ <strong>BLANK 2b</strong> · same file, at the end of <code>build_match_prep</code>:</p>
-        <span class="src blank"><b>✏️ BLANK 2b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>    return SequentialAgent(name=name, description=description, sub_agents=[opponent_analyst, tactician, lineup_picker])</code></pre></div>
-        <p><code>output_key=&quot;opponent_report&quot;</code> saves the analyst's final answer in session state. <code>{opponent_report}</code> in the tactician's instruction pastes it in before the tactician's model call. No glue code.</p>
-        <p><strong>Run it:</strong> pick <code>step2_match_prep</code> and ask <em>"Prepare Sunday's game plan."</em></p>
-        <p>Three agents in a row, about two minutes. The tactician, using the analyst's report:</p>
+        <p>✏️ <strong>BLANK 2b</strong> · the same file, at the end of <code>build_match_prep</code>:</p>
+        <span class="src blank" id="blank-2b"><b>✏️ BLANK 2b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step2_match_prep/</span></span></div><pre><span class="gutter" aria-hidden="true">1</span><code>    <span class="tk-ctl">return</span> <span class="tk-cls">SequentialAgent</span>(<span class="tk-var">name</span>=<span class="tk-var">name</span>, <span class="tk-var">description</span>=<span class="tk-var">description</span>, <span class="tk-var">sub_agents</span>=[<span class="tk-var">opponent_analyst</span>, <span class="tk-var">tactician</span>, <span class="tk-var">lineup_picker</span>])</code></pre></div>
+        <p><code>output_key=&quot;opponent_report&quot;</code> saves the final answer of the analyst in session state. Before the tactician calls the model, ADK puts this value into <code>{opponent_report}</code> in its instruction. You do not write code to connect the agents.</p>
+        <p><strong>Run it:</strong> In the dev UI, select <code>step2_match_prep</code>. Ask <em>"Prepare Sunday's game plan."</em></p>
+        <p>The three agents run in a row. This takes about two minutes. The tactician uses the report of the analyst:</p>
         <blockquote class="sample"><p><strong>Exploit High Conceding Windows:</strong> Gaziantep FK have conceded 67% of their goals in the second half (10 of 15 goals in their last 10 matches). Increase tempo immediately after half-time.</p></blockquote>
-        <p>And the lineup picker, after checking availability:</p>
+        <p>The lineup picker checks the availability and then selects the XI:</p>
         <blockquote class="sample"><p><strong>Formation: 4-1-4-1</strong> · André Onana; Wagner Pina, Stefan Savić, Chibuike Nwaiwu, Mustafa Eskihellaç; Fabinho; Mohamed Salah, Melih Kabasakal, Ernest Muçi, Noah Saviolo; Aral Şimşir.</p></blockquote>
-        <p>In an earlier run the lineup picker tried two names from its own memory that aren't in this squad. <code>get_player</code> answered <code>{&quot;error&quot;: &quot;No player called &#x27;Destan&#x27; in either squad.&quot;, ...}</code> and it moved on to real players: the error-instead-of-exception rule paying off.</p>
+        <p>In an earlier run, the lineup picker tried two player names from its memory. These players are not in this squad. <code>get_player</code> answered <code>{&quot;error&quot;: &quot;No player called &#x27;Destan&#x27; in either squad.&quot;, ...}</code>. Then the agent used real players. This is why the tools return errors and do not raise exceptions.</p>
         <!-- SCREENSHOT: adk web, step2_match_prep, the State tab showing opponent_report, game_plan and lineup -->
-        <p><strong>Use it when</strong> the steps are always the same and each needs the previous one's output: research, plan, act.</p>
-        <p><strong>Avoid it when</strong> the steps are independent (step 3 is faster) or the next step depends on what happened.</p>
-        <p><strong>The gotcha: <code>output_key</code> and placeholders are a contract.</strong> A <code>{placeholder}</code> with no value in state raises a <code>KeyError</code> before the model is called. Keep the names identical, and make sure the writer runs before the reader.</p>
+        <p><strong>Use it when</strong> the steps are always the same and each step needs the output of the step before it. Example: research, plan, act.</p>
+        <p><strong>Do not use it when</strong> the steps are independent. For independent steps, step 3 is faster. Also do not use it when the next step depends on a result.</p>
+        <p><strong>The gotcha: <code>output_key</code> and placeholders must agree.</strong> If a <code>{placeholder}</code> has no value in state, ADK raises a <code>KeyError</code> before the model call. Use the same names. Make sure that the agent that writes a value runs before the agent that reads it.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/step-1/">← 1 · Scout</a><a class="next" href="/workshops/match-day-agents/step-3/">3 · Scouting Dept →</a></nav>

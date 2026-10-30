@@ -72,23 +72,46 @@
     <main>
       <section id="step-1">
         <h1 class="page-h1">Step 1 · The Scout</h1>
-        <p class="goal"><strong>The pattern:</strong> a single <code>LlmAgent</code> is an instruction (who it is, how it works) plus tools (plain Python functions it can call).</p>
+        <p class="goal"><strong>The pattern:</strong> one <code>LlmAgent</code> has an instruction and tools. The instruction tells the agent who it is and how to work. The tools are Python functions that the agent can call.</p>
         <figure class="arch" id="fig-step1-scout">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step1-scout.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step1-scout.svg" alt="Step 1: the scout LlmAgent sends its instruction and tool schemas to Gemini, calls Python tools that read data, and answers with their numbers" width="1180" height="600" loading="lazy"></a></div>
-          <figcaption>One agent, five tools. Gemini decides which tool to call; Python does the work. Tap to open full size.</figcaption>
+          <figcaption>One agent with five tools. Gemini selects the tool to call. Python does the work. Tap to open full size.</figcaption>
         </figure>
-        <p>Here's the whole agent. ✏️ <strong>BLANK 1</strong> · paste it into <code>steps/step1_scout/agent.py</code>:</p>
-        <span class="src blank"><b>✏️ BLANK 1</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step1_scout/agent.py">steps/step1_scout/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>def build_scout(
-    name: str = &quot;scout&quot;,
-    description: str = &quot;Looks up players and team form: stats, availability, top performers, recent results.&quot;,
-    tools: list | None = None,
-) -&gt; LlmAgent:
-    return LlmAgent(
-        name=name,
-        model=MODEL,
-        description=description,
-        instruction=&quot;&quot;&quot;
+        <p>This is the full agent. ✏️ <strong>BLANK 1</strong> · paste it into <code>steps/step1_scout/agent.py</code>:</p>
+        <span class="src blank" id="blank-1"><b>✏️ BLANK 1</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step1_scout/agent.py">steps/step1_scout/agent.py</a></span>
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step1_scout/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24</span><code><span class="tk-kw">def</span> <span class="tk-fn">build_scout</span>(
+    <span class="tk-var">name</span>: <span class="tk-cls">str</span> = <span class="tk-str">&quot;scout&quot;</span>,
+    <span class="tk-var">description</span>: <span class="tk-cls">str</span> = <span class="tk-str">&quot;Looks up players and team form: stats, availability, top performers, recent results.&quot;</span>,
+    <span class="tk-var">tools</span>: <span class="tk-cls">list</span> | <span class="tk-kw">None</span> = <span class="tk-kw">None</span>,
+) -&gt; <span class="tk-cls">LlmAgent</span>:
+    <span class="tk-ctl">return</span> <span class="tk-cls">LlmAgent</span>(
+        <span class="tk-var">name</span>=<span class="tk-var">name</span>,
+        <span class="tk-var">model</span>=<span class="tk-const">MODEL</span>,
+        <span class="tk-var">description</span>=<span class="tk-var">description</span>,
+        <span class="tk-var">instruction</span>=<span class="tk-str">&quot;&quot;&quot;
 You are the scout on Trabzonspor&#x27;s analysis staff. &quot;We&quot; and &quot;us&quot; always mean Trabzonspor.
 Answer questions about players and teams.
 
@@ -97,31 +120,38 @@ How you work:
 2. &quot;In form&quot; means recent output and ratings: check top players by goals, assists and avg_rating.
 3. &quot;Who can&#x27;t play&quot; means the availability list: out and doubtful players with the reason.
 4. Name the player, then the numbers that back up your point.
-&quot;&quot;&quot; + HOUSE_RULES,
-        tools=tools or SCOUT_TOOLS,
+&quot;&quot;&quot;</span> + <span class="tk-const">HOUSE_RULES</span>,
+        <span class="tk-var">tools</span>=<span class="tk-var">tools</span> <span class="tk-kw">or</span> <span class="tk-const">SCOUT_TOOLS</span>,
     )
 
 
-root_agent = build_scout()</code></pre></div>
-        <p><code>HOUSE_RULES</code> comes from <code>config.py</code> and goes into every agent: answer in the user's language, and only use numbers from a tool. Type in Turkish and you get Turkish back. The agent is built by a function, <code>build_scout()</code>, which pays off in step 5.</p>
-        <p>ADK turns each tool's type hints and docstring into the schema the model sees, so the docstring is written for the model: it's all it knows about the tool. Inside, the tools do the counting, like the share of goals per 15-minute window:</p>
+<span class="tk-var">root_agent</span> = <span class="tk-fn">build_scout</span>()</code></pre></div>
+        <p><code>HOUSE_RULES</code> comes from <code>config.py</code>. Each agent gets these rules: answer in the language of the user, and use only numbers from a tool. If you write in Turkish, the agent answers in Turkish. A function, <code>build_scout()</code>, makes the agent. Step 5 shows why this is useful.</p>
+        <p>ADK makes the tool schema from the type hints and the docstring of each tool. The model sees only this schema, so write the docstring for the model. Inside the tools, Python does all the calculations. For example, this code calculates the share of goals in each 15-minute window:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/matchday/tools.py">matchday/tools.py</a></span>
-        <div class="code" data-lang="python"><pre><code>    t[&quot;goals_by_15min&quot;] = {
-        window: {
-            **g,
-            &quot;pct_of_goals_scored&quot;: round(100 * g[&quot;scored&quot;] / total_for) if total_for else NA,
-            &quot;pct_of_goals_conceded&quot;: round(100 * g[&quot;conceded&quot;] / total_against) if total_against else NA,
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>tools.py<span class="vsc-dir">matchday/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</span><code>    <span class="tk-var">t</span>[<span class="tk-str">&quot;goals_by_15min&quot;</span>] = {
+        <span class="tk-var">window</span>: {
+            **<span class="tk-var">g</span>,
+            <span class="tk-str">&quot;pct_of_goals_scored&quot;</span>: <span class="tk-fn">round</span>(<span class="tk-num">100</span> * <span class="tk-var">g</span>[<span class="tk-str">&quot;scored&quot;</span>] / <span class="tk-var">total_for</span>) <span class="tk-ctl">if</span> <span class="tk-var">total_for</span> <span class="tk-ctl">else</span> <span class="tk-const">NA</span>,
+            <span class="tk-str">&quot;pct_of_goals_conceded&quot;</span>: <span class="tk-fn">round</span>(<span class="tk-num">100</span> * <span class="tk-var">g</span>[<span class="tk-str">&quot;conceded&quot;</span>] / <span class="tk-var">total_against</span>) <span class="tk-ctl">if</span> <span class="tk-var">total_against</span> <span class="tk-ctl">else</span> <span class="tk-const">NA</span>,
         }
-        for window, g in t[&quot;goals_by_15min&quot;].items()
+        <span class="tk-ctl">for</span> <span class="tk-var">window</span>, <span class="tk-var">g</span> <span class="tk-kw">in</span> <span class="tk-var">t</span>[<span class="tk-str">&quot;goals_by_15min&quot;</span>].<span class="tk-fn">items</span>()
     }</code></pre></div>
-        <p>Name matching ignores Turkish and Polish letters (<code>simsir</code> finds Aral Şimşir), and bad input returns an error with suggestions instead of raising.</p>
-        <p><strong>Run it:</strong> save, pick <code>step1_scout</code> in the dev UI and ask <em>"Who's in form for us, and who can't play Sunday?"</em></p>
-        <p>In my run, the scout called <code>get_availability</code> once and <code>get_top_players</code> three times (goals, assists, avg_rating), then answered in 12 seconds. Trimmed:</p>
+        <p>The tools find names without Turkish or Polish letters: <code>simsir</code> finds Aral Şimşir. For bad input, a tool returns an error with suggestions. It does not raise an exception.</p>
+        <p><strong>Run it:</strong> Save the file. In the dev UI, select <code>step1_scout</code>. Ask <em>"Who's in form for us, and who can't play Sunday?"</em></p>
+        <p>In my run, the scout called <code>get_availability</code> one time and <code>get_top_players</code> three times (goals, assists, avg_rating). It answered in 12 seconds. A part of the answer:</p>
         <blockquote class="sample"><p><strong>In Form (Last 10 Matches)</strong></p><ul class="plain"><li><strong>Mohamed Salah</strong> (Available): 8 goals, 5 assists, and an 8.03 average rating in 10 matches (802 minutes).</li><li><strong>Ernest Muçi</strong> (Available): 2 goals, 5 assists, and a 7.14 average rating in 9 matches (549 minutes).</li><li><em>(Note: <strong>Franculino</strong> has also been in top form with 7 goals, 2 assists, and a 7.75 average rating in 8 matches / 545 minutes, but he is currently doubtful).</em> …</li></ul></blockquote>
         <!-- SCREENSHOT: adk web, step1_scout, the events panel showing the get_top_players and get_availability calls -->
-        <p><strong>Use it when</strong> one job needs a handful of tools and some judgement: a support bot, a data assistant, a code helper.</p>
-        <p><strong>Avoid it when</strong> the instruction grows into a long list of "first do this, then that". That's a workflow, and step 2 is for that.</p>
-        <p><strong>The gotcha: tools do the maths.</strong> Every number an agent states should come out of a tool. Give the model computed answers (<code>pct_of_goals_conceded: 33</code>), not raw rows to add up. My smoke script flags any number in an answer that appears in no tool result; step 5 shows what happens when you skip this.</p>
+        <p><strong>Use it when</strong> one job needs a small number of tools and some judgement. Examples: a support bot, a data assistant, a code helper.</p>
+        <p><strong>Do not use it when</strong> the instruction becomes a long list of "first do this, then do that". That is a workflow. Step 2 shows workflows.</p>
+        <p><strong>The gotcha: tools do the calculations.</strong> Each number from an agent must come from a tool. Give the model calculated answers (<code>pct_of_goals_conceded: 33</code>), not raw rows. My smoke script finds each number in an answer that is not in a tool result. Step 5 shows what happens when you ignore this rule.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/data/">← The data</a><a class="next" href="/workshops/match-day-agents/step-2/">2 · Match Prep →</a></nav>

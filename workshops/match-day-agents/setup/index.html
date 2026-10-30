@@ -72,26 +72,35 @@
     <main>
       <section id="setup">
         <h1 class="page-h1">Setup</h1>
-        <p>You need Python 3.11 or newer, <a href="https://docs.astral.sh/uv/">uv</a>, and a Gemini API key. The key is free at <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a>, no credit card needed.</p>
+        <p>You need Python 3.11 or newer, <a href="https://docs.astral.sh/uv/">uv</a>, and a Gemini API key. You can get a free key at <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a>. You do not need a credit card.</p>
         <div class="code" data-lang="bash"><pre>curl -LsSf https://astral.sh/uv/install.sh | sh   <span class="c">  # installs uv</span>
 git clone https://github.com/omarcevi/trabzonspor_analyst
 cd trabzonspor_analyst
 cp .env.example .env                               <span class="c">  # paste your key into .env</span>
 uv sync
 uv run adk web --reload_agents steps</pre></div>
-        <p>Open http://localhost:8000, pick a step from the dropdown and ask it something. The events panel shows every tool call and hand-off, and <code>--reload_agents</code> picks up a file as soon as you save it.</p>
+        <p>Open http://localhost:8000. Select a step in the dropdown and ask it a question. The events panel shows each tool call and each hand-off. With <code>--reload_agents</code>, ADK loads a file again when you save it.</p>
         <!-- SCREENSHOT: adk web with the app dropdown open, showing the six step folders -->
-        <p>The <code>.env</code> file holds your key, <code>GOOGLE_GENAI_USE_VERTEXAI=FALSE</code> (the free Gemini API, not Vertex AI) and <code>MODEL=gemini-3.8-flash</code>. The model is set in one place, <code>matchday/config.py</code>:</p>
+        <p><strong>Cloud Shell.</strong> You can also do the workshop in your browser, with nothing to install. Click <a href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/trabzonspor_analyst.git&amp;amp;cloudshell_git_branch=main&amp;amp;cloudshell_tutorial=tutorial.md&amp;amp;cloudshell_workspace=.&amp;amp;show=ide%2Cterminal">Open in Cloud Shell</a>. In the dialog, select <strong>Trust repo</strong> and click <strong>Confirm</strong>. Cloud Shell copies the repo and opens a tutorial panel next to the editor. The tutorial shows each step, and its links open the files and select each BLANK for you.</p>
+        <p>The <code>.env</code> file holds three values: your key, <code>GOOGLE_GENAI_USE_VERTEXAI=FALSE</code> and <code>MODEL=gemini-3.8-flash</code>. The second value selects the free Gemini API, not Vertex AI. The model name is in one place only, <code>matchday/config.py</code>:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/matchday/config.py">matchday/config.py</a></span>
-        <div class="code" data-lang="python"><pre><code>MODEL_NAME = os.getenv(&quot;MODEL&quot;, &quot;gemini-3.8-flash&quot;)
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>config.py<span class="vsc-dir">matchday/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</span><code><span class="tk-const">MODEL_NAME</span> = <span class="tk-var">os</span>.<span class="tk-fn">getenv</span>(<span class="tk-str">&quot;MODEL&quot;</span>, <span class="tk-str">&quot;gemini-3.8-flash&quot;</span>)
 
-# Free-tier keys hit rate limits when many agents run at once: retry 429s with backoff.
-MODEL = Gemini(
-    model=MODEL_NAME,
-    retry_options=types.HttpRetryOptions(attempts=5, initial_delay=2, max_delay=30),
+<span class="tk-com"># Free-tier keys hit rate limits when many agents run at once: retry 429s with backoff.</span>
+<span class="tk-const">MODEL</span> = <span class="tk-cls">Gemini</span>(
+    <span class="tk-var">model</span>=<span class="tk-const">MODEL_NAME</span>,
+    <span class="tk-var">retry_options</span>=<span class="tk-var">types</span>.<span class="tk-cls">HttpRetryOptions</span>(<span class="tk-var">attempts</span>=<span class="tk-num">5</span>, <span class="tk-var">initial_delay</span>=<span class="tk-num">2</span>, <span class="tk-var">max_delay</span>=<span class="tk-num">30</span>),
 )</code></pre></div>
-        <p>The retries matter more than they look: one question to step 5 can mean a few dozen model calls, and on a free key that hits a <code>429</code> now and then. If your laptop won't cooperate, <code>notebook/match_day_agents.ipynb</code> runs the same files in Colab, one cell per step.</p>
-        <p><strong>How the blanks work.</strong> On the repo's <code>main</code> branch, each step's key code is missing. In its place is a two-line ✏️ BLANK marker. When this guide shows a code block labelled ✏️ BLANK, select both marker lines in that file, paste the block over them, save, and run the step. Fell behind? <code>uv run python scripts/blanks.py fill 2a</code> pastes a blank for you, and the <code>demo</code> branch (<code>git switch demo</code>) has the whole team finished.</p>
+        <p>The retries are important. One question to step 5 can cause a few dozen model calls. On a free key, this sometimes causes a <code>429</code> error. If the setup does not work on your laptop, use <code>notebook/match_day_agents.ipynb</code> in Colab. It runs the same files, with one cell for each step.</p>
+        <p><strong>How to fill a blank.</strong> On the <code>main</code> branch, the key code of each step is missing. A one-line ✏️ BLANK marker is in its place. When the guide shows a code block with a ✏️ BLANK label, do these steps:</p>
+        <ol class="plain"><li>Copy the code block with its copy button.</li><li>In the file, select the BLANK line.</li><li>Paste the code over it.</li><li>Save the file.</li><li>Run the step.</li></ol>
+        <p>If you are late, run <code>uv run python scripts/blanks.py fill 2a</code>. This command pastes the code for BLANK 2a. The <code>demo</code> branch has the full agent team. To see it, run <code>git switch demo</code>.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/">← Overview</a><a class="next" href="/workshops/match-day-agents/data/">The data →</a></nav>

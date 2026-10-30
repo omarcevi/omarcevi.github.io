@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Building Trabzonspor&#x27;s AI Analysis Room · Omar Elcircevi</title>
-  <meta name="description" content="Agent recipes with Google&#x27;s Agent Development Kit. Build a football analysis staff out of one agent, a sequential team, a parallel team, a review loop and an orchestrator, all working on real Trabzonspor data.">
+  <meta name="description" content="Agent recipes with Google&#x27;s Agent Development Kit. You build a football analysis staff from one agent, a sequential team, a parallel team, a review loop and an orchestrator. All of them use real Trabzonspor data.">
   <link rel="canonical" href="https://omarcevi.dev/workshops/match-day-agents/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Building Trabzonspor&#x27;s AI Analysis Room">
-  <meta property="og:description" content="Agent recipes with Google&#x27;s Agent Development Kit. Build a football analysis staff out of one agent, a sequential team, a parallel team, a review loop and an orchestrator, all working on real Trabzonspor data.">
+  <meta property="og:description" content="Agent recipes with Google&#x27;s Agent Development Kit. You build a football analysis staff from one agent, a sequential team, a parallel team, a review loop and an orchestrator. All of them use real Trabzonspor data.">
   <meta property="og:url" content="https://omarcevi.dev/workshops/match-day-agents/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -71,25 +71,26 @@
 
     <main>
       <header class="hero" id="overview">
-        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i></span>DevFest Trabzon 2026 · Workshop guide · about 16 minutes to read</p>
+        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i></span>DevFest Trabzon 2026 · Workshop guide · about 18 minutes to read</p>
         <h1>Building Trabzonspor&#x27;s AI Analysis Room</h1>
         <p class="part-of">The written version of the 90-minute hands-on workshop by <em>Omar Elcircevi</em></p>
-        <p class="tagline">Agent recipes with Google&#x27;s Agent Development Kit. Build a football analysis staff out of one agent, a sequential team, a parallel team, a review loop and an orchestrator, all working on real Trabzonspor data.</p>
+        <p class="tagline">Agent recipes with Google&#x27;s Agent Development Kit. You build a football analysis staff from one agent, a sequential team, a parallel team, a review loop and an orchestrator. All of them use real Trabzonspor data.</p>
         <div class="actions">
           <a class="btn primary" href="/workshops/match-day-agents/setup/">Start with the setup</a>
+          <a class="btn" href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/trabzonspor_analyst.git&amp;cloudshell_git_branch=main&amp;cloudshell_tutorial=tutorial.md&amp;cloudshell_workspace=.&amp;show=ide%2Cterminal">Open in Cloud Shell</a>
           <a class="btn" href="https://github.com/omarcevi/trabzonspor_analyst">Code on GitHub</a>
           <a class="btn" href="https://colab.research.google.com/github/omarcevi/trabzonspor_analyst/blob/main/notebook/match_day_agents.ipynb">Open in Colab</a>
         </div>
       </header>
 
       <div class="intro">
-        <p>It's Saturday night. Trabzonspor host Gaziantep FK tomorrow, Sunday 1 November 2026, 16:00 Istanbul time, in Round 10 of the Süper Lig. You're the club's new analysis staff, and the coaches want a briefing by morning: who the opponent is, how we play them, who starts, and what could go wrong.</p>
-        <p>You're going to build that staff out of agents. Each step adds one staff member, and each one is an agent pattern you'll keep using long after this match:</p>
-        <ol class="plain"><li><strong>The Scout:</strong> one agent with tools.</li><li><strong>Match Prep:</strong> agents that run in a fixed order.</li><li><strong>Scouting Department:</strong> agents that run at the same time.</li><li><strong>Tribün:</strong> two agents in a loop, one proposing, one criticising.</li><li><strong>Technical Director:</strong> an agent that delegates to all the others.</li></ol>
-        <p>It all runs on Google's <a href="https://adk.dev">Agent Development Kit</a> (ADK) for Python, a free Gemini API key, and real data from both teams' last ten matches. I ran this as a workshop at DevFest Trabzon 2026; this guide is for everyone who wasn't in the room.</p>
+        <p>It is Saturday night. Tomorrow, Sunday 1 November 2026, Trabzonspor play Gaziantep FK at home. Kick-off is at 16:00, Istanbul time, in Round 10 of the Süper Lig. You are the new analysis staff of the club. The coaches want a briefing by the morning. It must tell them who the opponent is, how we play them, who starts, and what can go wrong.</p>
+        <p>You will build this staff from agents. Each step adds one staff member. Each staff member is an agent pattern that you can use again after this match:</p>
+        <ol class="plain"><li><strong>The Scout:</strong> one agent with tools.</li><li><strong>Match Prep:</strong> agents that run in a fixed order.</li><li><strong>Scouting Department:</strong> agents that run at the same time.</li><li><strong>Tribün:</strong> two agents in a loop: one proposes, one criticises.</li><li><strong>Technical Director:</strong> an agent that delegates to all the others.</li></ol>
+        <p>Everything runs on Google's <a href="https://adk.dev">Agent Development Kit</a> (ADK) for Python and a free Gemini API key. The data comes from the last ten matches of both teams. I gave this workshop at DevFest Trabzon 2026. This guide is for the people who were not in the room.</p>
         <figure class="arch" id="fig-overview">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/overview.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/overview.svg" alt="The whole staff: the Technical Director calls four teams as tools; every team calls plain Python tools that read the data" width="1320" height="870" loading="lazy"></a></div>
-          <figcaption>The whole staff you'll have by the end. Every box with the ADK logo is an agent. Tap to open full size.</figcaption>
+          <figcaption>The full staff at the end of the guide. Each box with the ADK logo is an agent. Tap to open full size.</figcaption>
         </figure>
       </div>
 
