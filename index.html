@@ -240,11 +240,15 @@
     .hero-photo img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--border); }
     .hero-photo .cap { margin-top: 0.55rem; }
     /* the photo under its forward-diffusion canvas (assets/photo-noise.js); the img stays for no-JS and for its alt.
-       It hides only while the canvas takes over, and CSS alone shows it again if the script never runs */
+       It hides only while the canvas takes over, and CSS alone shows it again if the script never runs.
+       An inline script fills the canvas with noise at the first paint; photo-noise.js adds .on when it takes the
+       canvas over, and without .on the canvas (and its noise) goes after 4 s, so a script that never runs leaves the photo */
     .pn-frame { position: relative; }
     .pn-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 14px; border: 1px solid var(--border); touch-action: pan-y; cursor: crosshair; }
     .js .pn-frame img { visibility: hidden; animation: pn-reveal 0s 1.5s forwards; }
     @keyframes pn-reveal { to { visibility: visible; } }
+    .js .pn-frame canvas:not(.on) { animation: pn-off 0s 4s forwards; }
+    @keyframes pn-off { to { visibility: hidden; } }
     .pn-info { margin-top: 0.45rem; }
     .pn-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
     .pn-eq math { font-size: 1.05rem; color: var(--text); }
@@ -914,6 +918,16 @@
           <div class="pn-frame">
             <img src="assets/photos/omar-gdd-istanbul.jpg" width="720" height="900" decoding="async" fetchpriority="high" alt="Omar Elcircevi speaking at Google for Developers Day Istanbul">
             <canvas id="pn" class="js-only" width="720" height="900" aria-hidden="true"></canvas>
+            <script>
+            // Noise from the first paint, so the photo never shows before its load-in: photo-noise.js is deferred
+            (function (c) {
+              if (matchMedia('(prefers-reduced-motion: reduce)').matches || !c.getContext || !window.crypto) return;
+              var ctx = c.getContext('2d'), d = ctx.createImageData(c.width, c.height), u = new Uint32Array(d.data.buffer), i;
+              for (i = 0; i < u.length; i += 16384) crypto.getRandomValues(u.subarray(i, i + 16384));
+              for (i = 0; i < u.length; i++) u[i] |= 0xff000000; // opaque: alpha is the high byte of little-endian RGBA
+              ctx.putImageData(d, 0, 0);
+            })(document.getElementById('pn'));
+            </script>
           </div>
           <figcaption class="cap">Google for Developers Day Istanbul
             <div class="pn-info js-only">
@@ -2200,9 +2214,9 @@
     })();
   })();
   </script>
+  <script src="assets/photo-noise.js" defer></script>
   <script src="assets/sim-engine.js" defer></script>
   <script src="assets/sim.js" defer></script>
   <script src="assets/speaking.js" defer></script>
-  <script src="assets/photo-noise.js" defer></script>
 </body>
 </html>

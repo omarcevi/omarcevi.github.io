@@ -109,7 +109,7 @@
   }
 
   var T = 1000, STEPS = 50, SEED = 42;
-  var HOLD_MS = 350, STEP_MS = 55;              // pure noise first, then 50 steps: about 3 s in all
+  var HOLD_MS = 200, STEP_MS = 24;              // pure noise first, then 50 steps: about 1.4 s in all
   var BRUSH_R = 110, BRUSH_PEAK = 800, HEAL_PER_MS = 0.85; // in image pixels; a patch heals in about a second
 
   function initPhotoNoise(doc) {
@@ -120,6 +120,8 @@
     var win = doc.defaultView, W = cv.width, H = cv.height, N = W * H;
     var reduce = win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var hint = win.matchMedia && win.matchMedia('(hover: hover)').matches ? 'hover to add noise' : 'drag to add noise';
+    // index.html's CSS takes the canvas away after 4 s unless it has .on: if that happened, the photo is up already
+    var late = win.getComputedStyle(cv).visibility === 'hidden';
 
     var abar = cosineAlphasCumprod(T), SA = new Float32Array(T), SB = new Float32Array(T);
     for (var t = 0; t < T; t++) { SA[t] = Math.sqrt(abar[t]); SB[t] = Math.sqrt(1 - abar[t]); }
@@ -145,11 +147,12 @@
     function intro() {
       state = 'intro'; replay.disabled = true;
       tmap.fill(0); box = null;
-      var k = -1, last = performance.now();
+      var k = -1, due = -1;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(function tick(now) {
-        if (src && now - last >= (k < 0 ? HOLD_MS : STEP_MS)) { // one step per frame, so a hidden tab picks up where it left off
-          k++; last = now;
+        if (!src || due < 0) due = now + HOLD_MS;   // pure noise until the photo is here, then HOLD_MS more
+        else if (now >= due) {                       // STEP_MS apart on average, but one step per frame at most,
+          k++; due = Math.max(due + STEP_MS, now);   // so a hidden tab picks up where it left off
           if (k === STEPS) { ctx.putImageData(src, 0, 0); ready(); return; }
           var ts = steps[k];
           noiseImage(src.data, eps, SA[ts], SB[ts], out.data);
@@ -196,15 +199,18 @@
     replay.addEventListener('click', function () { cancelAnimationFrame(raf); noiseFrame(); intro(); });
 
     function take() {
-      try {
-        ctx.drawImage(img, 0, 0, W, H);
-        src = ctx.getImageData(0, 0, W, H);
+      try {                                        // off screen: the photo must not flash on the canvas
+        var off = doc.createElement('canvas'), octx = off.getContext('2d');
+        off.width = W; off.height = H;
+        octx.drawImage(img, 0, 0, W, H);
+        src = octx.getImageData(0, 0, W, H);
       } catch (e) { fail(); return; }
       img.style.visibility = 'visible';           // under the canvas, for anything that reads the photo
-      if (reduce) { ctx.putImageData(src, 0, 0); ready(); }
+      if (reduce || late) { ctx.putImageData(src, 0, 0); cv.classList.add('on'); ready(); }
     }
 
-    if (!reduce) { noiseFrame(); intro(); }        // intro waits for src
+    if (!late) cv.classList.add('on');
+    if (!reduce && !late) { noiseFrame(); intro(); } // intro waits for src
     if (img.complete && img.naturalWidth) take();
     else { img.addEventListener('load', take); img.addEventListener('error', fail); }
 

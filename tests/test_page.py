@@ -111,12 +111,29 @@ class Hero(unittest.TestCase):
         scripts = [s for s in find_all(self.doc, "script") if s.attrs.get("src") == "assets/photo-noise.js"]
         self.assertEqual(len(scripts), 1)
         self.assertIn("defer", scripts[0].attrs)
+        # deferred scripts run in order: the photo's goes first, not behind the simulator's 170 KB
+        deferred = [s.attrs.get("src") for s in find_all(self.doc, "script") if "defer" in s.attrs]
+        self.assertEqual(deferred[0], "assets/photo-noise.js")
+
+    def test_photo_starts_as_noise(self):
+        # an inline script right after the canvas fills it with noise at the first paint, so the photo
+        # never shows before its load-in; not for reduced motion, where the photo just shows
+        frame = find_all(self.doc, cls="pn-frame")[0]
+        inline = find_all(frame, "script")
+        self.assertEqual(len(inline), 1)
+        code = "".join(c.data for c in inline[0].children)  # text() skips script bodies
+        self.assertIn("document.getElementById('pn')", code)
+        self.assertIn("prefers-reduced-motion: reduce", code)
+        self.assertIn("getRandomValues", code)
 
     def test_photo_shows_without_the_script(self):
         # hidden only while the canvas takes over, revealed by CSS alone if the script never runs,
         # and never hidden for reduced motion
         self.assertIn(".js .pn-frame img { visibility: hidden; animation: pn-reveal 0s 1.5s forwards; }", self.html)
         self.assertIn("@keyframes pn-reveal { to { visibility: visible; } }", self.html)
+        # the canvas, with its first-paint noise, goes after 4 s unless photo-noise.js has taken it over (.on)
+        self.assertIn(".js .pn-frame canvas:not(.on) { animation: pn-off 0s 4s forwards; }", self.html)
+        self.assertIn("@keyframes pn-off { to { visibility: hidden; } }", self.html)
         motion = re.search(r"@media \(prefers-reduced-motion: reduce\) \{(.*?)\n    \}", self.html, re.S)
         self.assertIn(".js .pn-frame img { visibility: visible; animation: none; }", motion.group(1))
 
