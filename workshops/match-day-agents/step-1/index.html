@@ -77,8 +77,8 @@
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step1-scout.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step1-scout.svg" alt="Step 1: the scout LlmAgent sends its instruction and tool schemas to Gemini, calls Python tools that read data, and answers with their numbers" width="1180" height="600" loading="lazy"></a></div>
           <figcaption>One agent, five tools. Gemini decides which tool to call; Python does the work. Tap to open full size.</figcaption>
         </figure>
-        <p>Here's the whole agent:</p>
-        <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step1_scout/agent.py">steps/step1_scout/agent.py</a></span>
+        <p>Here's the whole agent. ✏️ <strong>BLANK 1</strong> · paste it into <code>steps/step1_scout/agent.py</code>:</p>
+        <span class="src blank"><b>✏️ BLANK 1</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step1_scout/agent.py">steps/step1_scout/agent.py</a></span>
         <div class="code" data-lang="python"><pre><code>def build_scout(
     name: str = &quot;scout&quot;,
     description: str = &quot;Looks up players and team form: stats, availability, top performers, recent results.&quot;,
@@ -115,8 +115,8 @@ root_agent = build_scout()</code></pre></div>
         for window, g in t[&quot;goals_by_15min&quot;].items()
     }</code></pre></div>
         <p>Name matching ignores Turkish and Polish letters (<code>simsir</code> finds Aral Şimşir), and bad input returns an error with suggestions instead of raising.</p>
-        <p>I asked: <em>"Who's in form for us, and who can't play Sunday?"</em></p>
-        <p>The scout called <code>get_availability</code> once and <code>get_top_players</code> three times (goals, assists, avg_rating), then answered in 12 seconds. Trimmed:</p>
+        <p><strong>Run it:</strong> save, pick <code>step1_scout</code> in the dev UI and ask <em>"Who's in form for us, and who can't play Sunday?"</em></p>
+        <p>In my run, the scout called <code>get_availability</code> once and <code>get_top_players</code> three times (goals, assists, avg_rating), then answered in 12 seconds. Trimmed:</p>
         <blockquote class="sample"><p><strong>In Form (Last 10 Matches)</strong></p><ul class="plain"><li><strong>Mohamed Salah</strong> (Available): 8 goals, 5 assists, and an 8.03 average rating in 10 matches (802 minutes).</li><li><strong>Ernest Muçi</strong> (Available): 2 goals, 5 assists, and a 7.14 average rating in 9 matches (549 minutes).</li><li><em>(Note: <strong>Franculino</strong> has also been in top form with 7 goals, 2 assists, and a 7.75 average rating in 8 matches / 545 minutes, but he is currently doubtful).</em> …</li></ul></blockquote>
         <!-- SCREENSHOT: adk web, step1_scout, the events panel showing the get_top_players and get_availability calls -->
         <p><strong>Use it when</strong> one job needs a handful of tools and some judgement: a support bot, a data assistant, a code helper.</p>

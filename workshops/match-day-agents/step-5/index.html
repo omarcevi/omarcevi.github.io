@@ -77,8 +77,8 @@
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step5-technical-director.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step5-technical-director.svg" alt="Step 5: technical_director calls four teams wrapped in AgentTool, scout, match_prep, scouting_department and tribun_review, picking each by its description, plus three direct data tools" width="1300" height="700" loading="lazy"></a></div>
           <figcaption>The director chooses a team by its description, calls it like a function and gets its answer back. Tap to open full size.</figcaption>
         </figure>
-        <p>The director's tools are the teams from steps 1 to 4, each wrapped in an <code>AgentTool</code>, plus three data tools:</p>
-        <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step5_technical_director/agent.py">steps/step5_technical_director/agent.py</a></span>
+        <p>The director's tools are the teams from steps 1 to 4, each wrapped in an <code>AgentTool</code>, plus three data tools. ✏️ <strong>BLANK 5a</strong> · the descriptions, in <code>steps/step5_technical_director/agent.py</code>:</p>
+        <span class="src blank"><b>✏️ BLANK 5a</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step5_technical_director/agent.py">steps/step5_technical_director/agent.py</a></span>
         <div class="code" data-lang="python"><pre><code># Delegation is driven by these descriptions: they are all the director knows about each team.
 SCOUT = &quot;Answers questions about ONE player or ONE team: form, minutes, goals, ratings, availability.&quot;
 MATCH_PREP = &quot;Writes Sunday&#x27;s game plan: opponent analysis, then tactics, then an XI of available players.&quot;
@@ -87,17 +87,16 @@ TRIBUN = &quot;Picks a final XI and has the home crowd stress-test it. Only when
 # Try it live: uncomment these, ask the same questions again, and watch the routing go wrong.
 # SCOUT = &quot;Helps with football.&quot;
 # SCOUTING_DEPT = &quot;Also helps with football.&quot;</code></pre></div>
-        <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step5_technical_director/agent.py">steps/step5_technical_director/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>        tools=[
-            AgentTool(build_scout(description=SCOUT)),
-            AgentTool(build_match_prep(description=MATCH_PREP)),
-            AgentTool(build_scouting_department(description=SCOUTING_DEPT)),
-            AgentTool(build_tribun(description=TRIBUN)),
-            get_fixtures,
-            get_standings,
-            project_table,
-        ],</code></pre></div>
-        <p>Three questions show the range. First: <em>"Should we rest Salah for Freiburg on Thursday?"</em></p>
+        <p>✏️ <strong>BLANK 5b</strong> · same file, at the top of <code>build_technical_director</code>:</p>
+        <span class="src blank"><b>✏️ BLANK 5b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step5_technical_director/agent.py">steps/step5_technical_director/agent.py</a></span>
+        <div class="code" data-lang="python"><pre><code>    # Each team becomes a tool: the director calls it like a function and gets its answer back.
+    teams = [
+        AgentTool(build_scout(description=SCOUT)),
+        AgentTool(build_match_prep(description=MATCH_PREP)),
+        AgentTool(build_scouting_department(description=SCOUTING_DEPT)),
+        AgentTool(build_tribun(description=TRIBUN)),
+    ]</code></pre></div>
+        <p><strong>Run it:</strong> pick <code>step5_technical_director</code> and try three questions that show the range. First: <em>"Should we rest Salah for Freiburg on Thursday?"</em></p>
         <p>The director called the scout and <code>get_fixtures</code>, then wrote (trimmed):</p>
         <blockquote class="sample"><ul class="plain"><li><strong>4 days of rest</strong> between Gaziantep FK and Freiburg (H, Nov 5).</li><li><strong>Verdict:</strong> A full benching on Sunday is unnecessary given the 4-day recovery window ahead of Thursday's match. … start Salah against Gaziantep FK and withdraw him around the 60-minute mark once the match is secured.</li></ul></blockquote>
         <p>Then: <em>"If we win 2-0, where do we stand?"</em></p>

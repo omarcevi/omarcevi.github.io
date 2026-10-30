@@ -10,7 +10,8 @@ pages, one per part of the guide, with the same look and navigation as workshops
 
 Only the Markdown the guide uses is supported: headings, paragraphs, lists (one nested level),
 blockquotes, tables, fenced code, linked images with a caption line, and HTML comments
-(<!-- source: path --> labels the next code block; other comments are kept as they are).
+(<!-- source: path --> labels the next code block, <!-- source: path blank: ID --> marks it as the code
+for a BLANK on the repo's main branch; other comments are kept as they are).
 """
 
 from __future__ import annotations
@@ -68,8 +69,10 @@ EXTRA_CSS = """
     .page-h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin-bottom: .9rem; }
     .src { display: block; font-family: var(--mono); font-size: .72rem; color: var(--faint); margin: 1.2rem 0 .3rem; }
     .src a { text-decoration: none; color: var(--faint); } .src a:hover { color: var(--accent); }
+    .src.blank b { color: var(--ts-ink); font-weight: 600; }
     .code { margin: .3rem 0 1rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
+    .code pre { padding-top: 2.4rem; }   /* the copy button gets its own row, so long or one-line code never runs under it */
     blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
     blockquote.sample::before { content: "agent output"; display: block; font-family: var(--mono); font-size: .68rem;
@@ -129,10 +132,15 @@ def figure(line: str, caption: str, images: Path) -> str:
             f'width="{w}" height="{h}" loading="lazy"></a></div>{cap}\n        </figure>')
 
 
-def code_block(lang: str, body: str, source: str | None) -> str:
+def code_block(lang: str, body: str, source: tuple[str, str | None] | None) -> str:
     label = ""
     if source:
-        label = f'<span class="src"><a href="{REPO}/blob/main/{source}">{html.escape(source)}</a></span>\n        '
+        path, blank = source
+        if blank:   # code participants paste over a BLANK on the main branch; the link shows the finished file
+            label = (f'<span class="src blank"><b>✏️ BLANK {html.escape(blank)}</b> · '
+                     f'<a href="{REPO}/blob/demo/{path}">{html.escape(path)}</a></span>\n        ')
+        else:
+            label = f'<span class="src"><a href="{REPO}/blob/main/{path}">{html.escape(path)}</a></span>\n        '
     if lang == "bash":   # shell lines: comments greyed and left out of the copy
         rows = []
         for line in body.split("\n"):
@@ -187,9 +195,9 @@ def blocks(md: str, images: Path) -> list[str]:
             source = None
             i += 1
         elif line.startswith("<!--"):
-            m = re.match(r"<!-- source: (\S+) -->", line)
+            m = re.match(r"<!-- source: (\S+)(?: blank: (\w+))? -->", line)
             if m:
-                source = m.group(1)
+                source = (m.group(1), m.group(2))
             else:
                 out.append(line.strip())
             i += 1
