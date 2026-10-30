@@ -29,7 +29,7 @@ OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/trabzonspor_analyst"
 COLAB = "https://colab.research.google.com/github/omarcevi/trabzonspor_analyst/blob/main/notebook/match_day_agents.ipynb"
 EVENT = "Recipes for Your Agent Systems"
-GUIDE_SHORT = "Match Day Agents"
+GUIDE_SHORT = "Trabzonspor's AI Analysis Room"
 CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"   # the multi-page guide styles
 
 # (slug, name in the side index, the guide's ## headings on this page, one-line description)
