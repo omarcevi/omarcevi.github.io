@@ -27,11 +27,13 @@ nothing on the site changes, and GitHub emails you the reason.
 - format: in person
 
 ## Recipes for Your Agent Systems
-- type: talk
+- type: workshop
 - event: DevFest Trabzon 2026
 - date: 2026-10-31
 - place: Trabzon, Prof. Dr. Osman Turan Congress Center, KTÜ
 - link: https://gdg.community.dev/events/details/google-gdg-trabzon-presents-devfest-trabzon-2026/
+- guide: /workshops/match-day-agents/
+- repo: https://github.com/omarcevi/trabzonspor_analyst
 - format: in person
 
 ## Deploying your agents on Google Cloud Agent Platform
