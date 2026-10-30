@@ -77,8 +77,8 @@
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step3-scouting-dept.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step3-scouting-dept.svg" alt="Step 3: inside a SequentialAgent, a ParallelAgent runs attack_scout, defense_scout and discipline_scout at once, then report_writer merges attack_report, defense_report and discipline_report" width="1310" height="740" loading="lazy"></a></div>
           <figcaption>Three scouts at once, one writer after. Tap to open full size.</figcaption>
         </figure>
-        <p>One scout covers Gaziantep's attack, one their defence, one cards and the referee. None needs the others' work, so there's no reason to wait:</p>
-        <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step3_scouting_dept/agent.py">steps/step3_scouting_dept/agent.py</a></span>
+        <p>One scout covers Gaziantep's attack, one their defence, one cards and the referee. None needs the others' work, so there's no reason to wait. The scouts are already in the file; you add the writer and wire them up. ✏️ <strong>BLANK 3</strong> · <code>steps/step3_scouting_dept/agent.py</code>:</p>
+        <span class="src blank"><b>✏️ BLANK 3</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step3_scouting_dept/agent.py">steps/step3_scouting_dept/agent.py</a></span>
         <div class="code" data-lang="python"><pre><code>    report_writer = LlmAgent(
         name=&quot;report_writer&quot;,
         model=MODEL,
@@ -93,7 +93,7 @@ Use only facts from the reports; if they disagree, say so.&quot;&quot;&quot; + H
     scouts = ParallelAgent(name=&quot;scouts&quot;, sub_agents=[attack_scout, defense_scout, discipline_scout])
     return SequentialAgent(name=name, description=description, sub_agents=[scouts, report_writer])</code></pre></div>
         <p>The scouts' instructions don't name the opponent; each starts with <code>get_match_info</code> to find out. No instruction in this repo hardcodes a fact from the data, so a new fixture is just new JSON.</p>
-        <p>I asked: <em>"Scout Gaziantep for us."</em></p>
+        <p><strong>Run it:</strong> pick <code>step3_scouting_dept</code> and ask <em>"Scout Gaziantep for us."</em></p>
         <p>The three scouts made ten tool calls between them, all at once, and the writer merged their reports in 43 seconds. From the brief, trimmed:</p>
         <blockquote class="sample"><p><strong>Weaknesses to Attack</strong></p><ul class="plain"><li><strong>Second-half defensive collapse</strong> (last 10 matches – 15 goals conceded, 1.5 avg, 1.63 avg xGA across 9 matches with xG data):<ul><li><strong>10 of 15 goals conceded (67%)</strong> came in the second half.</li><li>Vulnerability peaks heavily in <strong>46–60 min</strong> (4 conceded, 27%) and <strong>76–90 min</strong> (5 conceded, 33%).</li></ul></li></ul><p><strong>Three Key Takeaways</strong></p><ol class="plain"><li><strong>Exploit the decimated backline:</strong> Gaziantep's defensive anchor Myenty Abena is suspended, while starting goalkeeper Kacper Tobiasz and three central defenders (Meleke, Kızıldağ, Sangaré) are doubtful with muscle injuries. …</li></ol></blockquote>
         <p><strong>Use it when</strong> you have independent questions about the same thing: three searches, three reviewers, three data sources.</p>
