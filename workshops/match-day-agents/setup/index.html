@@ -81,6 +81,7 @@ uv sync
 uv run adk web --reload_agents steps</pre></div>
         <p>Open http://localhost:8000. Select a step in the dropdown and ask it a question. The events panel shows each tool call and each hand-off. With <code>--reload_agents</code>, ADK loads a file again when you save it.</p>
         <!-- SCREENSHOT: adk web with the app dropdown open, showing the six step folders -->
+        <p><strong>Cloud Shell.</strong> You can also do the workshop in your browser, with nothing to install. Click <a href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/trabzonspor_analyst.git&amp;amp;cloudshell_git_branch=main&amp;amp;cloudshell_tutorial=tutorial.md&amp;amp;cloudshell_workspace=.&amp;amp;show=ide%2Cterminal">Open in Cloud Shell</a>. In the dialog, select <strong>Trust repo</strong> and click <strong>Confirm</strong>. Cloud Shell copies the repo and opens a tutorial panel next to the editor. The tutorial shows each step, and its links open the files and select each BLANK for you.</p>
         <p>The <code>.env</code> file holds three values: your key, <code>GOOGLE_GENAI_USE_VERTEXAI=FALSE</code> and <code>MODEL=gemini-3.8-flash</code>. The second value selects the free Gemini API, not Vertex AI. The model name is in one place only, <code>matchday/config.py</code>:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/matchday/config.py">matchday/config.py</a></span>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>config.py<span class="vsc-dir">matchday/</span></span></div><pre><span class="gutter" aria-hidden="true">1
@@ -97,8 +98,8 @@ uv run adk web --reload_agents steps</pre></div>
     <span class="tk-var">retry_options</span>=<span class="tk-var">types</span>.<span class="tk-cls">HttpRetryOptions</span>(<span class="tk-var">attempts</span>=<span class="tk-num">5</span>, <span class="tk-var">initial_delay</span>=<span class="tk-num">2</span>, <span class="tk-var">max_delay</span>=<span class="tk-num">30</span>),
 )</code></pre></div>
         <p>The retries are important. One question to step 5 can cause a few dozen model calls. On a free key, this sometimes causes a <code>429</code> error. If the setup does not work on your laptop, use <code>notebook/match_day_agents.ipynb</code> in Colab. It runs the same files, with one cell for each step.</p>
-        <p><strong>How to fill a blank.</strong> On the <code>main</code> branch, the key code of each step is missing. A two-line ✏️ BLANK marker is in its place. When the guide shows a code block with a ✏️ BLANK label, do these steps:</p>
-        <ol class="plain"><li>Copy the code block with its copy button.</li><li>In the file, select the two marker lines.</li><li>Paste the code over them.</li><li>Save the file.</li><li>Run the step.</li></ol>
+        <p><strong>How to fill a blank.</strong> On the <code>main</code> branch, the key code of each step is missing. A one-line ✏️ BLANK marker is in its place. When the guide shows a code block with a ✏️ BLANK label, do these steps:</p>
+        <ol class="plain"><li>Copy the code block with its copy button.</li><li>In the file, select the BLANK line.</li><li>Paste the code over it.</li><li>Save the file.</li><li>Run the step.</li></ol>
         <p>If you are late, run <code>uv run python scripts/blanks.py fill 2a</code>. This command pastes the code for BLANK 2a. The <code>demo</code> branch has the full agent team. To see it, run <code>git switch demo</code>.</p>
       </section>
 

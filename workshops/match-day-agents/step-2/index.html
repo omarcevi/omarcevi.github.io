@@ -78,7 +78,7 @@
           <figcaption>Three agents in a row. Each agent saves its answer with output_key. The next agent reads it with a placeholder. Tap to open full size.</figcaption>
         </figure>
         <p>The opponent analyst studies Gaziantep and writes a report. The tactician makes a game plan from the report. The lineup picker makes an XI from the plan. You write the tactician and the line that connects the three agents. ✏️ <strong>BLANK 2a</strong> · <code>steps/step2_match_prep/agent.py</code>:</p>
-        <span class="src blank"><b>✏️ BLANK 2a</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
+        <span class="src blank" id="blank-2a"><b>✏️ BLANK 2a</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step2_match_prep/</span></span></div><pre><span class="gutter" aria-hidden="true">1
 2
 3
@@ -105,7 +105,7 @@ formation, how we attack, how we defend, and what to do in each phase of the mat
         <span class="tk-var">output_key</span>=<span class="tk-str">&quot;game_plan&quot;</span>,
     )</code></pre></div>
         <p>✏️ <strong>BLANK 2b</strong> · the same file, at the end of <code>build_match_prep</code>:</p>
-        <span class="src blank"><b>✏️ BLANK 2b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
+        <span class="src blank" id="blank-2b"><b>✏️ BLANK 2b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step2_match_prep/</span></span></div><pre><span class="gutter" aria-hidden="true">1</span><code>    <span class="tk-ctl">return</span> <span class="tk-cls">SequentialAgent</span>(<span class="tk-var">name</span>=<span class="tk-var">name</span>, <span class="tk-var">description</span>=<span class="tk-var">description</span>, <span class="tk-var">sub_agents</span>=[<span class="tk-var">opponent_analyst</span>, <span class="tk-var">tactician</span>, <span class="tk-var">lineup_picker</span>])</code></pre></div>
         <p><code>output_key=&quot;opponent_report&quot;</code> saves the final answer of the analyst in session state. Before the tactician calls the model, ADK puts this value into <code>{opponent_report}</code> in its instruction. You do not write code to connect the agents.</p>
         <p><strong>Run it:</strong> In the dev UI, select <code>step2_match_prep</code>. Ask <em>"Prepare Sunday's game plan."</em></p>

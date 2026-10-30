@@ -32,6 +32,8 @@ BASE = f"/workshops/{SLUG}/"
 OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/trabzonspor_analyst"
 COLAB = "https://colab.research.google.com/github/omarcevi/trabzonspor_analyst/blob/main/notebook/match_day_agents.ipynb"
+CLOUD_SHELL = ("https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/trabzonspor_analyst.git"
+               "&cloudshell_git_branch=main&cloudshell_tutorial=tutorial.md&cloudshell_workspace=.&show=ide%2Cterminal")
 GUIDE_SHORT = "Trabzonspor's AI Analysis Room"
 CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"   # the multi-page guide styles
 
@@ -73,6 +75,7 @@ EXTRA_CSS = """
     .src { display: block; font-family: var(--mono); font-size: .72rem; color: var(--faint); margin: 1.2rem 0 .3rem; }
     .src a { text-decoration: none; color: var(--faint); } .src a:hover { color: var(--accent); }
     .src.blank b { color: var(--ts-ink); font-weight: 600; }
+    .src.blank { scroll-margin-top: 5rem; }   /* the tutorial links to #blank-2a and so on */
     .code { margin: .3rem 0 1rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
     .code pre { padding-top: 2.4rem; }   /* the copy button gets its own row, so long or one-line code never runs under it */
@@ -227,7 +230,7 @@ def code_block(lang: str, body: str, source: tuple[str, str | None] | None) -> s
     if source:
         path, blank = source
         if blank:   # code participants paste over a BLANK on the main branch; the link shows the finished file
-            label = (f'<span class="src blank"><b>✏️ BLANK {html.escape(blank)}</b> · '
+            label = (f'<span class="src blank" id="blank-{html.escape(blank)}"><b>✏️ BLANK {html.escape(blank)}</b> · '
                      f'<a href="{REPO}/blob/demo/{path}">{html.escape(path)}</a></span>\n        ')
         else:
             label = f'<span class="src"><a href="{REPO}/blob/main/{path}">{html.escape(path)}</a></span>\n        '
@@ -422,7 +425,7 @@ def build(source_repo: Path) -> None:
                 f'<b>{html.escape(h[0].split(" · ", 1)[-1])}</b><span class="d">{html.escape(d)}</span></a></li>'
                 for s, n, h, d in PAGES[1:])
             content = OVERVIEW.format(title=html.escape(title), desc=html.escape(desc), total=total,
-                                      repo=REPO, colab=COLAB, first=url("setup"),
+                                      repo=REPO, colab=COLAB, cloudshell=html.escape(CLOUD_SHELL), first=url("setup"),
                                       intro="\n        ".join(blocks(intro, images)), grid=grid)
         else:
             chunks = []
@@ -520,6 +523,7 @@ OVERVIEW = """      <header class="hero" id="overview">
         <p class="tagline">{desc}</p>
         <div class="actions">
           <a class="btn primary" href="{first}">Start with the setup</a>
+          <a class="btn" href="{cloudshell}">Open in Cloud Shell</a>
           <a class="btn" href="{repo}">Code on GitHub</a>
           <a class="btn" href="{colab}">Open in Colab</a>
         </div>

@@ -330,6 +330,7 @@
     .src { display: block; font-family: var(--mono); font-size: .72rem; color: var(--faint); margin: 1.2rem 0 .3rem; }
     .src a { text-decoration: none; color: var(--faint); } .src a:hover { color: var(--accent); }
     .src.blank b { color: var(--ts-ink); font-weight: 600; }
+    .src.blank { scroll-margin-top: 5rem; }   /* the tutorial links to #blank-2a and so on */
     .code { margin: .3rem 0 1rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
     .code pre { padding-top: 2.4rem; }   /* the copy button gets its own row, so long or one-line code never runs under it */
