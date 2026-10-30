@@ -309,6 +309,15 @@
     @media (max-width: 640px) { .crumbs .cur { display: none; } .topbar nav { column-gap: .95rem; } }
 
 /* match-day-agents: what this guide needs beyond the shared workshop styles */
+/* A hint of Trabzonspor (claret and sky blue, as on the workshop slides); links and buttons keep the site's blue. */
+    :root { --ts-claret: #70253b; --ts-sky: #82bfe6; --ts-ink: #70253b; --ts-line: #70253b; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ts-ink: #e58ea7; --ts-line: #a8445f; } }
+    :root[data-theme="dark"] { --ts-ink: #e58ea7; --ts-line: #a8445f; }
+    .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+                     background: repeating-linear-gradient(90deg, var(--ts-line) 0 56px, var(--ts-sky) 56px 112px); }
+    .ts-chips { display: inline-flex; gap: .3rem; margin-right: .6rem; vertical-align: -.05em; }
+    .ts-chips i { width: .62rem; height: .62rem; border-radius: 3px; background: var(--ts-claret); }
+    .ts-chips i + i { background: var(--ts-sky); }
     .intro { padding: 0 0 2rem; }
     .intro p, .intro li { max-width: 37em; }
     .intro ol.plain { margin: .8rem 0; }
@@ -322,10 +331,10 @@
     .src a { text-decoration: none; color: var(--faint); } .src a:hover { color: var(--accent); }
     .code { margin: .3rem 0 1rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
-    blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
     blockquote.sample::before { content: "agent output"; display: block; font-family: var(--mono); font-size: .68rem;
-                                letter-spacing: .07em; text-transform: uppercase; color: var(--accent); margin-bottom: .35rem; }
+                                letter-spacing: .07em; text-transform: uppercase; color: var(--ts-ink); margin-bottom: .35rem; }
     blockquote.sample ul, blockquote.sample ol { padding-left: 1.2rem; margin: .3rem 0; }
     blockquote.sample li + li { margin-top: .25rem; }
     blockquote.sample p + p, blockquote.sample p + ul, blockquote.sample ul + p { margin-top: .5rem; }
