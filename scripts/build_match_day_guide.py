@@ -28,7 +28,6 @@ BASE = f"/workshops/{SLUG}/"
 OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/trabzonspor_analyst"
 COLAB = "https://colab.research.google.com/github/omarcevi/trabzonspor_analyst/blob/main/notebook/match_day_agents.ipynb"
-EVENT = "Recipes for Your Agent Systems"
 GUIDE_SHORT = "Trabzonspor's AI Analysis Room"
 CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"   # the multi-page guide styles
 
@@ -316,7 +315,7 @@ def build(source_repo: Path) -> None:
                 f'          <li><a href="{url(s)}"><span class="num">{grid_label(s)} · {times[s]} MIN</span>'
                 f'<b>{html.escape(h[0].split(" · ", 1)[-1])}</b><span class="d">{html.escape(d)}</span></a></li>'
                 for s, n, h, d in PAGES[1:])
-            content = OVERVIEW.format(title=html.escape(title), desc=html.escape(desc), event=html.escape(EVENT), total=total,
+            content = OVERVIEW.format(title=html.escape(title), desc=html.escape(desc), total=total,
                                       repo=REPO, colab=COLAB, first=url("setup"),
                                       intro="\n        ".join(blocks(intro, images)), grid=grid)
         else:
@@ -411,7 +410,7 @@ HEAD = """<!doctype html>
 OVERVIEW = """      <header class="hero" id="overview">
         <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i></span>DevFest Trabzon 2026 · Workshop guide · about {total} minutes to read</p>
         <h1>{title}</h1>
-        <p class="part-of">The written version of <em>{event}</em> by Omar Elcircevi</p>
+        <p class="part-of">The written version of the 90-minute hands-on workshop by <em>Omar Elcircevi</em></p>
         <p class="tagline">{desc}</p>
         <div class="actions">
           <a class="btn primary" href="{first}">Start with the setup</a>
