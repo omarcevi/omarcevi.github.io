@@ -55,7 +55,7 @@
       <ol>
         <li><a class="here" aria-current="page" href="/workshops/match-day-agents/"><span class="n">Overview</span></a></li>
         <li class="group">Before you start</li>
-        <li><a href="/workshops/match-day-agents/setup/"><span class="n">Setup</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/setup/"><span class="n">Setup</span><span class="t">1 min</span></a></li>
         <li><a href="/workshops/match-day-agents/data/"><span class="n">The data</span><span class="t">1 min</span></a></li>
         <li class="group">Steps</li>
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
@@ -87,7 +87,7 @@
         <p>It is Saturday night. Tomorrow, Sunday 1 November 2026, Trabzonspor play Gaziantep FK at home. Kick-off is at 16:00, Istanbul time, in Round 10 of the Süper Lig. You are the new analysis staff of the club. The coaches want a briefing by the morning. It must tell them who the opponent is, how we play them, who starts, and what can go wrong.</p>
         <p>You will build this staff from agents. Each step adds one staff member. Each staff member is an agent pattern that you can use again after this match:</p>
         <ol class="plain"><li><strong>The Scout:</strong> one agent with tools.</li><li><strong>Match Prep:</strong> agents that run in a fixed order.</li><li><strong>Scouting Department:</strong> agents that run at the same time.</li><li><strong>Tribün:</strong> two agents in a loop: one proposes, one criticises.</li><li><strong>Technical Director:</strong> an agent that delegates to all the others.</li></ol>
-        <p>Everything runs on Google's <a href="https://adk.dev">Agent Development Kit</a> (ADK) for Python, with Gemini in your own Google Cloud project. The data comes from the last ten matches of both teams. I gave this workshop at DevFest Trabzon 2026. This guide is for the people who were not in the room.</p>
+        <p>Everything runs on Google's <a href="https://adk.dev">Agent Development Kit</a> (ADK) for Python and a free Gemini API key. The data comes from the last ten matches of both teams. I gave this workshop at DevFest Trabzon 2026. This guide is for the people who were not in the room.</p>
         <figure class="arch" id="fig-overview">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/overview.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/overview.svg" alt="The whole staff: the Technical Director calls four teams as tools; every team calls plain Python tools that read the data" width="1320" height="870" loading="lazy"></a></div>
           <figcaption>The full staff at the end of the guide. Each box with the ADK logo is an agent. Tap to open full size.</figcaption>
@@ -97,7 +97,7 @@
       <section id="pages">
         <h2>The pages</h2>
         <ul class="steps-grid">
-          <li><a href="/workshops/match-day-agents/setup/"><span class="num">START · 2 MIN</span><b>Setup</b><span class="d">Install uv, get a free Gemini API key, clone the repo and open the ADK dev UI.</span></a></li>
+          <li><a href="/workshops/match-day-agents/setup/"><span class="num">START · 1 MIN</span><b>Setup</b><span class="d">Install uv, get a free Gemini API key, clone the repo and open the ADK dev UI.</span></a></li>
           <li><a href="/workshops/match-day-agents/data/"><span class="num">START · 1 MIN</span><b>The data</b><span class="d">The FotMob and ESPN snapshot behind every agent, and why the tools return computed numbers.</span></a></li>
           <li><a href="/workshops/match-day-agents/step-1/"><span class="num">STEP 1 · 2 MIN</span><b>The Scout</b><span class="d">One LlmAgent with five tools: an instruction, docstrings, and tools that do the counting.</span></a></li>
           <li><a href="/workshops/match-day-agents/step-2/"><span class="num">STEP 2 · 2 MIN</span><b>Match Prep</b><span class="d">A SequentialAgent: three agents in a fixed order, handing work over with output_key and placeholders.</span></a></li>
