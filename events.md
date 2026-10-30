@@ -26,7 +26,7 @@ nothing on the site changes, and GitHub emails you the reason.
 - tickets: https://kommunity.com/gdg-izmir/events/devfest-izmir-2026-16cae32b
 - format: in person
 
-## Recipes for Your Agent Systems
+## Building Trabzonspor's AI Analysis Room
 - type: workshop
 - event: DevFest Trabzon 2026
 - date: 2026-10-31
