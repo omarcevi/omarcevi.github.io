@@ -78,8 +78,8 @@ git clone https://github.com/omarcevi/trabzonspor_analyst
 cd trabzonspor_analyst
 cp .env.example .env                               <span class="c">  # paste your key into .env</span>
 uv sync
-uv run adk web steps</pre></div>
-        <p>Open http://localhost:8000, pick a step from the dropdown and ask it something. The events panel shows every tool call and hand-off.</p>
+uv run adk web --reload_agents steps</pre></div>
+        <p>Open http://localhost:8000, pick a step from the dropdown and ask it something. The events panel shows every tool call and hand-off, and <code>--reload_agents</code> picks up a file as soon as you save it.</p>
         <!-- SCREENSHOT: adk web with the app dropdown open, showing the six step folders -->
         <p>The <code>.env</code> file holds your key, <code>GOOGLE_GENAI_USE_VERTEXAI=FALSE</code> (the free Gemini API, not Vertex AI) and <code>MODEL=gemini-3.8-flash</code>. The model is set in one place, <code>matchday/config.py</code>:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/matchday/config.py">matchday/config.py</a></span>
@@ -91,6 +91,7 @@ MODEL = Gemini(
     retry_options=types.HttpRetryOptions(attempts=5, initial_delay=2, max_delay=30),
 )</code></pre></div>
         <p>The retries matter more than they look: one question to step 5 can mean a few dozen model calls, and on a free key that hits a <code>429</code> now and then. If your laptop won't cooperate, <code>notebook/match_day_agents.ipynb</code> runs the same files in Colab, one cell per step.</p>
+        <p><strong>How the blanks work.</strong> On the repo's <code>main</code> branch, each step's key code is missing. In its place is a two-line ✏️ BLANK marker. When this guide shows a code block labelled ✏️ BLANK, select both marker lines in that file, paste the block over them, save, and run the step. Fell behind? <code>uv run python scripts/blanks.py fill 2a</code> pastes a blank for you, and the <code>demo</code> branch (<code>git switch demo</code>) has the whole team finished.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/">← Overview</a><a class="next" href="/workshops/match-day-agents/data/">The data →</a></nav>

@@ -77,8 +77,8 @@
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step4-tribun.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step4-tribun.svg" alt="Step 4: in a LoopAgent, lineup_picker writes lineup, tribun reads it and either writes tribun_feedback, which loops back, or calls exit_loop, which ends the loop" width="1240" height="720" loading="lazy"></a></div>
           <figcaption>Propose, criticise, repeat. exit_loop ends it; max_iterations=3 is the safety net. Tap to open full size.</figcaption>
         </figure>
-        <p>In Turkish football the <em>tribün</em> is the stand, and the people in it, who have opinions about your team sheet. So the critic here is the home crowd:</p>
-        <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step4_tribun/agent.py">steps/step4_tribun/agent.py</a></span>
+        <p>In Turkish football the <em>tribün</em> is the stand, and the people in it, who have opinions about your team sheet. So the critic here is the home crowd. ✏️ <strong>BLANK 4</strong> · <code>steps/step4_tribun/agent.py</code>:</p>
+        <span class="src blank"><b>✏️ BLANK 4</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step4_tribun/agent.py">steps/step4_tribun/agent.py</a></span>
         <div class="code" data-lang="python"><pre><code>    tribun = LlmAgent(
         name=&quot;tribun&quot;,
         model=MODEL,
@@ -112,7 +112,7 @@ Don&#x27;t invent new demands each round: approve as soon as the checks pass.
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step4_tribun/agent.py">steps/step4_tribun/agent.py</a></span>
         <div class="code" data-lang="python"><pre><code>The Tribün&#x27;s last verdict (empty on the first round): {tribun_feedback?}
 If it lists objections, fix every one and say in one line what you changed.</code></pre></div>
-        <p>I asked: <em>"Pick the XI for Sunday."</em></p>
+        <p><strong>Run it:</strong> pick <code>step4_tribun</code> and ask <em>"Pick the XI for Sunday."</em></p>
         <p>Round one: the picker proposed a 4-2-3-1 with Melih Kabasakal in midfield. The crowd checked it with <code>get_team_trends</code> and <code>get_discipline</code> and answered (trimmed):</p>
         <blockquote class="sample"><ol class="plain"><li><strong>Unleash the Storm at Home (Attacking Intent Needed):</strong> … our home record is absolute perfection: <strong>4 matches, 4 wins, 0 draws, 0 losses</strong>, with <strong>13 goals scored and 0 conceded</strong> …</li><li><strong>Discipline Plan Required for High Card-Risk Starters:</strong> <strong>Melih Kabasakal:</strong> Picked up <strong>1 red card</strong> (straight red) and <strong>1 yellow card</strong> in his last 8 matches …</li></ol></blockquote>
         <p>Round two, the picker:</p>
