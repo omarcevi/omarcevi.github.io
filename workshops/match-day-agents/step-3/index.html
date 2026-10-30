@@ -55,7 +55,7 @@
       <ol>
         <li><a href="/workshops/match-day-agents/"><span class="n">Overview</span></a></li>
         <li class="group">Before you start</li>
-        <li><a href="/workshops/match-day-agents/setup/"><span class="n">Setup</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/setup/"><span class="n">Setup</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/data/"><span class="n">The data</span><span class="t">1 min</span></a></li>
         <li class="group">Steps</li>
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
@@ -110,7 +110,7 @@ Use only facts from the reports; if they disagree, say so.&quot;&quot;&quot;</sp
         <blockquote class="sample"><p><strong>Weaknesses to Attack</strong></p><ul class="plain"><li><strong>Second-half defensive collapse</strong> (last 10 matches – 15 goals conceded, 1.5 avg, 1.63 avg xGA across 9 matches with xG data):<ul><li><strong>10 of 15 goals conceded (67%)</strong> came in the second half.</li><li>Vulnerability peaks heavily in <strong>46–60 min</strong> (4 conceded, 27%) and <strong>76–90 min</strong> (5 conceded, 33%).</li></ul></li></ul><p><strong>Three Key Takeaways</strong></p><ol class="plain"><li><strong>Exploit the decimated backline:</strong> Gaziantep's defensive anchor Myenty Abena is suspended, while starting goalkeeper Kacper Tobiasz and three central defenders (Meleke, Kızıldağ, Sangaré) are doubtful with muscle injuries. …</li></ol></blockquote>
         <p><strong>Use it when</strong> you have independent questions about the same thing. Examples: three searches, three reviewers, three data sources.</p>
         <p><strong>Do not use it when</strong> one task needs the answer of another task. Also do not use it when the parallel agents write to the same state key.</p>
-        <p><strong>The gotcha: an agent must merge the results.</strong> A <code>ParallelAgent</code> gives you three answers, not one. The answers come in the order in which the agents finish. Give each parallel agent its own <code>output_key</code>. Then add a step that reads all the keys. Parallel agents also send more requests each second. On a free key, this can cause rate limit errors.</p>
+        <p><strong>The gotcha: an agent must merge the results.</strong> A <code>ParallelAgent</code> gives you three answers, not one. The answers come in the order in which the agents finish. Give each parallel agent its own <code>output_key</code>. Then add a step that reads all the keys. Parallel agents also send more requests each second. This can cause rate limit errors.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/step-2/">← 2 · Match Prep</a><a class="next" href="/workshops/match-day-agents/step-4/">4 · Tribün →</a></nav>
