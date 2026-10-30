@@ -61,7 +61,7 @@
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
         <li><a class="here" aria-current="page" href="/workshops/match-day-agents/step-2/"><span class="n">2 · Match Prep</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-3/"><span class="n">3 · Scouting Dept</span><span class="t">2 min</span></a></li>
-        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">3 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-5/"><span class="n">5 · Tech Director</span><span class="t">3 min</span></a></li>
         <li class="group">After the steps</li>
         <li><a href="/workshops/match-day-agents/bonus/"><span class="n">Bonus · live MCP</span><span class="t">1 min</span></a></li>
@@ -108,7 +108,9 @@ formation, how we attack, how we defend, and what to do in each phase of the mat
         <span class="src blank" id="blank-2b"><b>✏️ BLANK 2b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step2_match_prep/agent.py">steps/step2_match_prep/agent.py</a></span>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step2_match_prep/</span></span></div><pre><span class="gutter" aria-hidden="true">1</span><code>    <span class="tk-ctl">return</span> <span class="tk-cls">SequentialAgent</span>(<span class="tk-var">name</span>=<span class="tk-var">name</span>, <span class="tk-var">description</span>=<span class="tk-var">description</span>, <span class="tk-var">sub_agents</span>=[<span class="tk-var">opponent_analyst</span>, <span class="tk-var">tactician</span>, <span class="tk-var">lineup_picker</span>])</code></pre></div>
         <p><code>output_key=&quot;opponent_report&quot;</code> saves the final answer of the analyst in session state. Before the tactician calls the model, ADK puts this value into <code>{opponent_report}</code> in its instruction. You do not write code to connect the agents.</p>
-        <p><strong>Run it:</strong> In the dev UI, select <code>step2_match_prep</code>. Ask <em>"Prepare Sunday's game plan."</em></p>
+        <p><strong>Run it:</strong> Save the file. The dev UI from step 1 still runs this command. It loads the saved file again. If it stopped, start it again:</p>
+        <div class="code" data-lang="bash"><pre>uv run adk web --reload_agents steps</pre></div>
+        <p>In the dev UI, select <code>step2_match_prep</code>. Ask <em>"Prepare Sunday's game plan."</em></p>
         <p>The three agents run in a row. This takes about two minutes. The tactician uses the report of the analyst:</p>
         <blockquote class="sample"><p><strong>Exploit High Conceding Windows:</strong> Gaziantep FK have conceded 67% of their goals in the second half (10 of 15 goals in their last 10 matches). Increase tempo immediately after half-time.</p></blockquote>
         <p>The lineup picker checks the availability and then selects the XI:</p>

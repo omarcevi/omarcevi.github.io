@@ -61,7 +61,7 @@
         <li><a href="/workshops/match-day-agents/step-1/"><span class="n">1 · Scout</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-2/"><span class="n">2 · Match Prep</span><span class="t">2 min</span></a></li>
         <li><a href="/workshops/match-day-agents/step-3/"><span class="n">3 · Scouting Dept</span><span class="t">2 min</span></a></li>
-        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/match-day-agents/step-4/"><span class="n">4 · Tribün</span><span class="t">3 min</span></a></li>
         <li><a class="here" aria-current="page" href="/workshops/match-day-agents/step-5/"><span class="n">5 · Tech Director</span><span class="t">3 min</span></a></li>
         <li class="group">After the steps</li>
         <li><a href="/workshops/match-day-agents/bonus/"><span class="n">Bonus · live MCP</span><span class="t">1 min</span></a></li>
@@ -109,7 +109,9 @@
         <span class="tk-cls">AgentTool</span>(<span class="tk-fn">build_scouting_department</span>(<span class="tk-var">description</span>=<span class="tk-const">SCOUTING_DEPT</span>)),
         <span class="tk-cls">AgentTool</span>(<span class="tk-fn">build_tribun</span>(<span class="tk-var">description</span>=<span class="tk-const">TRIBUN</span>)),
     ]</code></pre></div>
-        <p><strong>Run it:</strong> In the dev UI, select <code>step5_technical_director</code>. Ask three different questions. The first question is <em>"Should we rest Salah for Freiburg on Thursday?"</em></p>
+        <p><strong>Run it:</strong> Save the file. The dev UI from step 1 still runs this command. It loads the saved file again. If it stopped, start it again:</p>
+        <div class="code" data-lang="bash"><pre>uv run adk web --reload_agents steps</pre></div>
+        <p>In the dev UI, select <code>step5_technical_director</code>. Ask three different questions. The first question is <em>"Should we rest Salah for Freiburg on Thursday?"</em></p>
         <p>The director called the scout and <code>get_fixtures</code>. A part of its answer:</p>
         <blockquote class="sample"><ul class="plain"><li><strong>4 days of rest</strong> between Gaziantep FK and Freiburg (H, Nov 5).</li><li><strong>Verdict:</strong> A full benching on Sunday is unnecessary given the 4-day recovery window ahead of Thursday's match. … start Salah against Gaziantep FK and withdraw him around the 60-minute mark once the match is secured.</li></ul></blockquote>
         <p>The second question is <em>"If we win 2-0, where do we stand?"</em></p>
