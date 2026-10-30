@@ -21,7 +21,7 @@
     b.setAttribute('aria-label', 'Copy code');
     b.addEventListener('click', () => {
       const clone = pre.cloneNode(true);
-      clone.querySelectorAll('.c').forEach(c => c.remove());
+      clone.querySelectorAll('.c, .gutter').forEach(c => c.remove());   // shell comments and line numbers stay out
       let lines = clone.textContent.split('\n').map(l => l.replace(/\s+$/, ''));
       if (block.dataset.lang === 'bash') lines = lines.filter(l => l);
       copy(b, lines.join('\n').replace(/^\n+|\n+$/g, ''));

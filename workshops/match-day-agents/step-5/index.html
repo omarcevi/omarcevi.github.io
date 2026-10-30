@@ -72,45 +72,58 @@
     <main>
       <section id="step-5">
         <h1 class="page-h1">Step 5 · Technical Director</h1>
-        <p class="goal"><strong>The pattern:</strong> an orchestrator is an <code>LlmAgent</code> whose tools include other agents. It picks which team to call and writes the final answer itself.</p>
+        <p class="goal"><strong>The pattern:</strong> an orchestrator is an <code>LlmAgent</code> that has other agents as tools. It selects the team to call. Then it writes the final answer.</p>
         <figure class="arch" id="fig-step5-technical-director">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step5-technical-director.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step5-technical-director.svg" alt="Step 5: technical_director calls four teams wrapped in AgentTool, scout, match_prep, scouting_department and tribun_review, picking each by its description, plus three direct data tools" width="1300" height="700" loading="lazy"></a></div>
-          <figcaption>The director chooses a team by its description, calls it like a function and gets its answer back. Tap to open full size.</figcaption>
+          <figcaption>The director selects a team by its description. It calls the team like a function and gets the answer back. Tap to open full size.</figcaption>
         </figure>
-        <p>The director's tools are the teams from steps 1 to 4, each wrapped in an <code>AgentTool</code>, plus three data tools. ✏️ <strong>BLANK 5a</strong> · the descriptions, in <code>steps/step5_technical_director/agent.py</code>:</p>
+        <p>The tools of the director are the teams from steps 1 to 4. Each team is in an <code>AgentTool</code>. The director also has three data tools. ✏️ <strong>BLANK 5a</strong> · the descriptions, in <code>steps/step5_technical_director/agent.py</code>:</p>
         <span class="src blank"><b>✏️ BLANK 5a</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step5_technical_director/agent.py">steps/step5_technical_director/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code># Delegation is driven by these descriptions: they are all the director knows about each team.
-SCOUT = &quot;Answers questions about ONE player or ONE team: form, minutes, goals, ratings, availability.&quot;
-MATCH_PREP = &quot;Writes Sunday&#x27;s game plan: opponent analysis, then tactics, then an XI of available players.&quot;
-SCOUTING_DEPT = &quot;Full scouting report on Sunday&#x27;s opponent: threats, weaknesses, cards and the referee.&quot;
-TRIBUN = &quot;Picks a final XI and has the home crowd stress-test it. Only when asked to pick or defend the XI.&quot;
-# Try it live: uncomment these, ask the same questions again, and watch the routing go wrong.
-# SCOUT = &quot;Helps with football.&quot;
-# SCOUTING_DEPT = &quot;Also helps with football.&quot;</code></pre></div>
-        <p>✏️ <strong>BLANK 5b</strong> · same file, at the top of <code>build_technical_director</code>:</p>
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step5_technical_director/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</span><code><span class="tk-com"># Delegation is driven by these descriptions: they are all the director knows about each team.</span>
+<span class="tk-const">SCOUT</span> = <span class="tk-str">&quot;Answers questions about ONE player or ONE team: form, minutes, goals, ratings, availability.&quot;</span>
+<span class="tk-const">MATCH_PREP</span> = <span class="tk-str">&quot;Writes Sunday&#x27;s game plan: opponent analysis, then tactics, then an XI of available players.&quot;</span>
+<span class="tk-const">SCOUTING_DEPT</span> = <span class="tk-str">&quot;Full scouting report on Sunday&#x27;s opponent: threats, weaknesses, cards and the referee.&quot;</span>
+<span class="tk-const">TRIBUN</span> = <span class="tk-str">&quot;Picks a final XI and has the home crowd stress-test it. Only when asked to pick or defend the XI.&quot;</span>
+<span class="tk-com"># Try it live: uncomment these, ask the same questions again, and watch the routing go wrong.</span>
+<span class="tk-com"># SCOUT = &quot;Helps with football.&quot;</span>
+<span class="tk-com"># SCOUTING_DEPT = &quot;Also helps with football.&quot;</span></code></pre></div>
+        <p>✏️ <strong>BLANK 5b</strong> · the same file, at the start of <code>build_technical_director</code>:</p>
         <span class="src blank"><b>✏️ BLANK 5b</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step5_technical_director/agent.py">steps/step5_technical_director/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>    # Each team becomes a tool: the director calls it like a function and gets its answer back.
-    teams = [
-        AgentTool(build_scout(description=SCOUT)),
-        AgentTool(build_match_prep(description=MATCH_PREP)),
-        AgentTool(build_scouting_department(description=SCOUTING_DEPT)),
-        AgentTool(build_tribun(description=TRIBUN)),
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step5_technical_director/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</span><code>    <span class="tk-com"># Each team becomes a tool: the director calls it like a function and gets its answer back.</span>
+    <span class="tk-var">teams</span> = [
+        <span class="tk-cls">AgentTool</span>(<span class="tk-fn">build_scout</span>(<span class="tk-var">description</span>=<span class="tk-const">SCOUT</span>)),
+        <span class="tk-cls">AgentTool</span>(<span class="tk-fn">build_match_prep</span>(<span class="tk-var">description</span>=<span class="tk-const">MATCH_PREP</span>)),
+        <span class="tk-cls">AgentTool</span>(<span class="tk-fn">build_scouting_department</span>(<span class="tk-var">description</span>=<span class="tk-const">SCOUTING_DEPT</span>)),
+        <span class="tk-cls">AgentTool</span>(<span class="tk-fn">build_tribun</span>(<span class="tk-var">description</span>=<span class="tk-const">TRIBUN</span>)),
     ]</code></pre></div>
-        <p><strong>Run it:</strong> pick <code>step5_technical_director</code> and try three questions that show the range. First: <em>"Should we rest Salah for Freiburg on Thursday?"</em></p>
-        <p>The director called the scout and <code>get_fixtures</code>, then wrote (trimmed):</p>
+        <p><strong>Run it:</strong> In the dev UI, select <code>step5_technical_director</code>. Ask three different questions. The first question is <em>"Should we rest Salah for Freiburg on Thursday?"</em></p>
+        <p>The director called the scout and <code>get_fixtures</code>. A part of its answer:</p>
         <blockquote class="sample"><ul class="plain"><li><strong>4 days of rest</strong> between Gaziantep FK and Freiburg (H, Nov 5).</li><li><strong>Verdict:</strong> A full benching on Sunday is unnecessary given the 4-day recovery window ahead of Thursday's match. … start Salah against Gaziantep FK and withdraw him around the 60-minute mark once the match is secured.</li></ul></blockquote>
-        <p>Then: <em>"If we win 2-0, where do we stand?"</em></p>
-        <p>One <code>project_table</code> call, no team needed:</p>
+        <p>The second question is <em>"If we win 2-0, where do we stand?"</em></p>
+        <p>The director called <code>project_table</code> one time. It did not need a team:</p>
         <blockquote class="sample"><ul class="plain"><li><strong>Trabzonspor Position:</strong> Moves from <strong>3rd to 1st</strong></li><li><strong>Points:</strong> Increases from <strong>19 to 22</strong></li><li><strong>Goal Difference:</strong> Improves from <strong>+14 to +16</strong></li></ul><ol class="plain"><li><strong>Trabzonspor:</strong> 22 pts (+16 GD, 10 played)</li><li><strong>Galatasaray:</strong> 22 pts (+7 GD, 9 played)</li></ol></blockquote>
-        <p>And the big one: <em>"Bizi pazara hazırla"</em> ("get us ready for Sunday"). The director called <code>scouting_department</code>, then <code>match_prep</code> (seven agents in all), and answered in Turkish after 222 seconds:</p>
+        <p>The third question asks for the full briefing: <em>"Bizi pazara hazırla"</em> ("get us ready for Sunday"). The director called <code>scouting_department</code> and then <code>match_prep</code>. Seven agents worked on the answer. The director answered in Turkish after 222 seconds:</p>
         <blockquote class="sample"><p><strong>Zafiyetler</strong></p><ul class="plain"><li><strong>İkinci Yarı Savunma Düşüşü:</strong> Son 10 maçta 15 gol yediler (maç başına 1.50 gol; …). 15 golün 10'u (%67) ikinci yarıda yendi.</li></ul><p><strong>Forvet</strong></p><ul class="plain"><li><strong>ST:</strong> <strong>Mohamed Salah</strong> (Lig sezonu: 9 maç, 8 gol, 3 asist, 8.01 FotMob reytingi; son 10 maç: 10 maç, 802 dakika, 8 gol, 5 asist)</li></ul></blockquote>
-        <p>"10 of their 15 goals conceded (67%) came in the second half", and Salah's league-season and last-10 numbers kept apart. Both lines come from a fix; more on that below.</p>
+        <p>The answer gives the correct number: 10 of their 15 goals conceded (67%) came in the second half. It also keeps the league-season numbers of Salah apart from his last-10 numbers. Both results come from a fix. The lesson below explains it.</p>
         <!-- SCREENSHOT: adk web, step5_technical_director, the trace view of "Bizi pazara hazırla" with the scouting_department and match_prep tool calls -->
-        <p><strong>Use it when</strong> questions vary and different questions need different specialists, and you want one voice to answer.</p>
-        <p><strong>Avoid it when</strong> the route is always the same (use a workflow agent, it's cheaper and predictable) or when a single agent with a few more tools would do.</p>
-        <p><strong>The gotchas: three of them, plus a lesson.</strong></p>
-        <ul class="plain"><li><strong>Descriptions drive routing.</strong> The director never sees a team's instructions or code, only its name and <code>description</code>. Uncomment the two vague descriptions in the file, ask the same questions, and watch it pick the wrong team. A good description says what the team does and when to use it.</li><li><strong>One parent per agent.</strong> An ADK agent instance can have only one parent, so step 5 can't reuse step 1's <code>scout</code> object. That's why every step exposes a <code>build_*()</code> factory that returns fresh instances.</li><li><strong><code>AgentTool</code> vs <code>sub_agents</code>.</strong> In <code>sub_agents</code>, the director <em>transfers</em> the conversation: the team answers the user and the director is out of the loop. With <code>AgentTool</code>, the director <em>calls</em> the team, gets its final answer back as a tool result, and stays in charge. For a briefing that combines teams, you want <code>AgentTool</code>.</li></ul>
-        <p>And a lesson from my first run. The scouts wrote "60% of goals conceded come in two windows, 46–60' and 76–90'". The director, summarising the summary, turned that into "60% come in the second half". Wrong: it's 10 of 15, so 67%. I didn't fix it with a sterner prompt but in the tool: <code>get_team_trends</code> now returns per-half totals, so nobody adds windows up. Give an orchestrator computed numbers to quote, not pieces to reassemble.</p>
+        <p><strong>Use it when</strong> the questions are different and need different specialists, and you want one voice to answer.</p>
+        <p><strong>Do not use it when</strong> the route is always the same. For a fixed route, a workflow agent is cheaper and more predictable. Also do not use it when one agent with more tools is sufficient.</p>
+        <p><strong>The gotchas: three gotchas and one lesson.</strong></p>
+        <ul class="plain"><li><strong>Descriptions control the routing.</strong> The director does not see the instructions or the code of a team. It sees only the name and the <code>description</code>. Remove the <code>#</code> from the two vague descriptions in the file, and ask the same questions again. The director selects the wrong team. A good description tells what the team does and when to use it.</li><li><strong>One parent for each agent.</strong> In ADK, an agent instance can have only one parent. Thus, step 5 cannot use the <code>scout</code> object from step 1 again. For this reason, each step has a <code>build_*()</code> function that makes new instances.</li><li><strong><code>AgentTool</code> or <code>sub_agents</code>.</strong> With <code>sub_agents</code>, the director <em>transfers</em> the conversation. The team answers the user, and the director does not see the answer. With <code>AgentTool</code>, the director <em>calls</em> the team. It gets the final answer as a tool result and stays in control. For a briefing that combines teams, use <code>AgentTool</code>.</li></ul>
+        <p>The lesson comes from my first run. The scouts wrote "60% of goals conceded come in two windows, 46–60' and 76–90'". The director made a summary of this summary and wrote "60% come in the second half". This is wrong: the correct number is 10 of 15, or 67%. I did not fix this with a stricter prompt. I fixed the tool: <code>get_team_trends</code> now also returns the totals for each half. Now no agent adds windows together. Give an orchestrator calculated numbers to quote, not parts to put together.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/step-4/">← 4 · Tribün</a><a class="next" href="/workshops/match-day-agents/bonus/">Bonus · live MCP →</a></nav>

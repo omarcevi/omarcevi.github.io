@@ -72,22 +72,44 @@
     <main>
       <section id="step-4">
         <h1 class="page-h1">Step 4 · Tribün</h1>
-        <p class="goal"><strong>The pattern:</strong> a <code>LoopAgent</code> runs its sub-agents again and again until one of them says stop, or until it hits <code>max_iterations</code>. Here it's a proposer and a critic.</p>
+        <p class="goal"><strong>The pattern:</strong> a <code>LoopAgent</code> runs its sub-agents again and again. It stops when a sub-agent tells it to stop, or at <code>max_iterations</code>. Here, one agent proposes and one agent criticises.</p>
         <figure class="arch" id="fig-step4-tribun">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/step4-tribun.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/step4-tribun.svg" alt="Step 4: in a LoopAgent, lineup_picker writes lineup, tribun reads it and either writes tribun_feedback, which loops back, or calls exit_loop, which ends the loop" width="1240" height="720" loading="lazy"></a></div>
-          <figcaption>Propose, criticise, repeat. exit_loop ends it; max_iterations=3 is the safety net. Tap to open full size.</figcaption>
+          <figcaption>Propose, criticise, repeat. exit_loop stops the loop. max_iterations=3 is the safety limit. Tap to open full size.</figcaption>
         </figure>
-        <p>In Turkish football the <em>tribün</em> is the stand, and the people in it, who have opinions about your team sheet. So the critic here is the home crowd. ✏️ <strong>BLANK 4</strong> · <code>steps/step4_tribun/agent.py</code>:</p>
+        <p>In Turkish football, the <em>tribün</em> is the stand and the people in it. These people have strong opinions about the team sheet. The critic in this step is the home crowd. ✏️ <strong>BLANK 4</strong> · <code>steps/step4_tribun/agent.py</code>:</p>
         <span class="src blank"><b>✏️ BLANK 4</b> · <a href="https://github.com/omarcevi/trabzonspor_analyst/blob/demo/steps/step4_tribun/agent.py">steps/step4_tribun/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>    tribun = LlmAgent(
-        name=&quot;tribun&quot;,
-        model=MODEL,
-        instruction=&quot;&quot;&quot;
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step4_tribun/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23</span><code>    <span class="tk-var">tribun</span> = <span class="tk-cls">LlmAgent</span>(
+        <span class="tk-var">name</span>=<span class="tk-str">&quot;tribun&quot;</span>,
+        <span class="tk-var">model</span>=<span class="tk-const">MODEL</span>,
+        <span class="tk-var">instruction</span>=<span class="tk-str">&quot;&quot;&quot;
 You are the Tribün: Trabzonspor&#x27;s passionate home crowd. Loud, funny, loyal, never rude.
 Criticise choices, not people. Cheer for us; never chant against the opponent or its fans.
 
 The proposed lineup:
-{lineup}
+<span class="tk-ph">{lineup}</span>
 
 Check it with your tools; do not trust the numbers in the proposal.
 1. Out players are rejected. Doubtful players need a named, available backup.
@@ -97,32 +119,36 @@ Check it with your tools; do not trust the numbers in the proposal.
 If all three checks pass, call exit_loop, then cheer the approved XI in two lines.
 Otherwise reply with numbered objections, each with the number that proves it.
 Don&#x27;t invent new demands each round: approve as soon as the checks pass.
-&quot;&quot;&quot; + HOUSE_RULES,
-        tools=[get_availability, get_player, get_team_trends, get_discipline, exit_loop],
-        output_key=&quot;tribun_feedback&quot;,
+&quot;&quot;&quot;</span> + <span class="tk-const">HOUSE_RULES</span>,
+        <span class="tk-var">tools</span>=[<span class="tk-var">get_availability</span>, <span class="tk-var">get_player</span>, <span class="tk-var">get_team_trends</span>, <span class="tk-var">get_discipline</span>, <span class="tk-var">exit_loop</span>],
+        <span class="tk-var">output_key</span>=<span class="tk-str">&quot;tribun_feedback&quot;</span>,
     )
-    return LoopAgent(name=name, description=description, sub_agents=[lineup_picker, tribun], max_iterations=3)</code></pre></div>
-        <p>The crowd checks the picker's claims with its own tools instead of trusting them. When it's happy, it calls <code>exit_loop</code>:</p>
+    <span class="tk-ctl">return</span> <span class="tk-cls">LoopAgent</span>(<span class="tk-var">name</span>=<span class="tk-var">name</span>, <span class="tk-var">description</span>=<span class="tk-var">description</span>, <span class="tk-var">sub_agents</span>=[<span class="tk-var">lineup_picker</span>, <span class="tk-var">tribun</span>], <span class="tk-var">max_iterations</span>=<span class="tk-num">3</span>)</code></pre></div>
+        <p>The crowd does not trust the numbers of the lineup picker. It checks them with its own tools. When the crowd agrees with the lineup, it calls <code>exit_loop</code>:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/matchday/tools.py">matchday/tools.py</a></span>
-        <div class="code" data-lang="python"><pre><code>def exit_loop(tool_context: ToolContext) -&gt; dict:
-    &quot;&quot;&quot;Approve the lineup and end the review. Call this only when every objection is resolved.&quot;&quot;&quot;
-    tool_context.actions.escalate = True  # tells the LoopAgent to stop after this agent
-    return {&quot;status&quot;: &quot;approved&quot;}</code></pre></div>
-        <p>The picker reads the objections on the next round. On round one there are none yet, hence the <code>?</code>:</p>
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>tools.py<span class="vsc-dir">matchday/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4</span><code><span class="tk-kw">def</span> <span class="tk-fn">exit_loop</span>(<span class="tk-var">tool_context</span>: <span class="tk-cls">ToolContext</span>) -&gt; <span class="tk-cls">dict</span>:
+    <span class="tk-str">&quot;&quot;&quot;Approve the lineup and end the review. Call this only when every objection is resolved.&quot;&quot;&quot;</span>
+    <span class="tk-var">tool_context</span>.<span class="tk-var">actions</span>.<span class="tk-var">escalate</span> = <span class="tk-kw">True</span>  <span class="tk-com"># tells the LoopAgent to stop after this agent</span>
+    <span class="tk-ctl">return</span> {<span class="tk-str">&quot;status&quot;</span>: <span class="tk-str">&quot;approved&quot;</span>}</code></pre></div>
+        <p>In the next round, the lineup picker reads the objections. In round one, there are no objections. That is why the placeholder has a <code>?</code>:</p>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/step4_tribun/agent.py">steps/step4_tribun/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>The Tribün&#x27;s last verdict (empty on the first round): {tribun_feedback?}
-If it lists objections, fix every one and say in one line what you changed.</code></pre></div>
-        <p><strong>Run it:</strong> pick <code>step4_tribun</code> and ask <em>"Pick the XI for Sunday."</em></p>
-        <p>Round one: the picker proposed a 4-2-3-1 with Melih Kabasakal in midfield. The crowd checked it with <code>get_team_trends</code> and <code>get_discipline</code> and answered (trimmed):</p>
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/step4_tribun/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2</span><code><span class="tk-str">The Tribün&#x27;s last verdict (empty on the first round): <span class="tk-ph">{tribun_feedback?}</span>
+If it lists objections, fix every one and say in one line what you changed.</span></code></pre></div>
+        <p><strong>Run it:</strong> In the dev UI, select <code>step4_tribun</code>. Ask <em>"Pick the XI for Sunday."</em></p>
+        <p>In round one, the lineup picker proposed a 4-2-3-1 with Melih Kabasakal in midfield. The crowd checked the lineup with <code>get_team_trends</code> and <code>get_discipline</code>. A part of its answer:</p>
         <blockquote class="sample"><ol class="plain"><li><strong>Unleash the Storm at Home (Attacking Intent Needed):</strong> … our home record is absolute perfection: <strong>4 matches, 4 wins, 0 draws, 0 losses</strong>, with <strong>13 goals scored and 0 conceded</strong> …</li><li><strong>Discipline Plan Required for High Card-Risk Starters:</strong> <strong>Melih Kabasakal:</strong> Picked up <strong>1 red card</strong> (straight red) and <strong>1 yellow card</strong> in his last 8 matches …</li></ol></blockquote>
-        <p>Round two, the picker:</p>
+        <p>In round two, the lineup picker changed the XI:</p>
         <blockquote class="sample"><p><strong>What I changed:</strong> Replaced Melih Kabasakal with the card-free Ozan Tufan in midfield to cut disciplinary risk, and deployed an aggressive high-pressing 4-2-3-1 setup to attack from the opening whistle.</p></blockquote>
-        <p>Then the crowd called <code>exit_loop</code> and signed off:</p>
+        <p>Then the crowd called <code>exit_loop</code> and gave its approval:</p>
         <blockquote class="sample"><p>Bordo-Mavi storm is brewing, Papara Park is ready to roar from minute one! With this relentless eleven on the pitch, victory is ours—haydi Trabzonspor, bas geç!</p></blockquote>
         <!-- SCREENSHOT: adk web, step4_tribun, the events panel showing two rounds and the exit_loop call -->
-        <p><strong>Use it when</strong> quality improves with feedback and you can say when it's good enough: a draft and an editor, code and a test runner, a plan and a reviewer.</p>
-        <p><strong>Avoid it when</strong> you can't write a clear stop condition, or when one good prompt would do. Every round costs two or more model calls.</p>
-        <p><strong>The gotcha: a loop needs an explicit stop and a safety net.</strong> The stop is <code>exit_loop</code>, which sets <code>escalate = True</code>. The safety net is <code>max_iterations=3</code>: without it, a critic that's never satisfied loops until your quota runs out. And keep the <code>?</code> in <code>{tribun_feedback?}</code>: on round one the key doesn't exist, and without it ADK raises a <code>KeyError</code>.</p>
+        <p><strong>Use it when</strong> feedback makes the result better, and you can tell when the result is good enough. Examples: a draft and an editor, code and a test runner, a plan and a reviewer.</p>
+        <p><strong>Do not use it when</strong> you cannot write a clear stop condition, or when one good prompt is sufficient. Each round costs two or more model calls.</p>
+        <p><strong>The gotcha: a loop needs a clear stop and a safety limit.</strong> <code>exit_loop</code> is the stop: it sets <code>escalate = True</code>. <code>max_iterations=3</code> is the safety limit. Without it, a critic that never agrees can use all of your quota. Also keep the <code>?</code> in <code>{tribun_feedback?}</code>. In round one, the key does not exist. Without the <code>?</code>, ADK raises a <code>KeyError</code>.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/step-3/">← 3 · Scouting Dept</a><a class="next" href="/workshops/match-day-agents/step-5/">5 · Tech Director →</a></nav>

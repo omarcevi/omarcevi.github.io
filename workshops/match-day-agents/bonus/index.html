@@ -72,24 +72,30 @@
     <main>
       <section id="bonus">
         <h1 class="page-h1">Bonus · Live data over MCP</h1>
-        <p>Everything so far runs on a snapshot. The bonus swaps the data source: the same scout from step 1, with a live football server instead of local JSON.</p>
+        <p>All the steps so far use a snapshot. The bonus changes the data source. It uses the same scout from step 1, but with a live football server instead of local JSON.</p>
         <figure class="arch" id="fig-bonus-live-mcp">
           <div class="arch-frame"><a href="/workshops/match-day-agents/diagrams/bonus-live-mcp.svg" title="Open full size"><img src="/workshops/match-day-agents/diagrams/bonus-live-mcp.svg" alt="Bonus: the same build_scout factory gets either the five local tools over the JSON snapshot, or an McpToolset that talks to livescoremcp.com over SSE" width="1240" height="600" loading="lazy"></a></div>
-          <figcaption>Same agent, different tools. The instruction and the model don't change. Tap to open full size.</figcaption>
+          <figcaption>The same agent with different tools. The instruction and the model do not change. Tap to open full size.</figcaption>
         </figure>
         <span class="src"><a href="https://github.com/omarcevi/trabzonspor_analyst/blob/main/steps/bonus_live_mcp/agent.py">steps/bonus_live_mcp/agent.py</a></span>
-        <div class="code" data-lang="python"><pre><code>live_football = McpToolset(
-    connection_params=SseConnectionParams(url=&quot;https://livescoremcp.com/sse&quot;, timeout=15),
-    # The server has 16 tools; expose only the ones a scout needs, to keep the prompt small.
-    tool_filter=[&quot;search&quot;, &quot;get_team&quot;, &quot;get_player&quot;, &quot;get_match&quot;, &quot;get_standings&quot;, &quot;get_head_to_head&quot;],
+        <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">steps/bonus_live_mcp/</span></span></div><pre><span class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</span><code><span class="tk-var">live_football</span> = <span class="tk-cls">McpToolset</span>(
+    <span class="tk-var">connection_params</span>=<span class="tk-cls">SseConnectionParams</span>(<span class="tk-var">url</span>=<span class="tk-str">&quot;https://livescoremcp.com/sse&quot;</span>, <span class="tk-var">timeout</span>=<span class="tk-num">15</span>),
+    <span class="tk-com"># The server has 16 tools; expose only the ones a scout needs, to keep the prompt small.</span>
+    <span class="tk-var">tool_filter</span>=[<span class="tk-str">&quot;search&quot;</span>, <span class="tk-str">&quot;get_team&quot;</span>, <span class="tk-str">&quot;get_player&quot;</span>, <span class="tk-str">&quot;get_match&quot;</span>, <span class="tk-str">&quot;get_standings&quot;</span>, <span class="tk-str">&quot;get_head_to_head&quot;</span>],
 )
 
-root_agent = build_scout(name=&quot;live_scout&quot;, tools=[live_football])</code></pre></div>
-        <p><a href="https://modelcontextprotocol.io">MCP</a> (Model Context Protocol) is a standard way for a server to offer tools to any agent. ADK fetches the server's tool list and hands the tools to the model like Python functions; <code>tool_filter</code> keeps six of the sixteen. MCP support is the optional <code>google-adk[mcp]</code> extra, already in this repo's dependencies.</p>
+<span class="tk-var">root_agent</span> = <span class="tk-fn">build_scout</span>(<span class="tk-var">name</span>=<span class="tk-str">&quot;live_scout&quot;</span>, <span class="tk-var">tools</span>=[<span class="tk-var">live_football</span>])</code></pre></div>
+        <p><a href="https://modelcontextprotocol.io">MCP</a> (Model Context Protocol) is a standard way for a server to give tools to an agent. ADK gets the tool list from the server. It gives these tools to the model like Python functions. <code>tool_filter</code> keeps six of the sixteen tools. MCP support is in the optional <code>google-adk[mcp]</code> extra, and this repo includes it.</p>
         <p>I asked: <em>"What were Trabzonspor's last three results, and who scored?"</em></p>
-        <p>The scout made four calls to the live server (<code>get_team</code>, then <code>get_match</code> three times) and answered in 18 seconds:</p>
+        <p>The scout made four calls to the live server: <code>get_team</code> one time and <code>get_match</code> three times. It answered in 18 seconds:</p>
         <blockquote class="sample"><ul class="plain"><li><strong>26/10/2026 · Süper Lig: Rizespor 3 - 4 Trabzonspor</strong> · Our scorers: Melih Kabasakal (49'), Aral Şimşir (51'), Franculino (57', 83')</li><li><strong>22/10/2026 · UEFA Europa Conference League: Trabzonspor 2 - 0 Heart of Midlothian</strong> · Our scorers: Mohamed Salah (32' pen.), Franculino (58')</li><li><strong>19/10/2026 · Süper Lig: Trabzonspor 2 - 0 Beşiktaş J.K.</strong> · Our scorers: Ozan Tufan (21'), Mohamed Salah (71')</li></ul></blockquote>
-        <p>Same results as the snapshot, from a different source, with no change to the agent. The server is free but allows 30 requests per minute per IP, and a room on one Wi-Fi shares that limit, so at the workshop only I ran it.</p>
+        <p>The results are the same as in the snapshot, but they come from a different source. The agent code did not change. The server is free, but it accepts only 30 requests per minute from each IP address. All the people in one room share one Wi-Fi network, so they share this limit. For this reason, only I ran this step at the workshop.</p>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/match-day-agents/step-5/">← 5 · Tech Director</a><a class="next" href="/workshops/match-day-agents/cheat-sheet/">Cheat sheet →</a></nav>

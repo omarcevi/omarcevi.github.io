@@ -17,10 +17,13 @@ for a BLANK on the repo's main branch; other comments are kept as they are).
 from __future__ import annotations
 
 import html
+import io
+import keyword
 import math
 import re
 import shutil
 import sys
+import tokenize
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,6 +76,21 @@ EXTRA_CSS = """
     .code { margin: .3rem 0 1rem; }
     .code pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; overflow-wrap: normal; }
     .code pre { padding-top: 2.4rem; }   /* the copy button gets its own row, so long or one-line code never runs under it */
+    /* Python blocks: a VS Code editor (Dark+ colours, the same in both site themes) */
+    .code.vsc { background: #1e1e1e; border-color: #2b2b2b; color: #d4d4d4; overflow: hidden; }
+    .code.vsc .vsc-bar { display: flex; align-items: flex-end; height: 2.15rem; background: #252526; border-bottom: 1px solid #2b2b2b; }
+    .code.vsc .vsc-tab { display: inline-flex; align-items: center; gap: .45rem; height: 100%; padding: 0 .95rem; background: #1e1e1e;
+                         border-top: 1px solid #0078d4; color: #ffffff; font-size: .74rem; }
+    .code.vsc .vsc-dir { color: #8b8b8b; margin-left: .35rem; }
+    .code.vsc .vsc-icon { width: .62rem; height: .62rem; border-radius: 2px; background: linear-gradient(135deg, #3572a5 50%, #ffd43b 50%); }
+    .code.vsc pre { display: grid; grid-template-columns: auto minmax(0, 1fr); padding: .8rem 1rem .9rem 0; overflow-x: auto; }
+    .code.vsc pre code { overflow: visible; }
+    .code.vsc .gutter { color: #6e7681; text-align: right; padding: 0 1.1rem 0 1rem; user-select: none; min-width: 2.8rem; }
+    .code.vsc .copy { top: .38rem; color: #a0a0a0; border-color: #3c3c3c; }
+    .code.vsc .copy:hover { color: #ffffff; border-color: #6e6e6e; }
+    .tk-kw { color: #569cd6; } .tk-ctl { color: #c586c0; } .tk-fn { color: #dcdcaa; } .tk-cls { color: #4ec9b0; }
+    .tk-var { color: #9cdcfe; } .tk-const { color: #4fc1ff; } .tk-str { color: #ce9178; } .tk-num { color: #b5cea8; }
+    .tk-com { color: #6a9955; } .tk-str .tk-ph, .tk-ph { color: #569cd6; }
     blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
     blockquote.sample::before { content: "agent output"; display: block; font-family: var(--mono); font-size: .68rem;
@@ -132,6 +150,78 @@ def figure(line: str, caption: str, images: Path) -> str:
             f'width="{w}" height="{h}" loading="lazy"></a></div>{cap}\n        </figure>')
 
 
+# Python blocks look like VS Code (Dark+ colours). Python's own tokenizer finds the tokens.
+CONTROL = {"return", "if", "elif", "else", "for", "while", "import", "from", "raise", "try", "except",
+           "finally", "yield", "await", "async", "with", "break", "continue", "pass", "assert", "del"}
+BUILTIN_TYPES = {"str", "int", "float", "bool", "list", "dict", "tuple", "set", "bytes", "object", "type"}
+
+
+def _token_class(tokens: list, i: int, depth: int) -> str | None:
+    kind, text = tokens[i].type, tokens[i].string
+    if kind == tokenize.COMMENT:
+        return "com"
+    if kind == tokenize.STRING or kind in {getattr(tokenize, n, -1) for n in ("FSTRING_START", "FSTRING_MIDDLE", "FSTRING_END")}:
+        return "str"
+    if kind == tokenize.NUMBER:
+        return "num"
+    if kind != tokenize.NAME:
+        return None
+    prev = next((t.string for t in reversed(tokens[:i]) if t.type not in (tokenize.NL, tokenize.NEWLINE, tokenize.INDENT)), "")
+    nxt = next((t.string for t in tokens[i + 1:] if t.type not in (tokenize.NL, tokenize.NEWLINE)), "")
+    if keyword.iskeyword(text):
+        return "ctl" if text in CONTROL else "kw"
+    if prev == "def":
+        return "fn"
+    if prev == "class" or text in BUILTIN_TYPES:
+        return "cls"
+    if nxt == "(":
+        return "cls" if text[:1].isupper() and not text.isupper() else "fn"
+    if nxt == "=" and depth > 0:
+        return "var"            # a keyword argument
+    if text.isupper() and len(text) > 1:
+        return "const"
+    if text[:1].isupper():
+        return "cls"
+    return "var"
+
+
+def highlight_python(code: str) -> str:
+    """Code → HTML with Dark+ token classes. Text that does not tokenize (a piece of a string) shows as a string."""
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return f'<span class="tk-str">{placeholders(html.escape(code))}</span>'
+    if any(t.type == tokenize.ERRORTOKEN and t.string.strip() for t in tokens):
+        return f'<span class="tk-str">{placeholders(html.escape(code))}</span>'
+    starts = [0]
+    for line in code.split("\n"):
+        starts.append(starts[-1] + len(line) + 1)
+    offset = lambda pos: starts[pos[0] - 1] + pos[1]
+    out, last, depth = [], 0, 0
+    for i, tok in enumerate(tokens):
+        if tok.type in (tokenize.ENDMARKER, tokenize.DEDENT, tokenize.INDENT, tokenize.NEWLINE, tokenize.NL):
+            continue
+        a, b = offset(tok.start), offset(tok.end)
+        out.append(html.escape(code[last:a]))
+        cls = _token_class(tokens, i, depth)
+        piece = html.escape(code[a:b])
+        if cls == "str":
+            piece = placeholders(piece)
+        out.append(f'<span class="tk-{cls}">{piece}</span>' if cls else piece)
+        if tok.string in "([{":
+            depth += 1
+        elif tok.string in ")]}":
+            depth = max(0, depth - 1)
+        last = b
+    out.append(html.escape(code[last:]))
+    return "".join(out)
+
+
+def placeholders(escaped: str) -> str:
+    """{state_key} and {state_key?} inside instruction strings: ADK fills these from session state."""
+    return re.sub(r"\{\w+\??\}", lambda m: f'<span class="tk-ph">{m.group()}</span>', escaped)
+
+
 def code_block(lang: str, body: str, source: tuple[str, str | None] | None) -> str:
     label = ""
     if source:
@@ -147,6 +237,14 @@ def code_block(lang: str, body: str, source: tuple[str, str | None] | None) -> s
             cmd, hash_, comment = line.partition("  #")
             rows.append(html.escape(cmd) + (f'<span class="c">  #{html.escape(comment)}</span>' if hash_ else ""))
         return f'{label}<div class="code" data-lang="bash"><pre>' + "\n".join(rows) + "</pre></div>"
+    if lang == "python":   # a VS Code editor: a tab with the file name, line numbers, Dark+ colours
+        name = Path(source[0]).name if source else "snippet.py"
+        folder = str(Path(source[0]).parent) + "/" if source and "/" in source[0] else ""
+        gutter = "\n".join(str(n) for n in range(1, body.count("\n") + 2))
+        return (f'{label}<div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab">'
+                f'<span class="vsc-icon" aria-hidden="true"></span>{html.escape(name)}'
+                f'<span class="vsc-dir">{html.escape(folder)}</span></span></div>'
+                f'<pre><span class="gutter" aria-hidden="true">{gutter}</span><code>{highlight_python(body)}</code></pre></div>')
     return f'{label}<div class="code" data-lang="{lang or "text"}"><pre><code>{html.escape(body)}</code></pre></div>'
 
 
@@ -477,7 +575,7 @@ SCRIPT = """
     b.setAttribute('aria-label', 'Copy code');
     b.addEventListener('click', () => {
       const clone = pre.cloneNode(true);
-      clone.querySelectorAll('.c').forEach(c => c.remove());
+      clone.querySelectorAll('.c, .gutter').forEach(c => c.remove());   // shell comments and line numbers stay out
       let lines = clone.textContent.split('\\n').map(l => l.replace(/\\s+$/, ''));
       if (block.dataset.lang === 'bash') lines = lines.filter(l => l);
       copy(b, lines.join('\\n').replace(/^\\n+|\\n+$/g, ''));
