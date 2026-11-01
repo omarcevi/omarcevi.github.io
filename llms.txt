@@ -34,9 +34,9 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 - Managing Agentic Systems on Google Cloud: From Deployment to Monitoring — Google Developer Day Istanbul, September 2026
 - Gemma Train-the-Trainer: Running AI Models (workshop) — Google Developer Experts, August 2026
 - Agentverse: Multi-Agent Systems with ADK, MCP and A2A (workshop) — May 2026
-- Build with AI: Google Antigravity — 42 Türkiye, 25 April 2026
-- Build with AI: Vertex AI Studio — 42 Türkiye, 18 April 2026
-- Build with AI: Build a Gemini-Powered YouTube Summarizer with the GenAI SDK — 42 Türkiye, 11 April 2026
+- Build with AI: Google Antigravity (workshop) — 42 Türkiye, 25 April 2026
+- Build with AI: Vertex AI Studio (workshop) — 42 Türkiye, 18 April 2026
+- Build with AI: Build a Gemini-Powered YouTube Summarizer with the GenAI SDK (workshop) — 42 Türkiye, 11 April 2026
 - Vapurda Tech Talk 2025 — GDSC Marmara, 2025 · [photos](https://www.instagram.com/p/DSJzQRmDYa2/)
 - Architecture of High Performance ML Solutions — GDG Baku, 22 November 2025
 - How AI Agents Can Save You: Google Agent Development Kit Demo — GDG Istanbul – Build with AI Extended, 17 May 2025 · Istanbul, Trendyol Campus
