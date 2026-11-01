@@ -174,6 +174,11 @@ class Hero(unittest.TestCase):
         self.assertIn(".hero .links { margin-top: 1.5rem; gap: 0.5rem; }", self.html)
         self.assertIn(".hero .links a { padding: 0.5rem 0.8rem; }", self.html)
 
+    def test_hero_text_starts_level_with_the_photo(self):
+        # the photo's formula row makes that column the taller one; aligning to the end left a gap above the kicker
+        self.assertIn(".hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 3rem; align-items: start; }",
+                      self.html)
+
 
 class Simulator(unittest.TestCase):
     @classmethod

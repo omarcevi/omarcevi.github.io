@@ -228,7 +228,7 @@
 
     /* ---------- header ---------- */
     header { padding: 4rem 0 2.5rem; position: relative; }
-    .hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 3rem; align-items: end; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 3rem; align-items: start; }
     .hero-text { position: relative; } /* the GPT-2 token popup is positioned inside the h1's parent */
     .hero .links { margin-top: 1.5rem; gap: 0.5rem; }
     .hero .links a { padding: 0.5rem 0.8rem; } /* five pills on one row at the page's full width */
@@ -818,7 +818,6 @@
     @media (max-width: 860px) {
       .two, .two.wide-left, .hero, .feat2 { grid-template-columns: minmax(0, 1fr); }
       .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .hero { align-items: start; }
       .hero-photo { max-width: 340px; }
     }
 
