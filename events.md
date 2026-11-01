@@ -81,17 +81,17 @@ nothing on the site changes, and GitHub emails you the reason.
 - about: A team of research, judge and builder agents talking over A2A, with a self-hosted Gemma model on Cloud Run GPUs.
 
 ## Build with AI: Google Antigravity
-- type: talk
+- type: workshop
 - event: 42 Türkiye
 - date: 2026-04-25
 
 ## Build with AI: Vertex AI Studio
-- type: talk
+- type: workshop
 - event: 42 Türkiye
 - date: 2026-04-18
 
 ## Build with AI: Build a Gemini-Powered YouTube Summarizer with the GenAI SDK
-- type: talk
+- type: workshop
 - event: 42 Türkiye
 - date: 2026-04-11
 
