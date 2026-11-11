@@ -6,7 +6,7 @@ Türkçe özet: Omar Elcircevi, İstanbul'da yaşayan bir makine öğrenmesi (ML
 
 ## Experience
 
-- Trendyol (Istanbul), Machine Learning Engineer, Inference Platform, March 2024 – September 2026: ran model serving for 100M+ users at over 1M requests per minute with Triton and vLLM on GKE and on-prem Kubernetes; reconfigured H100 GPUs with MIG for about 1.75x more serving capacity; designed the platform's deployment client, auth, active zone switching and pipeline event notifications; built TensorRT conversion pipelines; benchmarked AMD MI325X against NVIDIA H200 for LLM and ranking workloads.
+- Trendyol (Istanbul), Machine Learning Engineer, Inference Platform, March 2024 – September 2026: ran model serving for 40M+ across 35 different countries users at over 1M requests per minute with Triton and vLLM on GKE and on-prem Kubernetes; reconfigured H100 GPUs with MIG for about 1.75x more serving capacity; designed the platform's deployment client, auth, active zone switching and pipeline event notifications; built TensorRT conversion pipelines; benchmarked AMD MI325X against NVIDIA H200 for LLM and ranking workloads.
 - Turkcell (Istanbul), AI & Analytical Solutions, 2022 – 2024.
 
 ## Focus areas
