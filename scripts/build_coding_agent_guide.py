@@ -32,6 +32,8 @@ SLUG = "coding-agent-workshop"
 BASE = f"/workshops/{SLUG}/"
 OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/coding_agent_workshop"
+CLOUD_SHELL = ("https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/coding_agent_workshop.git"
+               "&cloudshell_git_branch=main&cloudshell_tutorial=tutorial.md&cloudshell_workspace=.&show=ide%2Cterminal")
 GUIDE_SHORT = "Build Your Coding Agent"
 CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"   # the multi-page guide styles
 
@@ -419,7 +421,7 @@ def build(source_repo: Path) -> None:
                 f'<b>{html.escape(h[0].split(" · ", 1)[-1])}</b><span class="d">{html.escape(d)}</span></a></li>'
                 for s, n, h, d in PAGES[1:])
             content = OVERVIEW.format(title=html.escape(title), desc=html.escape(desc), total=total,
-                                      repo=REPO, first=url("setup"),
+                                      repo=REPO, cloudshell=html.escape(CLOUD_SHELL), first=url("setup"),
                                       intro="\n        ".join(blocks(intro, images)), grid=grid)
         else:
             chunks = []
@@ -517,6 +519,7 @@ OVERVIEW = """      <header class="hero" id="overview">
         <p class="tagline">{desc}</p>
         <div class="actions">
           <a class="btn primary" href="{first}">Start with the setup</a>
+          <a class="btn" href="{cloudshell}">Open in Cloud Shell</a>
           <a class="btn" href="{repo}">Code on GitHub</a>
         </div>
       </header>
