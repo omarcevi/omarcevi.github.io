@@ -70,19 +70,21 @@
     <main>
       <section id="setup">
         <h1 class="page-h1">Setup</h1>
-        <p>Do this before the workshop if you can.</p>
+        <p>Do this before the workshop if you can. The agent calls Gemini through Vertex AI in your own Google Cloud project. You need a project with billing. Free trial credits work, and the whole workshop makes only a few dozen calls.</p>
         <p><strong>Or use Cloud Shell, with nothing to install.</strong> Click <a href="https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/omarcevi/coding_agent_workshop.git&amp;amp;cloudshell_git_branch=main&amp;amp;cloudshell_tutorial=tutorial.md&amp;amp;cloudshell_workspace=.&amp;amp;show=ide%2Cterminal">Open in Cloud Shell</a>. In the dialog, select <strong>Trust repo</strong> and click <strong>Confirm</strong>. Cloud Shell copies the repo and opens a tutorial panel next to the editor. It walks you through the setup and every step, and its links open the files for you.</p>
-        <p>Install <a href="https://docs.astral.sh/uv/getting-started/installation/">uv</a>, the Python package manager the workshop uses:</p>
-        <div class="code" data-lang="bash"><pre>curl -LsSf https://astral.sh/uv/install.sh | sh<span class="c">  # macOS and Linux; for Windows see the uv docs</span></pre></div>
-        <p>Get the code and install it:</p>
+        <p>Install the <a href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a>, then sign in and select your project:</p>
+        <div class="code" data-lang="bash"><pre>gcloud auth login
+gcloud auth application-default login<span class="c">  # lets the agent call Vertex AI as you</span>
+gcloud config set project YOUR_PROJECT_ID</pre></div>
+        <p>Get the code and run the setup script. On Windows, use Git Bash or WSL.</p>
         <div class="code" data-lang="bash"><pre>git clone https://github.com/omarcevi/coding_agent_workshop.git
 cd coding_agent_workshop
-uv sync<span class="c">  # installs ADK and pytest into .venv</span></pre></div>
-        <p>Get a free Gemini API key at <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a>, then save it. The script asks for the key, which doesn't show on screen, and saves it in <code>.env</code>. ADK finds this one file from every agent in the repo.</p>
-        <div class="code" data-lang="bash"><pre>uv run python scripts/set_key.py</pre></div>
-        <p>Create the practice project and check that everything works:</p>
-        <div class="code" data-lang="bash"><pre>uv run reset_workspace.py<span class="c">  # copies the buggy demo project into workspace/</span>
-uv run check_setup.py<span class="c">  # every line should say OK</span></pre></div>
+bash scripts/setup.sh<span class="c">  # about a minute</span></pre></div>
+        <p>The script checks the project and its billing, turns on the Vertex AI API, installs uv and the Python packages, writes <code>.env</code>, copies the buggy demo project into <code>workspace/</code>, and makes one call to Gemini. It ends with <code>✅ Ready</code>. ADK finds the one <code>.env</code> from every agent in the repo.</p>
+        <p><strong>No billing account?</strong> Use a free key from <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a> instead. Install <a href="https://docs.astral.sh/uv/getting-started/installation/">uv</a>, then:</p>
+        <div class="code" data-lang="bash"><pre>uv sync
+uv run reset_workspace.py
+uv run python scripts/set_key.py<span class="c">  # asks for the key; it doesn&#x27;t show on screen</span></pre></div>
         <p>Start the ADK dev UI:</p>
         <div class="code" data-lang="bash"><pre>uv run adk web --reload_agents agents</pre></div>
         <p>Open <a href="http://localhost:8000">localhost:8000</a> and pick <code>my_agent</code> from <strong>Select an app</strong> at the top. <code>--reload_agents</code> picks up your code when you save, so you never restart it. Always start it with <code>uv run</code>, so the agent's <code>python -m pytest</code> uses this project's Python.</p>
