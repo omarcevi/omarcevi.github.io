@@ -70,7 +70,7 @@
     <main>
       <section id="step-4">
         <h1 class="page-h1">Step 4 · Add guardrails</h1>
-        <p>Step 3 works, and that's the problem. Nothing stops it from reading <code>../.env</code>, where your API key lives, or running any command it likes. While preparing this workshop, after the tests went green it decided on its own to run <code>git diff</code>. Harmless this time.</p>
+        <p>Step 3 works, and that's the problem. Nothing stops it from reading files outside the project, like <code>../.env</code>, or running any command it likes. While preparing this workshop, after the tests went green it decided on its own to run <code>git diff</code>. Harmless this time.</p>
         <p>First guardrail: the file tools refuse any path outside the workspace. Use <code>_resolve(path)</code> in <code>read_file</code> and <code>write_file</code> instead of <code>WORKSPACE / path</code>.</p>
         <span class="src"><a href="https://github.com/omarcevi/coding_agent_workshop/blob/main/agents/step4_safe/agent.py">agents/step4_safe/agent.py</a></span>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>agent.py<span class="vsc-dir">agents/step4_safe/</span></span></div><pre><span class="gutter" aria-hidden="true">1
