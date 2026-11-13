@@ -17,6 +17,17 @@ Order doesn't matter: the site lists newest first, and the next event with a ful
 date becomes the "next up" card. If an entry has a mistake, the update stops,
 nothing on the site changes, and GitHub emails you the reason.
 
+## Build Your Coding Agent with Google ADK
+- type: workshop
+- event: DevFest Kocaeli 2026
+- date: 2026-11-14
+- place: Kocaeli, Emexotel
+- link: https://devfestkocaeli.com/
+- format: in person
+- lang: TR
+- guide: /workshops/coding-agent-workshop/
+- repo: https://github.com/omarcevi/coding_agent_workshop
+
 ## Retrieval Is All You Need (Almost)
 - type: talk
 - event: DevFest İzmir 2026

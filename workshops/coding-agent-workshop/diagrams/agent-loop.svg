@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" width="1200" height="470" font-family="'Google Sans',Roboto,'Helvetica Neue',Arial,sans-serif" role="img" aria-label="The agent loop. You send a request to the agent. The agent, a Gemini model with an instruction, asks for a tool call; ADK runs your Python function and sends the result back. ADK repeats this until the model answers with text, and the answer comes back to you.">
+  <defs>
+    <marker id="head-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1a73e8"/></marker>
+    <marker id="head-aux" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#80868b"/></marker>
+  </defs>
+  <rect width="1200" height="470" fill="#ffffff"/>
+
+  <!-- you -->
+  <rect x="40" y="160" width="190" height="130" rx="14" fill="#ffffff" stroke="#dadce0" stroke-width="2"/>
+  <text x="135" y="208" text-anchor="middle" font-size="24" font-weight="500" fill="#202124">You</text>
+  <text x="135" y="240" text-anchor="middle" font-size="16" fill="#5f6368">"The tests are</text>
+  <text x="135" y="262" text-anchor="middle" font-size="16" fill="#5f6368">failing. Fix them."</text>
+
+  <!-- agent -->
+  <rect x="360" y="120" width="290" height="210" rx="16" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+  <text x="505" y="172" text-anchor="middle" font-size="26" font-weight="500" fill="#174ea6">Agent</text>
+  <text x="505" y="210" text-anchor="middle" font-size="17" fill="#3c4043">Gemini model</text>
+  <text x="505" y="236" text-anchor="middle" font-size="17" fill="#3c4043">+ your instruction</text>
+  <text x="505" y="292" text-anchor="middle" font-size="14" font-family="'Roboto Mono',Menlo,monospace" fill="#5f6368">root_agent = Agent(...)</text>
+
+  <!-- tools -->
+  <rect x="830" y="50" width="330" height="350" rx="16" fill="#f8f9fa" stroke="#dadce0" stroke-width="2"/>
+  <text x="995" y="96" text-anchor="middle" font-size="22" font-weight="500" fill="#202124">Tools</text>
+  <text x="995" y="122" text-anchor="middle" font-size="15" fill="#5f6368">plain Python functions</text>
+  <g font-family="'Roboto Mono',Menlo,monospace" font-size="16" fill="#202124">
+    <rect x="860" y="148" width="270" height="44" rx="10" fill="#ffffff" stroke="#dadce0"/>
+    <text x="878" y="176">list_files()</text>
+    <rect x="860" y="204" width="270" height="44" rx="10" fill="#ffffff" stroke="#dadce0"/>
+    <text x="878" y="232">read_file(path)</text>
+    <rect x="860" y="260" width="270" height="44" rx="10" fill="#ffffff" stroke="#dadce0"/>
+    <text x="878" y="288">write_file(path, …)</text>
+    <rect x="860" y="316" width="270" height="44" rx="10" fill="#fce8e6" stroke="#f28b82"/>
+    <text x="878" y="344">run_command(command)</text>
+  </g>
+  <text x="995" y="384" text-anchor="middle" font-size="13" fill="#a50e0e">step 3: lets it check its own work</text>
+
+  <!-- you <-> agent -->
+  <path d="M232 200 H352" stroke="#80868b" stroke-width="2.5" fill="none" marker-end="url(#head-aux)"/>
+  <text x="292" y="188" text-anchor="middle" font-size="15" fill="#5f6368">request</text>
+  <path d="M358 258 H238" stroke="#80868b" stroke-width="2.5" fill="none" marker-end="url(#head-aux)"/>
+  <text x="298" y="284" text-anchor="middle" font-size="15" fill="#5f6368">answer</text>
+
+  <!-- agent <-> tools: the loop -->
+  <path d="M652 180 H822" stroke="#1a73e8" stroke-width="3" fill="none" marker-end="url(#head-main)"/>
+  <text x="737" y="166" text-anchor="middle" font-size="16" font-weight="500" fill="#1a73e8">1 · asks for a tool</text>
+  <path d="M828 270 H660" stroke="#1a73e8" stroke-width="3" fill="none" marker-end="url(#head-main)"/>
+  <text x="744" y="300" text-anchor="middle" font-size="16" font-weight="500" fill="#1a73e8">2 · gets the result</text>
+
+  <!-- the runner -->
+  <path d="M505 336 C505 410, 744 410, 744 314" stroke="#1a73e8" stroke-width="2" stroke-dasharray="6 6" fill="none" marker-end="url(#head-main)"/>
+  <text x="600" y="446" text-anchor="middle" font-size="17" fill="#202124">ADK runs the loop: <tspan font-weight="500">1 → 2 → 1 → 2 …</tspan> until the model answers with text</text>
+</svg>
