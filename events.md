@@ -17,6 +17,16 @@ Order doesn't matter: the site lists newest first, and the next event with a ful
 date becomes the "next up" card. If an entry has a mistake, the update stops,
 nothing on the site changes, and GitHub emails you the reason.
 
+## Finansal Verilerle Yapay Zekâyı Buluşturmak
+- type: workshop
+- event: Işık IEEE Computer Society
+- date: 2026-11-18
+- place: Istanbul, Işık University Şile Campus (DMF-214)
+- format: in person
+- lang: TR
+- guide: /workshops/pytorch-finance-workshop/
+- repo: https://github.com/omarcevi/pytorch-finance-workshop
+
 ## Build Your Coding Agent with Google ADK
 - type: workshop
 - event: DevFest Kocaeli 2026
