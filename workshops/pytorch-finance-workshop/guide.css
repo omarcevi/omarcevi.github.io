@@ -345,7 +345,7 @@
     .tk-com { color: #6a9955; } .tk-str .tk-ph, .tk-ph { color: #569cd6; }
     blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
-    blockquote.sample::before { content: "önemli not"; display: block; font-family: var(--mono); font-size: .68rem;
+    blockquote.sample::before { content: "note"; display: block; font-family: var(--mono); font-size: .68rem;
                                 letter-spacing: .07em; text-transform: uppercase; color: var(--ts-ink); margin-bottom: .35rem; }
     .table-wrap { overflow-x: auto; margin: 1rem 0; }
     table { width: 100%; border-collapse: collapse; font-size: .92rem; }

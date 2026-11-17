@@ -16,7 +16,7 @@
   document.querySelectorAll('.code').forEach(block => {
     const pre = block.querySelector('pre');
     const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
-    b.setAttribute('aria-label', 'Kodu kopyala');
+    b.setAttribute('aria-label', 'Copy code');
     b.addEventListener('click', () => {
       const clone = pre.cloneNode(true);
       clone.querySelectorAll('.c, .gutter').forEach(c => c.remove());
@@ -29,8 +29,8 @@
 
   const box = document.createElement('dialog');
   if (box.showModal) {
-    box.className = 'lightbox'; box.setAttribute('aria-label', 'Diyagram');
-    box.innerHTML = '<button type="button" class="lightbox-close" aria-label="Kapat"><svg viewBox="0 0 16 16" aria-hidden="true">'
+    box.className = 'lightbox'; box.setAttribute('aria-label', 'Diagram');
+    box.innerHTML = '<button type="button" class="lightbox-close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true">'
       + '<path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button><img alt="">';
     const big = box.querySelector('img');
     document.body.appendChild(box);

@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bölüm 6 · Meydan Okumalar · Finansal Verilerle Yapay Zekâyı Buluşturmak · Omar Elcircevi</title>
-  <meta name="description" content="Kendi sembolünü deneme, hacim özelliği ekleme, GRU ve TinyTransformer modelleri, işlem maliyetli (15 bps) backtest.">
+  <title>Part 6 · Challenges · Bringing AI to Financial Data · Omar Elcircevi</title>
+  <meta name="description" content="Your own ticker, a volume feature, GRU and TinyTransformer models, and a backtest with trading costs (15 bps).">
   <link rel="canonical" href="https://omarcevi.dev/workshops/pytorch-finance-workshop/step-6/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Bölüm 6 · Meydan Okumalar · Finansal Verilerle Yapay Zekâyı Buluşturmak">
-  <meta property="og:description" content="Kendi sembolünü deneme, hacim özelliği ekleme, GRU ve TinyTransformer modelleri, işlem maliyetli (15 bps) backtest.">
+  <meta property="og:title" content="Part 6 · Challenges · Bringing AI to Financial Data">
+  <meta property="og:description" content="Your own ticker, a volume feature, GRU and TinyTransformer models, and a backtest with trading costs (15 bps).">
   <meta property="og:url" content="https://omarcevi.dev/workshops/pytorch-finance-workshop/step-6/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -35,51 +35,51 @@
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a><span class="cur"> / <span class="here">6 · Meydan Okumalar</span></span></span>
-    <nav aria-label="Rehber bölümleri">
-      <a href="/workshops/pytorch-finance-workshop/">Genel Bakış</a>
-      <a href="/workshops/pytorch-finance-workshop/step-1/">Bölümler</a>
-      <a href="/workshops/pytorch-finance-workshop/reading/">İleri Okuma</a>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a><span class="cur"> / <span class="here">6 · Challenges</span></span></span>
+    <nav aria-label="Guide sections">
+      <a href="/workshops/pytorch-finance-workshop/">Overview</a>
+      <a href="/workshops/pytorch-finance-workshop/step-1/">Parts</a>
+      <a href="/workshops/pytorch-finance-workshop/reading/">Further reading</a>
       <a href="https://github.com/omarcevi/pytorch-finance-workshop">GitHub</a>
     </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Koyu temayı değiştir">
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
       <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
       <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
     </button>
   </div>
 
   <div class="layout">
-    <aside class="toc" aria-label="Rehber sayfaları">
-      <p class="label">Rehber</p>
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Guide</p>
       <ol>
-        <li><a href="/workshops/pytorch-finance-workshop/"><span class="n">Genel Bakış</span></a></li>
-        <li class="group">Atölye Bölümleri</li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Kurulum ve Veri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Temizlik ve Özellikler</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Temelleri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Fiyat Tahmini ve Sürpriz</span><span class="t">2 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · Doğru Kurulum</span><span class="t">1 dk</span></a></li>
-        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Meydan Okumalar</span><span class="t">1 dk</span></a></li>
-        <li class="group">Kaynaklar</li>
-        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">İleri Okuma</span><span class="t">1 dk</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Workshop parts</li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Setup and Data</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Cleaning and Features</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Basics</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Price Prediction</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · The Right Setup</span><span class="t">1 min</span></a></li>
+        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Challenges</span><span class="t">1 min</span></a></li>
+        <li class="group">Resources</li>
+        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">Further Reading</span><span class="t">1 min</span></a></li>
       </ol>
     </aside>
 
     <main>
       <section id="step-6">
-        <h1 class="page-h1">Bölüm 6 · Meydan Okumalar</h1>
-        <p class="goal"><strong>Hedef:</strong> Kurduğumuz sızıntısız değerlendirme hattı üzerinde farklı sembolleri, yeni özellikleri (<code>volume_change</code>), alternatif mimarileri (<code>GRU</code>, <code>TinyTransformer</code>) ve işlem maliyetli (<code>15 bps</code>) strateji testini denemek.</p>
-        <p><strong>Yetiştir Hücresi:</strong> <code>🔄 Yetiştir: Bölüm 6 (Meydan okumalar için tüm değişkenleri hazırlar)</code></p>
-        <p><strong>Meydan Okumalar ve Çözüm İpuçları:</strong></p>
-        <ol class="plain"><li><strong>Meydan Okuma 1 — Kendi Sembolünü Dene:</strong> <code>load_prices(&quot;ASELS.IS&quot;)</code>, <code>load_prices(&quot;BTC-USD&quot;)</code> veya <code>load_prices(&quot;AAPL&quot;)</code> ile veriyi indirin. Geçersiz bir sembol (<code>load_prices(&quot;GECERSIZ_XYZ&quot;)</code>) verdiğinizde Türkçe <code>ValueError</code> mesajının nasıl yakalandığını görün.</li><li><strong>Meydan Okuma 2 — İşlem Hacmi (<code>volume_change</code>) Özelliğini Ekle:</strong> <code>cols_5 = FEATURE_COLS + [&quot;volume_change&quot;]</code> listesini <code>fit_scaler_on_train</code> fonksiyonuna vererek 5 özellikle modeli yeniden eğitin (<code>THYAO.IS</code> üzerinde test doğruluğu <code>%52.84</code> civarında çıkar).</li><li><strong>Meydan Okuma 3 — <code>nn.LSTM</code> Yerine <code>nn.GRU</code> ve 15 Günlük Pencere:</strong> <code>train_direction_classifier(..., window_size=15, model_cls=GRUModel)</code> çağrısıyla daha az parametreli <code>GRU</code> modelini deneyin (<code>Test Acc: %50.35</code>).</li><li><strong>Meydan Okuma 4 (Bonus) — <code>TinyTransformerModel</code> ve İşlem Maliyetli Backtest:</strong> <code>backtest_with_costs(test_rets, cls_res[&quot;y_pred&quot;], cost_bps=15.0)</code> çağrısıyla her alım-satımda ödenen %0.15 komisyon+makas maliyetinin brüt strateji getirisini (<code>1.31x</code>) net <code>0.86x</code> seviyesine nasıl düşürdüğünü grafikte gözlemleyin!</li></ol>
-        <p><strong>Sorun Giderme (Bu Adım Çalışmazsa):</strong></p>
-        <ul class="plain"><li><strong>Kendi seçtiğiniz bir BIST sembolünde <code>yeterli geçmiş veri yok</code> hatası:</strong> Yeni halka arz olmuş hisselerde 120 günden az veri bulunabilir; daha eski bir sembol seçin veya <code>min_rows</code> parametresini küçültün.</li><li><strong>Çözüm kodlarını görmek için:</strong> Defterde her meydan okumanın altındaki <strong><code>💡 Çözüm</code></strong> hücresine çift tıklayarak kodu açabilir veya doğrudan çalıştırabilirsiniz.</li></ul>
+        <h1 class="page-h1">Part 6 · Challenges</h1>
+        <p class="goal"><strong>Goal:</strong> Use the leak-free evaluation pipeline we built to try other tickers, a new feature (<code>volume_change</code>), other architectures (<code>GRU</code>, <code>TinyTransformer</code>), and a strategy test with trading costs (<code>15 bps</code>).</p>
+        <p><strong>Catch-up cell:</strong> <code>🔄 Yetiştir: Bölüm 6 (Meydan okumalar için tüm değişkenleri hazırlar)</code> (<em>"Catch up: Part 6 — prepares every variable for the challenges"</em>)</p>
+        <p><strong>Challenges and solution hints:</strong></p>
+        <ol class="plain"><li><strong>Challenge 1 — Try your own ticker:</strong> Load data with <code>load_prices(&quot;ASELS.IS&quot;)</code>, <code>load_prices(&quot;BTC-USD&quot;)</code> or <code>load_prices(&quot;AAPL&quot;)</code>. Pass an invalid ticker (<code>load_prices(&quot;GECERSIZ_XYZ&quot;)</code>) and see how the <code>ValueError</code> is caught.</li><li><strong>Challenge 2 — Add the trading-volume feature (<code>volume_change</code>):</strong> Pass <code>cols_5 = FEATURE_COLS + [&quot;volume_change&quot;]</code> to <code>fit_scaler_on_train</code> and retrain the model with five features (on <code>THYAO.IS</code> test accuracy comes out around <code>55.7%</code>; compare it with the ±4.8-point uncertainty from Part 5 before calling it an improvement).</li><li><strong>Challenge 3 — <code>nn.GRU</code> instead of <code>nn.LSTM</code>, with a 15-day window:</strong> Try the <code>GRU</code> model, which has fewer parameters, with <code>train_direction_classifier(..., window_size=15, model_cls=GRUModel)</code> (<code>Test Acc: 52.6%</code>).</li><li><strong>Challenge 4 (Bonus) — <code>TinyTransformerModel</code> and a backtest with costs:</strong> Call <code>backtest_with_costs(test_rets, cls_res[&quot;y_pred&quot;], cost_bps=15.0)</code> and compare buy-and-hold with the strategy before and after a 0.15% commission-and-spread cost on every trade. On the THYAO test window the model is in the market only about one day in five and changes position just 29 times, so costs take little off: buy-and-hold ends at <code>0.99x</code>, the strategy at <code>1.24x</code> gross and <code>1.18x</code> net. Before believing it, ask why: one 22-month window, an accuracy indistinguishable from 50%, and a strategy that mostly sat in cash during a flat market. Rerun it with other seeds, tickers and walk-forward folds.</li></ol>
+        <p><strong>Troubleshooting (if this step fails):</strong></p>
+        <ul class="plain"><li><strong><code>yeterli geçmiş veri yok</code> ("not enough history") for a BIST ticker you picked:</strong> Recently listed stocks can have fewer than 120 days of data. Pick an older ticker or lower the <code>min_rows</code> parameter.</li><li><strong>To see the solution code:</strong> Double-click the <strong><code>💡 Çözüm</code></strong> ("Solution") cell under each challenge in the notebook to open the code, or simply run it.</li></ul>
       </section>
 
-      <nav class="pager" aria-label="Önceki ve sonraki sayfa"><a class="prev" href="/workshops/pytorch-finance-workshop/step-5/">← 5 · Doğru Kurulum</a><a class="next" href="/workshops/pytorch-finance-workshop/reading/">İleri Okuma →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/pytorch-finance-workshop/step-5/">← 5 · The Right Setup</a><a class="next" href="/workshops/pytorch-finance-workshop/reading/">Further Reading →</a></nav>
       <footer>
-        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">kaynak kod</a></p>
-        <p>Işık Üniversitesi Şile Kampüsü (DMF-214) · 18 Kasım 2026 · Yatırım tavsiyesi değildir.</p>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">source code</a></p>
+        <p>Işık University Şile Campus (DMF-214) · 18 November 2026 · Not investment advice.</p>
       </footer>
     </main>
   </div>

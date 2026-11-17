@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bölüm 2 · Temizlik ve Özellikler · Finansal Verilerle Yapay Zekâyı Buluşturmak · Omar Elcircevi</title>
-  <meta name="description" content="Eksik günler (ffill), log getiri, hareketli ortalama, volatilite, RSI, kronolojik bölme (%70/%15/%15) ve sızıntısız StandardScaler.">
+  <title>Part 2 · Cleaning and Features · Bringing AI to Financial Data · Omar Elcircevi</title>
+  <meta name="description" content="Missing values (ffill), log returns, moving average, volatility, RSI, a chronological 70/15/15 split and a leak-free StandardScaler.">
   <link rel="canonical" href="https://omarcevi.dev/workshops/pytorch-finance-workshop/step-2/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Bölüm 2 · Temizlik ve Özellikler · Finansal Verilerle Yapay Zekâyı Buluşturmak">
-  <meta property="og:description" content="Eksik günler (ffill), log getiri, hareketli ortalama, volatilite, RSI, kronolojik bölme (%70/%15/%15) ve sızıntısız StandardScaler.">
+  <meta property="og:title" content="Part 2 · Cleaning and Features · Bringing AI to Financial Data">
+  <meta property="og:description" content="Missing values (ffill), log returns, moving average, volatility, RSI, a chronological 70/15/15 split and a leak-free StandardScaler.">
   <meta property="og:url" content="https://omarcevi.dev/workshops/pytorch-finance-workshop/step-2/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -35,45 +35,45 @@
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a><span class="cur"> / <span class="here">2 · Temizlik ve Özellikler</span></span></span>
-    <nav aria-label="Rehber bölümleri">
-      <a href="/workshops/pytorch-finance-workshop/">Genel Bakış</a>
-      <a href="/workshops/pytorch-finance-workshop/step-1/">Bölümler</a>
-      <a href="/workshops/pytorch-finance-workshop/reading/">İleri Okuma</a>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a><span class="cur"> / <span class="here">2 · Cleaning and Features</span></span></span>
+    <nav aria-label="Guide sections">
+      <a href="/workshops/pytorch-finance-workshop/">Overview</a>
+      <a href="/workshops/pytorch-finance-workshop/step-1/">Parts</a>
+      <a href="/workshops/pytorch-finance-workshop/reading/">Further reading</a>
       <a href="https://github.com/omarcevi/pytorch-finance-workshop">GitHub</a>
     </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Koyu temayı değiştir">
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
       <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
       <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
     </button>
   </div>
 
   <div class="layout">
-    <aside class="toc" aria-label="Rehber sayfaları">
-      <p class="label">Rehber</p>
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Guide</p>
       <ol>
-        <li><a href="/workshops/pytorch-finance-workshop/"><span class="n">Genel Bakış</span></a></li>
-        <li class="group">Atölye Bölümleri</li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Kurulum ve Veri</span><span class="t">1 dk</span></a></li>
-        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Temizlik ve Özellikler</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Temelleri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Fiyat Tahmini ve Sürpriz</span><span class="t">2 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · Doğru Kurulum</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Meydan Okumalar</span><span class="t">1 dk</span></a></li>
-        <li class="group">Kaynaklar</li>
-        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">İleri Okuma</span><span class="t">1 dk</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Workshop parts</li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Setup and Data</span><span class="t">1 min</span></a></li>
+        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Cleaning and Features</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Basics</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Price Prediction</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · The Right Setup</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Challenges</span><span class="t">1 min</span></a></li>
+        <li class="group">Resources</li>
+        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">Further Reading</span><span class="t">1 min</span></a></li>
       </ol>
     </aside>
 
     <main>
       <section id="step-2">
-        <h1 class="page-h1">Bölüm 2 · Temizlik ve Özellikler</h1>
-        <p class="goal"><strong>Hedef:</strong> Ham fiyatları durağan (stationary) getiri özelliklerine dönüştürmek, veriyi zaman sırasını bozmadan (%70/%15/%15) bölmek ve <code>StandardScaler</code> nesnesini veri sızıntısı olmadan yalnızca eğitim kümesinde fit etmek.</p>
-        <p><strong>Temel Fikirler:</strong></p>
-        <ul class="plain"><li><strong>Eksik Günler ve Kapalı Piyasalar:</strong> Hafta sonları ve resmi tatillerde borsa kapalıdır. Eksik değerleri doldururken yalnızca geçmişteki son bilinen fiyatı ileri taşırız (<code>ffill</code>). Gelecekteki fiyatı geriye taşımak (<code>bfill</code>) geleceği kopyalamaktır.</li><li><strong>Neden Fiyat Yerine Logaritmik Getiri?</strong> 2015'teki 6 TL ile 2026'daki 300 TL aynı ölçekte değildir. Logaritmik getiri $r_t = \ln(P_t / P_{t-1})$ seriyi ölçekten bağımsız ve durağan hale getirir.</li><li><strong>Kronolojik Bölme ve Scaler Sızıntısı:</strong> Zaman serisi asla rastgele (<code>shuffle=True</code>) bölünmez. Ayrıca <code>StandardScaler.fit()</code> işlemi tüm veriye uygulanırsa 2026 yılının ortalama ve standart sapması 2018'deki eğitim verisine sızar.</li></ul>
-        <p><strong>Yetiştir Hücresi:</strong> <code>🔄 Yetiştir: Bölüm 2 (Önceki bölümü atladıysanız çalıştırın)</code></p>
-        <p><strong>Adım Adım Kod Açıklaması:</strong></p>
-        <ol class="plain"><li><strong>TODO 2 (<code>sec2-feat-code</code>):</strong> Günlük logaritmik getiriyi (<code>log_return</code>), 5 günlük hareketli ortalamayı (<code>roll_mean_5</code>) ve 10 günlük oynaklığı/volatiliteyi (<code>roll_std_10</code>) hesaplıyoruz:</li></ol>
+        <h1 class="page-h1">Part 2 · Cleaning and Features</h1>
+        <p class="goal"><strong>Goal:</strong> Turn raw prices into stationary return features, split the data without breaking time order (70/15/15), and fit <code>StandardScaler</code> on the training set only, so nothing leaks.</p>
+        <p><strong>Key ideas:</strong></p>
+        <ul class="plain"><li><strong>Missing values and closed markets:</strong> Exchanges are closed at weekends and on public holidays. When filling missing values we only carry the last known past value forward (<code>ffill</code>). Carrying a future value backwards (<code>bfill</code>) is copying the future.</li><li><strong>Why log returns instead of prices?</strong> 6 TL in 2015 and 300 TL in 2026 are not on the same scale. The log return $r_t = \ln(P_t / P_{t-1})$ makes the series scale-free and stationary.</li><li><strong>Chronological split and scaler leakage:</strong> A time series is never split at random (<code>shuffle=True</code>). And if <code>StandardScaler.fit()</code> sees all the data, the mean and standard deviation of 2026 leak into the 2018 training data.</li></ul>
+        <p><strong>Catch-up cell:</strong> <code>🔄 Yetiştir: Bölüm 2 (Önceki bölümü atladıysanız çalıştırın)</code> (<em>"Catch up: Part 2 — run this if you skipped the previous part"</em>)</p>
+        <p><strong>Step-by-step code walkthrough:</strong></p>
+        <ol class="plain"><li><strong>TODO 2 (<code>sec2-feat-code</code>):</strong> We compute the daily log return (<code>log_return</code>), the 5-day moving average of returns (<code>roll_mean_5</code>) and the 10-day volatility (<code>roll_std_10</code>):</li></ol>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
 2
 3
@@ -85,7 +85,7 @@
 9
 10</span><code><span class="tk-var">feat_df</span> = <span class="tk-var">raw_df</span>[[<span class="tk-str">&quot;Open&quot;</span>, <span class="tk-str">&quot;High&quot;</span>, <span class="tk-str">&quot;Low&quot;</span>, <span class="tk-str">&quot;Close&quot;</span>, <span class="tk-str">&quot;Volume&quot;</span>]].<span class="tk-fn">ffill</span>().<span class="tk-fn">dropna</span>().<span class="tk-fn">copy</span>()
 
-<span class="tk-com"># TODO 2 çözümü:</span>
+<span class="tk-com"># TODO 2 solution:</span>
 <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;log_return&quot;</span>] = <span class="tk-var">np</span>.<span class="tk-fn">log</span>(<span class="tk-var">feat_df</span>[<span class="tk-str">&quot;Close&quot;</span>] / <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;Close&quot;</span>].<span class="tk-fn">shift</span>(<span class="tk-num">1</span>))
 <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;roll_mean_5&quot;</span>] = <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;log_return&quot;</span>].<span class="tk-fn">rolling</span>(<span class="tk-var">window</span>=<span class="tk-num">5</span>).<span class="tk-fn">mean</span>()
 <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;roll_std_10&quot;</span>] = <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;log_return&quot;</span>].<span class="tk-fn">rolling</span>(<span class="tk-var">window</span>=<span class="tk-num">10</span>).<span class="tk-fn">std</span>()
@@ -93,15 +93,15 @@
 <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;rsi_14&quot;</span>] = <span class="tk-fn">compute_rsi</span>(<span class="tk-var">feat_df</span>[<span class="tk-str">&quot;Close&quot;</span>], <span class="tk-var">period</span>=<span class="tk-num">14</span>) / <span class="tk-num">100.0</span>
 <span class="tk-var">feat_df</span>[<span class="tk-str">&quot;up_day&quot;</span>] = (<span class="tk-var">feat_df</span>[<span class="tk-str">&quot;log_return&quot;</span>] &gt; <span class="tk-num">0.0</span>).<span class="tk-fn">astype</span>(<span class="tk-var">np</span>.<span class="tk-var">float32</span>)
 <span class="tk-var">feat_df</span> = <span class="tk-var">feat_df</span>.<span class="tk-fn">dropna</span>().<span class="tk-fn">copy</span>()</code></pre></div>
-        <ol class="plain"><li><strong>TODO 3 (<code>sec2-split-code</code>):</strong> Özellik tablosunu zaman sırasıyla %70 Eğitim, %15 Doğrulama ve %15 Test olarak üçe bölüyoruz:</li></ol>
+        <ol class="plain"><li><strong>TODO 3 (<code>sec2-split-code</code>):</strong> We split the feature table in time order into 70% train, 15% validation and 15% test:</li></ol>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
-2</span><code><span class="tk-com"># TODO 3 çözümü:</span>
+2</span><code><span class="tk-com"># TODO 3 solution:</span>
 <span class="tk-var">train_df</span>, <span class="tk-var">val_df</span>, <span class="tk-var">test_df</span> = <span class="tk-fn">chronological_split</span>(<span class="tk-var">feat_df</span>, <span class="tk-var">train_ratio</span>=<span class="tk-num">0.70</span>, <span class="tk-var">val_ratio</span>=<span class="tk-num">0.15</span>)</code></pre></div>
         <figure class="arch" id="fig-chronological_split">
-          <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/chronological_split.svg" title="Tam boyutta aç"><img src="/workshops/pytorch-finance-workshop/diagrams/chronological_split.svg" alt="THYAO.IS kronolojik eğitim, doğrulama ve test bölgesi grafiği" width="960" height="400" loading="lazy"></a></div>
-          <figcaption>Beklenen Çıktı: <code>Train: 2106 gün (2015-01-21 -&gt; 2023-02-23)</code>, <code>Val: 451 gün (2023-02-24 -&gt; 2024-11-26)</code>, <code>Test: 452 gün (2024-11-27 -&gt; 2026-11-16)</code>.</figcaption>
+          <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/chronological_split.svg" title="Open full size"><img src="/workshops/pytorch-finance-workshop/diagrams/chronological_split.svg" alt="THYAO.IS chronological train, validation and test regions" width="960" height="400" loading="lazy"></a></div>
+          <figcaption>Expected output: <code>Train: 2106 gün (2015-01-21 -&gt; 2023-04-05)</code>, <code>Val: 451 gün (2023-04-06 -&gt; 2025-01-24)</code>, <code>Test: 452 gün (2025-01-27 -&gt; 2026-11-16)</code> ("gün" means trading days).</figcaption>
         </figure>
-        <ol class="plain"><li><strong>TODO 4 (<code>sec2-scaler-code</code>):</strong> Ölçekleyiciyi (<code>StandardScaler</code>) <strong>yalnızca <code>train_df</code></strong> üzerinde <code>fit_transform</code> ediyor, <code>val_df</code> ve <code>test_df</code> üzerinde ise yalnızca <code>transform</code> çağırıyoruz:</li></ol>
+        <ol class="plain"><li><strong>TODO 4 (<code>sec2-scaler-code</code>):</strong> We call <code>fit_transform</code> on <strong><code>train_df</code> only</strong>, and only <code>transform</code> on <code>val_df</code> and <code>test_df</code>:</li></ol>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
 2
 3
@@ -113,18 +113,18 @@
 
 <span class="tk-var">scaler</span> = <span class="tk-cls">StandardScaler</span>()
 
-<span class="tk-com"># TODO 4 çözümü:</span>
+<span class="tk-com"># TODO 4 solution:</span>
 <span class="tk-var">x_train</span> = <span class="tk-var">scaler</span>.<span class="tk-fn">fit_transform</span>(<span class="tk-var">train_df</span>[<span class="tk-const">FEATURE_COLS</span>].<span class="tk-var">values</span>.<span class="tk-fn">astype</span>(<span class="tk-var">np</span>.<span class="tk-var">float32</span>))
 <span class="tk-var">x_val</span> = <span class="tk-var">scaler</span>.<span class="tk-fn">transform</span>(<span class="tk-var">val_df</span>[<span class="tk-const">FEATURE_COLS</span>].<span class="tk-var">values</span>.<span class="tk-fn">astype</span>(<span class="tk-var">np</span>.<span class="tk-var">float32</span>))
 <span class="tk-var">x_test</span> = <span class="tk-var">scaler</span>.<span class="tk-fn">transform</span>(<span class="tk-var">test_df</span>[<span class="tk-const">FEATURE_COLS</span>].<span class="tk-var">values</span>.<span class="tk-fn">astype</span>(<span class="tk-var">np</span>.<span class="tk-var">float32</span>))</code></pre></div>
-        <p><strong>Sorun Giderme (Bu Adım Çalışmazsa):</strong></p>
-        <ul class="plain"><li><strong><code>KeyError: &#x27;log_return&#x27;</code>:</strong> <code>sec2-feat-code</code> hücresini çalıştırmadan bölme hücresine geçmiş olabilirsiniz; sırayla çalıştırın veya bölüm başındaki <strong><code>🔄 Yetiştir: Bölüm 2</code></strong> hücresini kullanın.</li><li><strong><code>ValueError: Found array with 0 sample(s)</code>:</strong> <code>dropna()</code> öncesi pencere hesaplamalarında yanlış sütun adı yazılmış olabilir; yukarıdaki 3 satırı kontrol edin.</li></ul>
+        <p><strong>Troubleshooting (if this step fails):</strong></p>
+        <ul class="plain"><li><strong><code>KeyError: &#x27;log_return&#x27;</code>:</strong> You probably jumped to the split cell before running <code>sec2-feat-code</code>. Run the cells in order, or use the <strong><code>🔄 Yetiştir: Bölüm 2</code></strong> cell at the top of the part.</li><li><strong><code>ValueError: Found array with 0 sample(s)</code>:</strong> A column name in the rolling-window code is probably misspelled before <code>dropna()</code>. Check the three lines above.</li></ul>
       </section>
 
-      <nav class="pager" aria-label="Önceki ve sonraki sayfa"><a class="prev" href="/workshops/pytorch-finance-workshop/step-1/">← 1 · Kurulum ve Veri</a><a class="next" href="/workshops/pytorch-finance-workshop/step-3/">3 · PyTorch Temelleri →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/pytorch-finance-workshop/step-1/">← 1 · Setup and Data</a><a class="next" href="/workshops/pytorch-finance-workshop/step-3/">3 · PyTorch Basics →</a></nav>
       <footer>
-        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">kaynak kod</a></p>
-        <p>Işık Üniversitesi Şile Kampüsü (DMF-214) · 18 Kasım 2026 · Yatırım tavsiyesi değildir.</p>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">source code</a></p>
+        <p>Işık University Şile Campus (DMF-214) · 18 November 2026 · Not investment advice.</p>
       </footer>
     </main>
   </div>

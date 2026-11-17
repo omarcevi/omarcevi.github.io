@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Finansal Verilerle Yapay Zekâyı Buluşturmak · Omar Elcircevi</title>
-  <meta name="description" content="Işık IEEE Computer Society PyTorch Atölyesi — Borsa İstanbul ve küresel finans verileri üzerinde sıfırdan LSTM eğitimi, 1 günlük gecikme sürprizi, veri sızıntısı kontrolü ve yön sınıflandırması.">
+  <title>Bringing AI to Financial Data · Omar Elcircevi</title>
+  <meta name="description" content="Işık IEEE Computer Society PyTorch workshop — training an LSTM from scratch on Borsa Istanbul and global market data, the one-day-lag surprise, checking for data leakage, and direction classification.">
   <link rel="canonical" href="https://omarcevi.dev/workshops/pytorch-finance-workshop/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Finansal Verilerle Yapay Zekâyı Buluşturmak">
-  <meta property="og:description" content="Işık IEEE Computer Society PyTorch Atölyesi — Borsa İstanbul ve küresel finans verileri üzerinde sıfırdan LSTM eğitimi, 1 günlük gecikme sürprizi, veri sızıntısı kontrolü ve yön sınıflandırması.">
+  <meta property="og:title" content="Bringing AI to Financial Data">
+  <meta property="og:description" content="Işık IEEE Computer Society PyTorch workshop — training an LSTM from scratch on Borsa Istanbul and global market data, the one-day-lag surprise, checking for data leakage, and direction classification.">
   <meta property="og:url" content="https://omarcevi.dev/workshops/pytorch-finance-workshop/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -36,82 +36,83 @@
 <div class="page">
   <div class="topbar">
     <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a></span>
-    <nav aria-label="Rehber bölümleri">
-      <a href="/workshops/pytorch-finance-workshop/">Genel Bakış</a>
-      <a href="/workshops/pytorch-finance-workshop/step-1/">Bölümler</a>
-      <a href="/workshops/pytorch-finance-workshop/reading/">İleri Okuma</a>
+    <nav aria-label="Guide sections">
+      <a href="/workshops/pytorch-finance-workshop/">Overview</a>
+      <a href="/workshops/pytorch-finance-workshop/step-1/">Parts</a>
+      <a href="/workshops/pytorch-finance-workshop/reading/">Further reading</a>
       <a href="https://github.com/omarcevi/pytorch-finance-workshop">GitHub</a>
     </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Koyu temayı değiştir">
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
       <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
       <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
     </button>
   </div>
 
   <div class="layout">
-    <aside class="toc" aria-label="Rehber sayfaları">
-      <p class="label">Rehber</p>
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Guide</p>
       <ol>
-        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/"><span class="n">Genel Bakış</span></a></li>
-        <li class="group">Atölye Bölümleri</li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Kurulum ve Veri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Temizlik ve Özellikler</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Temelleri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Fiyat Tahmini ve Sürpriz</span><span class="t">2 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · Doğru Kurulum</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Meydan Okumalar</span><span class="t">1 dk</span></a></li>
-        <li class="group">Kaynaklar</li>
-        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">İleri Okuma</span><span class="t">1 dk</span></a></li>
+        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Workshop parts</li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Setup and Data</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Cleaning and Features</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Basics</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Price Prediction</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · The Right Setup</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Challenges</span><span class="t">1 min</span></a></li>
+        <li class="group">Resources</li>
+        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">Further Reading</span><span class="t">1 min</span></a></li>
       </ol>
     </aside>
 
     <main>
       <header class="hero" id="overview">
-        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i><i></i></span>Işık IEEE Computer Society · Atölye Rehberi · yaklaşık 10 dk okuma</p>
-        <h1>Finansal Verilerle Yapay Zekâyı Buluşturmak</h1>
-        <p class="part-of">2 saat 15 dakikalık uygulamalı PyTorch atölyesinin adım adım yazılı rehberi · <em>Omar Elcircevi</em></p>
-        <p class="tagline">Işık IEEE Computer Society PyTorch Atölyesi — Borsa İstanbul ve küresel finans verileri üzerinde sıfırdan LSTM eğitimi, 1 günlük gecikme sürprizi, veri sızıntısı kontrolü ve yön sınıflandırması.</p>
+        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i><i></i></span>Işık IEEE Computer Society · Workshop guide · about 12 min read</p>
+        <h1>Bringing AI to Financial Data</h1>
+        <p class="part-of">Step-by-step written guide to the 2 h 15 min hands-on PyTorch workshop · <em>Omar Elcircevi</em></p>
+        <p class="tagline">Işık IEEE Computer Society PyTorch workshop — training an LSTM from scratch on Borsa Istanbul and global market data, the one-day-lag surprise, checking for data leakage, and direction classification.</p>
         <div class="actions">
-          <a class="btn primary" href="/workshops/pytorch-finance-workshop/step-1/">1. Bölümden Başla</a>
-          <a class="btn" href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_starter.ipynb">Başlangıç Defteri (Colab)</a>
-          <a class="btn" href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_solution.ipynb">Çözüm Defteri (Colab)</a>
-          <a class="btn" href="https://github.com/omarcevi/pytorch-finance-workshop">GitHub Deposu</a>
+          <a class="btn primary" href="/workshops/pytorch-finance-workshop/step-1/">Start with Part 1</a>
+          <a class="btn" href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_starter.ipynb">Starter notebook (Colab)</a>
+          <a class="btn" href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_solution.ipynb">Solution notebook (Colab)</a>
+          <a class="btn" href="https://github.com/omarcevi/pytorch-finance-workshop">GitHub repo</a>
         </div>
       </header>
 
       <div class="intro">
-        <!-- omarcevi.dev/workshops/pytorch-finance-workshop/ bu dosyadan üretilir. -->
-        <p>Finansal zaman serilerinde derin öğrenme modelleri kurmak, ilk bakışta "kusursuz" görünen ama gerçekte yalnızca dünün fiyatını kopyalayan tuzaklarla doludur. Bu 2 saat 15 dakikalık uygulamalı atölyede, Borsa İstanbul (<code>THYAO.IS</code>, <code>ASELS.IS</code>, <code>XU100.IS</code>) ve küresel piyasa (<code>BTC-USD</code>, <code>AAPL</code>) verileri üzerinde sıfırdan bir PyTorch eğitim döngüsü kuruyor; fiyat tahmini yanılsamasını saf bir referans modelle (<em>"Yarın = Bugün"</em>) çürütüyor ve problemi veri sızıntısı olmadan yön sınıflandırması olarak yeniden tanımlıyoruz. Çalışmanın sonunda elinizde gerçekçi metriklerle (<strong>Walk-Forward</strong> doğrulama ve işlem maliyetli backtest) test edilmiş, temiz bir PyTorch zaman serisi şablonu kalacak.</p>
-        <blockquote class="sample"><p><strong>Önemli Uyarı (Yatırım Tavsiyesi Değildir):</strong> Bu rehberdeki ve atölye defterlerindeki tüm kodlar, modeller ve analizler yalnızca <strong>makine öğrenmesi ve PyTorch eğitimi</strong> amaçlıdır. Hiçbir içerik yatırım tavsiyesi değildir ve buradaki modeller gerçek alım-satım aracı olarak <strong>kullanılmamalıdır</strong>.</p></blockquote>
+        <!-- omarcevi.dev/workshops/pytorch-finance-workshop/ is generated from this file. -->
+        <p>Deep learning on financial time series is full of traps: models that look "perfect" at first glance but are really just copying yesterday's price. In this 2 hour 15 minute hands-on workshop we build a PyTorch training loop from scratch on Borsa Istanbul (<code>THYAO.IS</code>, <code>ASELS.IS</code>, <code>XU100.IS</code>) and global market (<code>BTC-USD</code>, <code>AAPL</code>) data. We debunk the price-prediction illusion with a naive baseline (<em>"tomorrow = today"</em>), then reframe the problem, without data leakage, as direction classification. You leave with a clean PyTorch time-series template tested with honest metrics (<strong>walk-forward</strong> validation and a backtest with trading costs).</p>
+        <blockquote class="sample"><p><strong>Important (Not Investment Advice):</strong> All code, models and analysis in this guide and the workshop notebooks are for <strong>machine learning and PyTorch education</strong> only. Nothing here is investment advice, and these models <strong>must not</strong> be used as real trading tools.</p></blockquote>
         <figure class="arch" id="fig-hook_preview">
-          <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/hook_preview.svg" title="Tam boyutta aç"><img src="/workshops/pytorch-finance-workshop/diagrams/hook_preview.svg" alt="THYAO.IS test setinde gerçek fiyat ile LSTM fiyat tahmini karşılaştırması" width="960" height="400" loading="lazy"></a></div>
-          <figcaption>Bölüm 0 Sorumuz: Mavi çizgi gerçek fiyatı, kırmızı kesikli çizgi ise LSTM tahminini gösteriyor. Bu grafikle para kazanabilir miyiz? Cevabı Bölüm 4'te büyüteçle ortaya çıkarıyoruz.</figcaption>
+          <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/hook_preview.svg" title="Open full size"><img src="/workshops/pytorch-finance-workshop/diagrams/hook_preview.svg" alt="Actual price vs. LSTM price prediction on the THYAO.IS test set" width="960" height="400" loading="lazy"></a></div>
+          <figcaption>Our Part 0 question: the blue line is the actual price, the red dashed line is the LSTM's prediction. Could we make money with this chart? We put it under the magnifying glass in Part 4.</figcaption>
         </figure>
-        <p><strong>Ön Koşullar:</strong></p>
-        <ul class="plain"><li>Bir dizüstü bilgisayar ve <strong>Google Colab</strong> kullanmak için standart bir Google hesabı (yerel kurulum gerekmez, ücretsiz CPU çalışma zamanı yeterlidir).</li><li>Temel düzeyde Python ve <code>pandas</code> bilgisi; daha önce PyTorch eğitim döngüsü yazmış olmanız gerekmez.</li></ul>
-        <p><strong>Defter Bağlantıları:</strong></p>
-        <ul class="plain"><li><strong>Başlangıç Defteri (Starter — Atölyede birlikte dolduracağımız defter):</strong> <a href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_starter.ipynb">Colab'da Aç</a></li><li><strong>Çözüm Defteri (Solution — Tüm kodları ve çıktıları tamamlanmış referans):</strong> <a href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_solution.ipynb">Colab'da Aç</a></li></ul>
-        <p><strong>Atölye Zaman Çizelgesi (18 Kasım 2026 Çarşamba, 16:30–18:45 · DMF-214):</strong></p>
-        <div class="table-wrap"><table><thead><tr><th>Saat</th><th>Bölüm</th><th>Ne Yapıyoruz / Ne Öğreniyoruz?</th></tr></thead><tbody><tr><td>16:30–16:40</td><td><strong>Bölüm 0 · Giriş (Hook)</strong></td><td>Bölüm 4'teki "kusursuz" fiyat tahmini grafiğine ilk bakış: <em>"Bu grafikle para kazanabilir miyiz?"</em></td></tr><tr><td>16:40–16:55</td><td><strong>Bölüm 1 · Kurulum ve Veri</strong></td><td><code>THYAO.IS</code> verisini indirme, yedek (snapshot) mekanizması, OHLCV ve düzeltilmiş fiyatların görselleştirilmesi.</td></tr><tr><td>16:55–17:15</td><td><strong>Bölüm 2 · Temizlik ve Özellikler</strong></td><td>Eksik günler (<code>ffill</code>), logaritmik getiri, hareketli ortalama, volatilite, RSI, kronolojik bölme (%70/%15/%15) ve sızıntısız <code>StandardScaler</code>.</td></tr><tr><td>17:15–17:35</td><td><strong>Bölüm 3 · PyTorch Temelleri</strong></td><td><code>Tensor</code>, 30 günlük <code>SlidingWindowDataset</code>, <code>DataLoader</code>, <code>nn.LSTM</code> mimarisi, her adımda tensör boyutları ve eğitim döngüsü.</td></tr><tr><td>17:35–17:45</td><td><strong>Ara (Mola)</strong></td><td>10 dakika çay/kahve molası.</td></tr><tr><td>17:45–18:05</td><td><strong>Bölüm 4 · Fiyat Tahmini ve Sürpriz</strong></td><td>Ertesi gün fiyat tahmini, <em>"Yarın = Bugün"</em> saf referans modeliyle MAE/RMSE karşılaştırması ve 1 günlük gecikme (lag) analizi.</td></tr><tr><td>18:05–18:25</td><td><strong>Bölüm 5 · Doğru Kurulum</strong></td><td>Getiri tabanlı özelliklerle ertesi gün yön sınıflandırması (<code>BCEWithLogitsLoss</code>), çoğunluk sınıfı referansı ve 4 katlı Walk-Forward doğrulama.</td></tr><tr><td>18:25–18:40</td><td><strong>Bölüm 6 · Meydan Okumalar</strong></td><td>Kendi sembolünü deneme, hacim özelliği ekleme, <code>GRU</code> ve <code>TinyTransformer</code> modelleri, işlem maliyetli (15 bps) backtest.</td></tr><tr><td>18:40–18:45</td><td><strong>Bölüm 7 · Kapanış</strong></td><td>Eve götürülecek 3 temel ders, gerçek quant ekiplerinin farkı ve kaynaklar.</td></tr></tbody></table></div>
+        <p><strong>Prerequisites:</strong></p>
+        <ul class="plain"><li>A laptop and a regular Google account for <strong>Google Colab</strong> (nothing to install locally; the free CPU runtime is enough).</li><li>Basic Python and <code>pandas</code>; you do not need to have written a PyTorch training loop before.</li></ul>
+        <p><strong>Notebooks:</strong></p>
+        <ul class="plain"><li><strong>Starter notebook (the one we fill in together during the workshop):</strong> <a href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_starter.ipynb">Open in Colab</a></li><li><strong>Solution notebook (reference with all code and outputs filled in):</strong> <a href="https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_solution.ipynb">Open in Colab</a></li></ul>
+        <p><strong>Language note:</strong> the workshop was taught in Turkish, so the notebooks' text, cell titles and printed output are in Turkish. The code in this guide is identical to the notebooks; only the comments are translated, and each expected output is explained in English.</p>
+        <p><strong>Schedule (Wednesday 18 November 2026, 16:30–18:45 · DMF-214):</strong></p>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Part</th><th>What we do and learn</th></tr></thead><tbody><tr><td>16:30–16:40</td><td><strong>Part 0 · Intro (Hook)</strong></td><td>A first look at the "perfect" price prediction from Part 4: <em>"Could we make money with this chart?"</em></td></tr><tr><td>16:40–16:55</td><td><strong>Part 1 · Setup and Data</strong></td><td>Downloading <code>THYAO.IS</code>, the snapshot fallback, OHLCV and adjusted prices on a chart.</td></tr><tr><td>16:55–17:15</td><td><strong>Part 2 · Cleaning and Features</strong></td><td>Missing values (<code>ffill</code>), log returns, moving average, volatility, RSI, a chronological 70/15/15 split and a leak-free <code>StandardScaler</code>.</td></tr><tr><td>17:15–17:35</td><td><strong>Part 3 · PyTorch Basics</strong></td><td><code>Tensor</code>, a 30-day <code>SlidingWindowDataset</code>, <code>DataLoader</code>, the <code>nn.LSTM</code> architecture, tensor shapes at every step and the training loop.</td></tr><tr><td>17:35–17:45</td><td><strong>Break</strong></td><td>10-minute tea and coffee break.</td></tr><tr><td>17:45–18:05</td><td><strong>Part 4 · Price Prediction and the Surprise</strong></td><td>Next-day price prediction, MAE/RMSE against the <em>"tomorrow = today"</em> naive baseline, and the one-day lag analysis.</td></tr><tr><td>18:05–18:25</td><td><strong>Part 5 · The Right Setup</strong></td><td>Next-day direction classification on return features (<code>BCEWithLogitsLoss</code>), a majority-class baseline and 4-fold walk-forward validation.</td></tr><tr><td>18:25–18:40</td><td><strong>Part 6 · Challenges</strong></td><td>Your own ticker, a volume feature, <code>GRU</code> and <code>TinyTransformer</code> models, a backtest with trading costs (15 bps).</td></tr><tr><td>18:40–18:45</td><td><strong>Part 7 · Wrap-up</strong></td><td>Three takeaways, what real quant teams do differently, and resources.</td></tr></tbody></table></div>
       </div>
 
       <section id="pages">
-        <h2>Atölye Bölümleri</h2>
+        <h2>Workshop parts</h2>
         <ul class="steps-grid">
-          <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="num">BÖLÜM 1 · 1 DK</span><b>Kurulum ve Veri</b><span class="d">THYAO.IS verisini indirme, yedek (snapshot) mekanizması, OHLCV ve düzeltilmiş fiyatların görselleştirilmesi.</span></a></li>
-          <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="num">BÖLÜM 2 · 1 DK</span><b>Temizlik ve Özellikler</b><span class="d">Eksik günler (ffill), log getiri, hareketli ortalama, volatilite, RSI, kronolojik bölme (%70/%15/%15) ve sızıntısız StandardScaler.</span></a></li>
-          <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="num">BÖLÜM 3 · 1 DK</span><b>PyTorch Temelleri</b><span class="d">Tensor, 30 günlük SlidingWindowDataset, DataLoader, nn.LSTM mimarisi, tensör boyutları ve 5 adımlı eğitim döngüsü.</span></a></li>
-          <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="num">BÖLÜM 4 · 2 DK</span><b>Fiyat Tahmini ve Sürpriz</b><span class="d">Ertesi gün fiyat tahmini, &#x27;Yarın = Bugün&#x27; saf referans modeliyle MAE/RMSE karşılaştırması ve 1 günlük gecikme (lag) analizi.</span></a></li>
-          <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="num">BÖLÜM 5 · 1 DK</span><b>Doğru Kurulum</b><span class="d">Getiri tabanlı özelliklerle ertesi gün yön sınıflandırması (BCEWithLogitsLoss), çoğunluk sınıfı referansı ve 4 katlı Walk-Forward doğrulama.</span></a></li>
-          <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="num">BÖLÜM 6 · 1 DK</span><b>Meydan Okumalar</b><span class="d">Kendi sembolünü deneme, hacim özelliği ekleme, GRU ve TinyTransformer modelleri, işlem maliyetli (15 bps) backtest.</span></a></li>
-          <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="num">KAYNAKLAR · 1 DK</span><b>İleri Okuma ve Kaynaklar</b><span class="d">PyTorch resmi dokümantasyonu, zaman serisi doğrulaması (TimeSeriesSplit) ve veri sızıntısı kaynakları.</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="num">PART 1 · 1 MIN</span><b>Setup and Data</b><span class="d">Downloading THYAO.IS, the snapshot fallback, OHLCV and adjusted prices on a chart.</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="num">PART 2 · 2 MIN</span><b>Cleaning and Features</b><span class="d">Missing values (ffill), log returns, moving average, volatility, RSI, a chronological 70/15/15 split and a leak-free StandardScaler.</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="num">PART 3 · 1 MIN</span><b>PyTorch Basics</b><span class="d">Tensor, a 30-day SlidingWindowDataset, DataLoader, the nn.LSTM architecture, tensor shapes and the five-step training loop.</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="num">PART 4 · 2 MIN</span><b>Price Prediction and the Surprise</b><span class="d">Next-day price prediction, MAE/RMSE against the &#x27;tomorrow = today&#x27; naive baseline, and the one-day lag analysis.</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/step-5/"><span class="num">PART 5 · 1 MIN</span><b>The Right Setup</b><span class="d">Next-day direction classification on return features (BCEWithLogitsLoss), a majority-class baseline and 4-fold walk-forward validation.</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="num">PART 6 · 1 MIN</span><b>Challenges</b><span class="d">Your own ticker, a volume feature, GRU and TinyTransformer models, and a backtest with trading costs (15 bps).</span></a></li>
+          <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="num">RESOURCES · 1 MIN</span><b>Further Reading and Resources</b><span class="d">Official PyTorch documentation, time-series validation (TimeSeriesSplit) and data-leakage resources.</span></a></li>
         </ul>
       </section>
 
-      <nav class="pager" aria-label="Önceki ve sonraki sayfa"><a class="next" href="/workshops/pytorch-finance-workshop/step-1/">1 · Kurulum ve Veri →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="next" href="/workshops/pytorch-finance-workshop/step-1/">1 · Setup and Data →</a></nav>
       <footer>
-        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">kaynak kod</a></p>
-        <p>Işık Üniversitesi Şile Kampüsü (DMF-214) · 18 Kasım 2026 · Yatırım tavsiyesi değildir.</p>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">source code</a></p>
+        <p>Işık University Şile Campus (DMF-214) · 18 November 2026 · Not investment advice.</p>
       </footer>
     </main>
   </div>

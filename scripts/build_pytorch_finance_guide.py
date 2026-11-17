@@ -27,21 +27,21 @@ OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/pytorch-finance-workshop"
 COLAB_STARTER = "https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_starter.ipynb"
 COLAB_SOLUTION = "https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_solution.ipynb"
-GUIDE_SHORT = "Finansal Verilerle Yapay Zekâyı Buluşturmak"
+GUIDE_SHORT = "Bringing AI to Financial Data"
 CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"
 
 # (slug, name in the side index, the guide's ## headings on this page, one-line description)
 PAGES = [
-    ("", "Genel Bakış", [], None),
-    ("step-1", "1 · Kurulum ve Veri", ["Bölüm 1 · Kurulum ve Veri"], "THYAO.IS verisini indirme, yedek (snapshot) mekanizması, OHLCV ve düzeltilmiş fiyatların görselleştirilmesi."),
-    ("step-2", "2 · Temizlik ve Özellikler", ["Bölüm 2 · Temizlik ve Özellikler"], "Eksik günler (ffill), log getiri, hareketli ortalama, volatilite, RSI, kronolojik bölme (%70/%15/%15) ve sızıntısız StandardScaler."),
-    ("step-3", "3 · PyTorch Temelleri", ["Bölüm 3 · PyTorch Temelleri"], "Tensor, 30 günlük SlidingWindowDataset, DataLoader, nn.LSTM mimarisi, tensör boyutları ve 5 adımlı eğitim döngüsü."),
-    ("step-4", "4 · Fiyat Tahmini ve Sürpriz", ["Bölüm 4 · Fiyat Tahmini ve Sürpriz"], "Ertesi gün fiyat tahmini, 'Yarın = Bugün' saf referans modeliyle MAE/RMSE karşılaştırması ve 1 günlük gecikme (lag) analizi."),
-    ("step-5", "5 · Doğru Kurulum", ["Bölüm 5 · Doğru Kurulum"], "Getiri tabanlı özelliklerle ertesi gün yön sınıflandırması (BCEWithLogitsLoss), çoğunluk sınıfı referansı ve 4 katlı Walk-Forward doğrulama."),
-    ("step-6", "6 · Meydan Okumalar", ["Bölüm 6 · Meydan Okumalar"], "Kendi sembolünü deneme, hacim özelliği ekleme, GRU ve TinyTransformer modelleri, işlem maliyetli (15 bps) backtest."),
-    ("reading", "İleri Okuma", ["İleri Okuma ve Kaynaklar"], "PyTorch resmi dokümantasyonu, zaman serisi doğrulaması (TimeSeriesSplit) ve veri sızıntısı kaynakları."),
+    ("", "Overview", [], None),
+    ("step-1", "1 · Setup and Data", ["Part 1 · Setup and Data"], "Downloading THYAO.IS, the snapshot fallback, OHLCV and adjusted prices on a chart."),
+    ("step-2", "2 · Cleaning and Features", ["Part 2 · Cleaning and Features"], "Missing values (ffill), log returns, moving average, volatility, RSI, a chronological 70/15/15 split and a leak-free StandardScaler."),
+    ("step-3", "3 · PyTorch Basics", ["Part 3 · PyTorch Basics"], "Tensor, a 30-day SlidingWindowDataset, DataLoader, the nn.LSTM architecture, tensor shapes and the five-step training loop."),
+    ("step-4", "4 · Price Prediction", ["Part 4 · Price Prediction and the Surprise"], "Next-day price prediction, MAE/RMSE against the 'tomorrow = today' naive baseline, and the one-day lag analysis."),
+    ("step-5", "5 · The Right Setup", ["Part 5 · The Right Setup"], "Next-day direction classification on return features (BCEWithLogitsLoss), a majority-class baseline and 4-fold walk-forward validation."),
+    ("step-6", "6 · Challenges", ["Part 6 · Challenges"], "Your own ticker, a volume feature, GRU and TinyTransformer models, and a backtest with trading costs (15 bps)."),
+    ("reading", "Further Reading", ["Further Reading and Resources"], "Official PyTorch documentation, time-series validation (TimeSeriesSplit) and data-leakage resources."),
 ]
-GROUPS = {"step-1": "Atölye Bölümleri", "reading": "Kaynaklar"}
+GROUPS = {"step-1": "Workshop parts", "reading": "Resources"}
 
 EXTRA_CSS = """
 /* pytorch-finance-workshop: what this guide needs beyond the shared workshop styles */
@@ -81,7 +81,7 @@ EXTRA_CSS = """
     .tk-com { color: #6a9955; } .tk-str .tk-ph, .tk-ph { color: #569cd6; }
     blockquote.sample { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ts-ink);
                         border-radius: 10px; padding: .85rem 1.1rem; margin: .8rem 0 1.2rem; font-size: .93rem; max-width: 42em; }
-    blockquote.sample::before { content: "önemli not"; display: block; font-family: var(--mono); font-size: .68rem;
+    blockquote.sample::before { content: "note"; display: block; font-family: var(--mono); font-size: .68rem;
                                 letter-spacing: .07em; text-transform: uppercase; color: var(--ts-ink); margin-bottom: .35rem; }
     .table-wrap { overflow-x: auto; margin: 1rem 0; }
     table { width: 100%; border-collapse: collapse; font-size: .92rem; }
@@ -133,7 +133,7 @@ def figure(line: str, caption: str, images: Path) -> str:
     cap = f"\n          <figcaption>{inline(caption)}</figcaption>" if caption else ""
     return (
         f'<figure class="arch" id="fig-{Path(name).stem}">\n'
-        f'          <div class="arch-frame"><a href="{src}" title="Tam boyutta aç"><img src="{src}" alt="{html.escape(alt)}" '
+        f'          <div class="arch-frame"><a href="{src}" title="Open full size"><img src="{src}" alt="{html.escape(alt)}" '
         f'width="{w}" height="{h}" loading="lazy"></a></div>{cap}\n        </figure>'
     )
 
@@ -306,7 +306,7 @@ def blocks(md: str, images: Path) -> list[str]:
                 para.append(lines[i].strip())
                 i += 1
             text = " ".join(para)
-            cls = ' class="goal"' if text.startswith("**Hedef:**") else ""
+            cls = ' class="goal"' if text.startswith("**Goal:**") else ""
             out.append(f"<p{cls}>{inline(text)}</p>")
     return out
 
@@ -336,8 +336,8 @@ def frontmatter(md: str) -> tuple[dict, str]:
 
 def grid_label(slug: str) -> str:
     if slug.startswith("step-"):
-        return "BÖLÜM " + slug.removeprefix("step-")
-    return {"reading": "KAYNAKLAR"}[slug]
+        return "PART " + slug.removeprefix("step-")
+    return {"reading": "RESOURCES"}[slug]
 
 
 def url(slug: str) -> str:
@@ -350,7 +350,7 @@ def toc(current: str, times: dict[str, int]) -> str:
         if slug in GROUPS:
             lines.append(f'        <li class="group">{GROUPS[slug]}</li>')
         cls = ' class="here" aria-current="page"' if slug == current else ""
-        t = f'<span class="t">{times[slug]} dk</span>' if slug else ""
+        t = f'<span class="t">{times[slug]} min</span>' if slug else ""
         lines.append(f'        <li><a{cls} href="{url(slug)}"><span class="n">{html.escape(short)}</span>{t}</a></li>')
     return "\n".join(lines)
 
@@ -363,7 +363,7 @@ def pager(index: int) -> str:
     if index < len(PAGES) - 1:
         slug, short = PAGES[index + 1][0], PAGES[index + 1][1]
         next_link = f'<a class="next" href="{url(slug)}">{html.escape(short)} →</a>'
-    return f'      <nav class="pager" aria-label="Önceki ve sonraki sayfa">{prev_link}{next_link}</nav>'
+    return f'      <nav class="pager" aria-label="Previous and next page">{prev_link}{next_link}</nav>'
 
 
 def build(source_repo: Path) -> None:
@@ -385,7 +385,7 @@ def build(source_repo: Path) -> None:
     for index, (slug, short, headings, page_desc) in enumerate(PAGES):
         if not slug:
             grid = "\n".join(
-                f'          <li><a href="{url(s)}"><span class="num">{grid_label(s)} · {times[s]} DK</span>'
+                f'          <li><a href="{url(s)}"><span class="num">{grid_label(s)} · {times[s]} MIN</span>'
                 f'<b>{html.escape(h[0].split(" · ", 1)[-1])}</b><span class="d">{html.escape(d)}</span></a></li>'
                 for s, n, h, d in PAGES[1:]
             )
@@ -443,7 +443,7 @@ def build(source_repo: Path) -> None:
 
 
 HEAD = """<!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -480,21 +480,21 @@ HEAD = """<!doctype html>
 <div class="page">
   <div class="topbar">
     <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="{base}">pytorch-finance-workshop</a>{crumb}</span>
-    <nav aria-label="Rehber bölümleri">
-      <a href="{base}">Genel Bakış</a>
-      <a href="{base}step-1/">Bölümler</a>
-      <a href="{base}reading/">İleri Okuma</a>
+    <nav aria-label="Guide sections">
+      <a href="{base}">Overview</a>
+      <a href="{base}step-1/">Parts</a>
+      <a href="{base}reading/">Further reading</a>
       <a href="{repo}">GitHub</a>
     </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Koyu temayı değiştir">
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
       <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
       <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
     </button>
   </div>
 
   <div class="layout">
-    <aside class="toc" aria-label="Rehber sayfaları">
-      <p class="label">Rehber</p>
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Guide</p>
       <ol>
 {toc}
       </ol>
@@ -504,15 +504,15 @@ HEAD = """<!doctype html>
 """
 
 OVERVIEW = """      <header class="hero" id="overview">
-        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i><i></i></span>Işık IEEE Computer Society · Atölye Rehberi · yaklaşık {total} dk okuma</p>
+        <p class="kicker"><span class="ts-chips" aria-hidden="true"><i></i><i></i><i></i></span>Işık IEEE Computer Society · Workshop guide · about {total} min read</p>
         <h1>{title}</h1>
-        <p class="part-of">2 saat 15 dakikalık uygulamalı PyTorch atölyesinin adım adım yazılı rehberi · <em>Omar Elcircevi</em></p>
+        <p class="part-of">Step-by-step written guide to the 2 h 15 min hands-on PyTorch workshop · <em>Omar Elcircevi</em></p>
         <p class="tagline">{desc}</p>
         <div class="actions">
-          <a class="btn primary" href="{first}">1. Bölümden Başla</a>
-          <a class="btn" href="{colab_starter}">Başlangıç Defteri (Colab)</a>
-          <a class="btn" href="{colab_solution}">Çözüm Defteri (Colab)</a>
-          <a class="btn" href="{repo}">GitHub Deposu</a>
+          <a class="btn primary" href="{first}">Start with Part 1</a>
+          <a class="btn" href="{colab_starter}">Starter notebook (Colab)</a>
+          <a class="btn" href="{colab_solution}">Solution notebook (Colab)</a>
+          <a class="btn" href="{repo}">GitHub repo</a>
         </div>
       </header>
 
@@ -521,7 +521,7 @@ OVERVIEW = """      <header class="hero" id="overview">
       </div>
 
       <section id="pages">
-        <h2>Atölye Bölümleri</h2>
+        <h2>Workshop parts</h2>
         <ul class="steps-grid">
 {grid}
         </ul>
@@ -531,8 +531,8 @@ OVERVIEW = """      <header class="hero" id="overview">
 FOOT = """
 {pager}
       <footer>
-        <p><a href="/">omarcevi.dev</a> · <a href="{repo}">kaynak kod</a></p>
-        <p>Işık Üniversitesi Şile Kampüsü (DMF-214) · 18 Kasım 2026 · Yatırım tavsiyesi değildir.</p>
+        <p><a href="/">omarcevi.dev</a> · <a href="{repo}">source code</a></p>
+        <p>Işık University Şile Campus (DMF-214) · 18 November 2026 · Not investment advice.</p>
       </footer>
     </main>
   </div>
@@ -561,7 +561,7 @@ SCRIPT = """
   document.querySelectorAll('.code').forEach(block => {
     const pre = block.querySelector('pre');
     const b = document.createElement('button'); b.className = 'copy'; b.type = 'button'; b.textContent = 'copy';
-    b.setAttribute('aria-label', 'Kodu kopyala');
+    b.setAttribute('aria-label', 'Copy code');
     b.addEventListener('click', () => {
       const clone = pre.cloneNode(true);
       clone.querySelectorAll('.c, .gutter').forEach(c => c.remove());
@@ -574,8 +574,8 @@ SCRIPT = """
 
   const box = document.createElement('dialog');
   if (box.showModal) {
-    box.className = 'lightbox'; box.setAttribute('aria-label', 'Diyagram');
-    box.innerHTML = '<button type="button" class="lightbox-close" aria-label="Kapat"><svg viewBox="0 0 16 16" aria-hidden="true">'
+    box.className = 'lightbox'; box.setAttribute('aria-label', 'Diagram');
+    box.innerHTML = '<button type="button" class="lightbox-close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true">'
       + '<path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg></button><img alt="">';
     const big = box.querySelector('img');
     document.body.appendChild(box);
