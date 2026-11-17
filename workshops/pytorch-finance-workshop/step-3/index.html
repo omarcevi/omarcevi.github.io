@@ -71,7 +71,7 @@
         <p class="goal"><strong>Goal:</strong> Build the 30-day sliding window (<code>SlidingWindowDataset</code>), follow the tensor shapes (<code>batch, seq_len, features</code>) through <code>nn.LSTM</code> step by step, and write the five-step PyTorch training loop.</p>
         <p><strong>Key ideas:</strong></p>
         <ul class="plain"><li><strong>3-D LSTM input:</strong> <code>nn.LSTM(..., batch_first=True)</code> expects input of shape <code>(batch_size, seq_len, features)</code>. In our setup one batch is <code>(64, 30, 4)</code>: 64 samples, 30 trading days, 4 features.</li><li><strong>Shuffling windows inside the training set (<code>shuffle=True</code>):</strong> Our train, validation and test sets are strictly separated in time. Shuffling the ready-made 30-day windows <em>inside</em> the training set with <code>DataLoader(..., shuffle=True)</code> does not leak anything, because each window keeps its own 30-day order.</li></ul>
-        <p><strong>Catch-up cell:</strong> <code>🔄 Yetiştir: Bölüm 3 (Önceki bölümü atladıysanız çalıştırın)</code> (<em>"Catch up: Part 3 — run this if you skipped the previous part"</em>)</p>
+        <p><strong>Catch-up cell:</strong> <code>🔄 Catch up: Part 3 (run this if you skipped the previous part)</code></p>
         <p><strong>Step-by-step code walkthrough:</strong></p>
         <ol class="plain"><li><strong>TODO 5 (<code>sec3-dataset-code</code>):</strong> We create the <code>SlidingWindowDataset</code> and <code>DataLoader</code> objects:</li></ol>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
@@ -134,12 +134,12 @@
         <span class="tk-var">optimizer</span>.<span class="tk-fn">step</span>()
         <span class="tk-var">batch_losses</span>.<span class="tk-fn">append</span>(<span class="tk-var">loss</span>.<span class="tk-fn">item</span>())</code></pre></div>
         <p><strong>Expected output (tensor shapes and training):</strong></p>
-        <div class="code" data-lang="text"><pre><code>1) Giriş tensörü (bx)          : torch.Size([64, 30, 4])
-2) LSTM tüm adımlar (lstm_out) : torch.Size([64, 30, 32])
-3) Son zaman adımı ([:, -1, :]): torch.Size([64, 32])
-4) Model çıktısı (pred_out)    : torch.Size([64])
-Son Epoch (10) -&gt; Train MSE: 0.000646 | Val MSE: 0.000509</code></pre></div>
-        <p><em>The four lines are the input batch, the LSTM output for every time step, the last time step, and the model output. The final MSE values can differ slightly between PyTorch versions.</em></p>
+        <div class="code" data-lang="text"><pre><code>1) Input tensor (bx)           : torch.Size([64, 30, 4])
+2) LSTM all steps (lstm_out)   : torch.Size([64, 30, 32])
+3) Last time step ([:, -1, :]) : torch.Size([64, 32])
+4) Model output (pred_out)     : torch.Size([64])
+Last epoch (10) -&gt; Train MSE: 0.000646 | Val MSE: 0.000509</code></pre></div>
+        <p><em>The final MSE values can differ slightly between PyTorch versions.</em></p>
         <p><strong>Troubleshooting (if this step fails):</strong></p>
         <ul class="plain"><li><strong>Shape error (<code>RuntimeError: input.size(-1) must be equal to input_size</code>):</strong> Make sure <code>SimpleLSTM(input_dim=...)</code> is <code>len(FEATURE_COLS)</code> (that is, <code>4</code>) and that <code>nn.LSTM</code> has <code>batch_first=True</code>.</li><li><strong>Forgot <code>squeeze(-1)</code>:</strong> The model output is <code>(64, 1)</code> while the target <code>by</code> is <code>(64,)</code>, and <code>MSELoss</code> warns about broadcasting. Match them with <code>return self.fc(last_step).squeeze(-1)</code>.</li></ul>
       </section>

@@ -71,7 +71,7 @@
         <p class="goal"><strong>Goal:</strong> Reframe the problem on stationary return features as binary classification of <strong>the next day's direction</strong> (up = <code>1</code>, down = <code>0</code>), train it with <code>BCEWithLogitsLoss</code>, compare it with a majority-class baseline, and run 4-fold <strong>walk-forward</strong> validation.</p>
         <p><strong>Key ideas:</strong></p>
         <ul class="plain"><li><strong><code>BCEWithLogitsLoss</code>:</strong> Takes the raw score (<code>logit</code>) from the model's last layer, applies <code>sigmoid</code> internally in a numerically stable way, and computes the binary cross-entropy loss.</li><li><strong>Majority-class baseline:</strong> If 52% of training days are up days, a naive model that says "up" for every test day scores about 52%. We measure the model with both <code>Accuracy</code> and <strong><code>Balanced Accuracy</code></strong>, which is sensitive to class imbalance.</li><li><strong>Why is the honest result around 50–55%?</strong> Efficient markets, heavy daily noise and changing macroeconomic regimes make predicting direction from past prices alone very close to a coin toss.</li></ul>
-        <p><strong>Catch-up cell:</strong> <code>🔄 Yetiştir: Bölüm 5 (Önceki bölümü atladıysanız çalıştırın)</code> (<em>"Catch up: Part 5 — run this if you skipped the previous part"</em>)</p>
+        <p><strong>Catch-up cell:</strong> <code>🔄 Catch up: Part 5 (run this if you skipped the previous part)</code></p>
         <p><strong>Step-by-step code walkthrough:</strong></p>
         <p><strong>TODO 9 (<code>sec5-cls-code</code>):</strong> We train the direction classifier by calling the <code>train_direction_classifier</code> helper:</p>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
@@ -110,13 +110,13 @@
           <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/direction_results.svg" title="Open full size"><img src="/workshops/pytorch-finance-workshop/diagrams/direction_results.svg" alt="THYAO.IS confusion matrix and walk-forward validation results" width="1040" height="400" loading="lazy"></a></div>
         </figure>
         <p><strong>Expected output (measured values):</strong></p>
-        <div class="code" data-lang="text"><pre><code>🎯 LSTM Test Doğruluğu (Accuracy)         : %54.74
-⚖️ LSTM Dengeli Doğruluk (Balanced Acc)   : %53.51
-📏 Çoğunluk Sınıfı Referansı (Baseline)   : %51.90
-Walk-Forward Ortalama Doğruluk: %51.66</code></pre></div>
+        <div class="code" data-lang="text"><pre><code>🎯 LSTM test accuracy       : 54.74%
+⚖️ LSTM balanced accuracy   : 53.51%
+📏 Majority-class baseline  : 51.90%
+Walk-forward mean accuracy: 51.66%</code></pre></div>
         <p><em>Test accuracy is 54.74% against a 51.90% majority-class baseline, and the 4-fold walk-forward average is 51.66%. The test set has only 422 predictions, so the 95% confidence interval around 54.74% is about ±4.8 points (roughly 50% to 59.5%): this result cannot be told apart from a coin toss or from the baseline.</em></p>
         <p><strong>Troubleshooting (if this step fails):</strong></p>
-        <ul class="plain"><li><strong><code>ValueError: Target size ... must be the same as input size</code>:</strong> Make sure you use <code>train_df[&quot;up_day&quot;].values.astype(np.float32)</code> as the target vector. If variables are missing, run the <strong><code>🔄 Yetiştir: Bölüm 5</code></strong> cell.</li></ul>
+        <ul class="plain"><li><strong><code>ValueError: Target size ... must be the same as input size</code>:</strong> Make sure you use <code>train_df[&quot;up_day&quot;].values.astype(np.float32)</code> as the target vector. If variables are missing, run the <strong><code>🔄 Catch up: Part 5</code></strong> cell.</li></ul>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/pytorch-finance-workshop/step-4/">← 4 · Price Prediction</a><a class="next" href="/workshops/pytorch-finance-workshop/step-6/">6 · Challenges →</a></nav>

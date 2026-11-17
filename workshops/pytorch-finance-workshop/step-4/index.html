@@ -71,7 +71,7 @@
         <p class="goal"><strong>Goal:</strong> Train an LSTM that predicts the next day's close, show that the chart that looks "perfect" from afar actually has a higher error than the <em>"tomorrow = today"</em> naive baseline, and visualise the one-day lag.</p>
         <p><strong>Key ideas:</strong></p>
         <ul class="plain"><li><strong>The second trap (global scaler and activation saturation):</strong> <code>THYAO.IS</code> traded between 4.52 TL and 151 TL in the training period and between 242 TL and 348 TL in the test period. With one <code>StandardScaler</code> fitted on the whole training set, test inputs land at $z \approx 8$–$11$, the LSTM's <code>tanh</code>/<code>sigmoid</code> gates saturate, and the prediction locks into a flat line. To keep the story clean, <code>PriceWindowDataset</code> scales each 30-day window relative to its own first day (<code>price / first_day - 1</code>).</li><li><strong>The naive baseline:</strong> The simplest rule there is, with no AI at all: <em>"tomorrow's price equals today's close"</em> ($\hat{P}_{t+1} = P_t$).</li><li><strong>The one-day-lag illusion:</strong> Daily stock prices are very close to a random walk ($P_{t+1} = P_t + \epsilon$). An LSTM minimising squared error (MSE) learns to copy the last price it saw ($P_t$) instead of predicting the future.</li></ul>
-        <p><strong>Catch-up cell:</strong> <code>🔄 Yetiştir: Bölüm 4 (Moladan sonra temiz başlangıç için çalıştırın)</code> (<em>"Catch up: Part 4 — run this for a clean start after the break"</em>)</p>
+        <p><strong>Catch-up cell:</strong> <code>🔄 Catch up: Part 4 (run this for a clean start after the break)</code></p>
         <p><strong>Step-by-step code walkthrough:</strong></p>
         <ol class="plain"><li>We run <code>sec4-train-code</code> to train the price model for 15 epochs and plot the test-set chart that looks "perfect" from afar.</li><li><strong>TODO 8 (<code>sec4-naive-code</code>):</strong> We compute the MAE and RMSE, in TL, of both the LSTM prediction (<code>predicted_prices</code>) and the naive baseline (<code>naive_prices</code>) against the actual prices (<code>actual_prices</code>):</li></ol>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
@@ -88,14 +88,14 @@
           <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/zoom_and_lag.svg" title="Open full size"><img src="/workshops/pytorch-finance-workshop/diagrams/zoom_and_lag.svg" alt="THYAO.IS zoom on the last 35 days and lag correlation chart" width="1080" height="410" loading="lazy"></a></div>
         </figure>
         <p><strong>Expected output (measured values):</strong></p>
-        <div class="code" data-lang="text"><pre><code>📊 LSTM Fiyat Modeli   -&gt; MAE: 5.07 TL | RMSE: 6.86 TL
-📏 Saf Referans (P_t)  -&gt; MAE: 4.55 TL | RMSE: 6.26 TL
-👉 Sonuç: Saf &#x27;Yarın = Bugün&#x27; tahmini, LSTM&#x27;den 0.52 TL daha düşük hataya sahip!
-Tahminin BUGÜNÜN gerçek fiyatıyla korelasyonu (Lag 0): 0.9451
-Tahminin DÜNÜN gerçek fiyatıyla korelasyonu   (Lag 1): 0.9915</code></pre></div>
-        <p><em>The naive "tomorrow = today" rule has 0.52 TL lower error than the LSTM. And look at the correlations: the LSTM prediction correlates <code>0.9451</code> with today's actual price, but <strong><code>0.9915</code> with yesterday's actual price (<code>Lag 1</code>)</strong>. The red line is the blue line shifted one day to the right.</em></p>
+        <div class="code" data-lang="text"><pre><code>📊 LSTM price model     -&gt; MAE: 5.07 TL | RMSE: 6.86 TL
+📏 Naive baseline (P_t) -&gt; MAE: 4.55 TL | RMSE: 6.26 TL
+👉 Result: the naive &#x27;tomorrow = today&#x27; rule has 0.52 TL lower error than the LSTM!
+Correlation of the prediction with TODAY&#x27;s actual price     (Lag 0): 0.9451
+Correlation of the prediction with YESTERDAY&#x27;s actual price (Lag 1): 0.9915</code></pre></div>
+        <p><em>Look at the correlations: the LSTM prediction correlates <code>0.9451</code> with today's actual price, but <strong><code>0.9915</code> with yesterday's actual price (<code>Lag 1</code>)</strong>. The red line is the blue line shifted one day to the right.</em></p>
         <p><strong>Troubleshooting (if this step fails):</strong></p>
-        <ul class="plain"><li><strong>Your Colab connection dropped after the break:</strong> Run the <strong><code>🔄 Yetiştir: Bölüm 4</code></strong> cell at the top of the part, then continue with <code>sec4-train-code</code>.</li></ul>
+        <ul class="plain"><li><strong>Your Colab connection dropped after the break:</strong> Run the <strong><code>🔄 Catch up: Part 4</code></strong> cell at the top of the part, then continue with <code>sec4-train-code</code>.</li></ul>
       </section>
 
       <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/pytorch-finance-workshop/step-3/">← 3 · PyTorch Basics</a><a class="next" href="/workshops/pytorch-finance-workshop/step-5/">5 · The Right Setup →</a></nav>
