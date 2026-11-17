@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bölüm 5 · Doğru Kurulum · Finansal Verilerle Yapay Zekâyı Buluşturmak · Omar Elcircevi</title>
-  <meta name="description" content="Getiri tabanlı özelliklerle ertesi gün yön sınıflandırması (BCEWithLogitsLoss), çoğunluk sınıfı referansı ve 4 katlı Walk-Forward doğrulama.">
+  <title>Part 5 · The Right Setup · Bringing AI to Financial Data · Omar Elcircevi</title>
+  <meta name="description" content="Next-day direction classification on return features (BCEWithLogitsLoss), a majority-class baseline and 4-fold walk-forward validation.">
   <link rel="canonical" href="https://omarcevi.dev/workshops/pytorch-finance-workshop/step-5/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="Bölüm 5 · Doğru Kurulum · Finansal Verilerle Yapay Zekâyı Buluşturmak">
-  <meta property="og:description" content="Getiri tabanlı özelliklerle ertesi gün yön sınıflandırması (BCEWithLogitsLoss), çoğunluk sınıfı referansı ve 4 katlı Walk-Forward doğrulama.">
+  <meta property="og:title" content="Part 5 · The Right Setup · Bringing AI to Financial Data">
+  <meta property="og:description" content="Next-day direction classification on return features (BCEWithLogitsLoss), a majority-class baseline and 4-fold walk-forward validation.">
   <meta property="og:url" content="https://omarcevi.dev/workshops/pytorch-finance-workshop/step-5/">
   <meta property="og:image" content="https://omarcevi.dev/og-image.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -35,45 +35,45 @@
 <body>
 <div class="page">
   <div class="topbar">
-    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a><span class="cur"> / <span class="here">5 · Doğru Kurulum</span></span></span>
-    <nav aria-label="Rehber bölümleri">
-      <a href="/workshops/pytorch-finance-workshop/">Genel Bakış</a>
-      <a href="/workshops/pytorch-finance-workshop/step-1/">Bölümler</a>
-      <a href="/workshops/pytorch-finance-workshop/reading/">İleri Okuma</a>
+    <span class="crumbs"><a href="/">omarcevi.dev</a><span class="ws"> / <a href="/#talks">workshops</a></span> / <a class="here" href="/workshops/pytorch-finance-workshop/">pytorch-finance-workshop</a><span class="cur"> / <span class="here">5 · The Right Setup</span></span></span>
+    <nav aria-label="Guide sections">
+      <a href="/workshops/pytorch-finance-workshop/">Overview</a>
+      <a href="/workshops/pytorch-finance-workshop/step-1/">Parts</a>
+      <a href="/workshops/pytorch-finance-workshop/reading/">Further reading</a>
       <a href="https://github.com/omarcevi/pytorch-finance-workshop">GitHub</a>
     </nav>
-    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Koyu temayı değiştir">
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark theme">
       <svg class="i-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z"/></svg>
       <svg class="i-sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"/></svg>
     </button>
   </div>
 
   <div class="layout">
-    <aside class="toc" aria-label="Rehber sayfaları">
-      <p class="label">Rehber</p>
+    <aside class="toc" aria-label="Guide pages">
+      <p class="label">Guide</p>
       <ol>
-        <li><a href="/workshops/pytorch-finance-workshop/"><span class="n">Genel Bakış</span></a></li>
-        <li class="group">Atölye Bölümleri</li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Kurulum ve Veri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Temizlik ve Özellikler</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Temelleri</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Fiyat Tahmini ve Sürpriz</span><span class="t">2 dk</span></a></li>
-        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · Doğru Kurulum</span><span class="t">1 dk</span></a></li>
-        <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Meydan Okumalar</span><span class="t">1 dk</span></a></li>
-        <li class="group">Kaynaklar</li>
-        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">İleri Okuma</span><span class="t">1 dk</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/"><span class="n">Overview</span></a></li>
+        <li class="group">Workshop parts</li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-1/"><span class="n">1 · Setup and Data</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-2/"><span class="n">2 · Cleaning and Features</span><span class="t">2 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-3/"><span class="n">3 · PyTorch Basics</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-4/"><span class="n">4 · Price Prediction</span><span class="t">2 min</span></a></li>
+        <li><a class="here" aria-current="page" href="/workshops/pytorch-finance-workshop/step-5/"><span class="n">5 · The Right Setup</span><span class="t">1 min</span></a></li>
+        <li><a href="/workshops/pytorch-finance-workshop/step-6/"><span class="n">6 · Challenges</span><span class="t">1 min</span></a></li>
+        <li class="group">Resources</li>
+        <li><a href="/workshops/pytorch-finance-workshop/reading/"><span class="n">Further Reading</span><span class="t">1 min</span></a></li>
       </ol>
     </aside>
 
     <main>
       <section id="step-5">
-        <h1 class="page-h1">Bölüm 5 · Doğru Kurulum</h1>
-        <p class="goal"><strong>Hedef:</strong> Problemi durağan getiri özellikleri üzerinde <strong>ertesi günün yönü</strong> (Yükseliş = <code>1</code>, Düşüş = <code>0</code>) ikili sınıflandırması olarak yeniden kurmak, <code>BCEWithLogitsLoss</code> ile eğitmek, çoğunluk sınıfı referansıyla karşılaştırmak ve 4 katlı <strong>Walk-Forward</strong> doğrulama yapmak.</p>
-        <p><strong>Temel Fikirler:</strong></p>
-        <ul class="plain"><li><strong><code>BCEWithLogitsLoss</code>:</strong> İkili sınıflandırmada modelin son katmanından çıkan ham skoru (<code>logit</code>) alır, içeride sayısal olarak kararlı biçimde <code>sigmoid</code> uygular ve çapraz entropi kaybını hesaplar.</li><li><strong>Çoğunluk Sınıfı Referansı (Majority-Class Baseline):</strong> Eğitim setinde yükseliş günleri %52 ise, test setindeki her güne "Yükseliş" diyen saf model %52 civarında doğruluk alır. Modelimizi hem doğruluk (<code>Accuracy</code>) hem de sınıf dengesizliğine duyarlı <strong>Dengeli Doğruluk (<code>Balanced Accuracy</code>)</strong> ile ölçeriz.</li><li><strong>Neden Dürüst Sonuç ~%50–%55 Bandındadır?</strong> Etkin piyasalar, yüksek günlük gürültü ve değişen makroekonomik rejimler nedeniyle yalnızca geçmiş fiyatlardan yön tahmini yapmak yazı-turaya çok yakındır.</li></ul>
-        <p><strong>Yetiştir Hücresi:</strong> <code>🔄 Yetiştir: Bölüm 5 (Önceki bölümü atladıysanız çalıştırın)</code></p>
-        <p><strong>Adım Adım Kod Açıklaması:</strong></p>
-        <p><strong>TODO 9 (<code>sec5-cls-code</code>):</strong> <code>train_direction_classifier</code> yardımcı fonksiyonunu çağırarak yön sınıflandırma modelini eğitiyoruz:</p>
+        <h1 class="page-h1">Part 5 · The Right Setup</h1>
+        <p class="goal"><strong>Goal:</strong> Reframe the problem on stationary return features as binary classification of <strong>the next day's direction</strong> (up = <code>1</code>, down = <code>0</code>), train it with <code>BCEWithLogitsLoss</code>, compare it with a majority-class baseline, and run 4-fold <strong>walk-forward</strong> validation.</p>
+        <p><strong>Key ideas:</strong></p>
+        <ul class="plain"><li><strong><code>BCEWithLogitsLoss</code>:</strong> Takes the raw score (<code>logit</code>) from the model's last layer, applies <code>sigmoid</code> internally in a numerically stable way, and computes the binary cross-entropy loss.</li><li><strong>Majority-class baseline:</strong> If 52% of training days are up days, a naive model that says "up" for every test day scores about 52%. We measure the model with both <code>Accuracy</code> and <strong><code>Balanced Accuracy</code></strong>, which is sensitive to class imbalance.</li><li><strong>Why is the honest result around 50–55%?</strong> Efficient markets, heavy daily noise and changing macroeconomic regimes make predicting direction from past prices alone very close to a coin toss.</li></ul>
+        <p><strong>Catch-up cell:</strong> <code>🔄 Yetiştir: Bölüm 5 (Önceki bölümü atladıysanız çalıştırın)</code> (<em>"Catch up: Part 5 — run this if you skipped the previous part"</em>)</p>
+        <p><strong>Step-by-step code walkthrough:</strong></p>
+        <p><strong>TODO 9 (<code>sec5-cls-code</code>):</strong> We train the direction classifier by calling the <code>train_direction_classifier</code> helper:</p>
         <div class="code vsc" data-lang="python"><div class="vsc-bar"><span class="vsc-tab"><span class="vsc-icon" aria-hidden="true"></span>notebook_cell.py<span class="vsc-dir"></span></span></div><pre><span class="gutter" aria-hidden="true">1
 2
 3
@@ -93,7 +93,7 @@
 <span class="tk-var">y_val_dir</span> = <span class="tk-var">val_df</span>[<span class="tk-str">&quot;up_day&quot;</span>].<span class="tk-var">values</span>.<span class="tk-fn">astype</span>(<span class="tk-var">np</span>.<span class="tk-var">float32</span>)
 <span class="tk-var">y_test_dir</span> = <span class="tk-var">test_df</span>[<span class="tk-str">&quot;up_day&quot;</span>].<span class="tk-var">values</span>.<span class="tk-fn">astype</span>(<span class="tk-var">np</span>.<span class="tk-var">float32</span>)
 
-<span class="tk-com"># TODO 9 çözümü:</span>
+<span class="tk-com"># TODO 9 solution:</span>
 <span class="tk-var">cls_res</span> = <span class="tk-fn">train_direction_classifier</span>(
     <span class="tk-var">x_train</span>,
     <span class="tk-var">y_train_dir</span>,
@@ -105,23 +105,24 @@
     <span class="tk-var">epochs</span>=<span class="tk-num">15</span>,
     <span class="tk-var">seed</span>=<span class="tk-num">42</span>,
 )</code></pre></div>
-        <p>Ardından <code>sec5-wf-code</code> hücresini çalıştırarak 4 katlı Walk-Forward doğrulamayı ve karmaşıklık matrisini çizdiriyoruz:</p>
+        <p>Then we run <code>sec5-wf-code</code> for 4-fold walk-forward validation and the confusion matrix:</p>
         <figure class="arch" id="fig-direction_results">
-          <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/direction_results.svg" title="Tam boyutta aç"><img src="/workshops/pytorch-finance-workshop/diagrams/direction_results.svg" alt="THYAO.IS karmaşıklık matrisi ve Walk-Forward doğrulama sonuçları" width="1040" height="400" loading="lazy"></a></div>
+          <div class="arch-frame"><a href="/workshops/pytorch-finance-workshop/diagrams/direction_results.svg" title="Open full size"><img src="/workshops/pytorch-finance-workshop/diagrams/direction_results.svg" alt="THYAO.IS confusion matrix and walk-forward validation results" width="1040" height="400" loading="lazy"></a></div>
         </figure>
-        <p><strong>Beklenen Çıktı (Ölçülen Gerçek Değerler):</strong></p>
+        <p><strong>Expected output (measured values):</strong></p>
         <div class="code" data-lang="text"><pre><code>🎯 LSTM Test Doğruluğu (Accuracy)         : %54.74
-⚖️ LSTM Dengeli Doğruluk (Balanced Acc)   : %53.50
+⚖️ LSTM Dengeli Doğruluk (Balanced Acc)   : %53.51
 📏 Çoğunluk Sınıfı Referansı (Baseline)   : %51.90
-Walk-Forward Ortalama Doğruluk            : %51.50</code></pre></div>
-        <p><strong>Sorun Giderme (Bu Adım Çalışmazsa):</strong></p>
-        <ul class="plain"><li><strong><code>ValueError: Target size ... must be the same as input size</code>:</strong> Hedef vektörü olarak <code>train_df[&quot;up_day&quot;].values.astype(np.float32)</code> kullandığınızdan emin olun. Değişkenler eksikse <strong><code>🔄 Yetiştir: Bölüm 5</code></strong> hücresini çalıştırın.</li></ul>
+Walk-Forward Ortalama Doğruluk: %51.66</code></pre></div>
+        <p><em>Test accuracy is 54.74% against a 51.90% majority-class baseline, and the 4-fold walk-forward average is 51.66%. The test set has only 422 predictions, so the 95% confidence interval around 54.74% is about ±4.8 points (roughly 50% to 59.5%): this result cannot be told apart from a coin toss or from the baseline.</em></p>
+        <p><strong>Troubleshooting (if this step fails):</strong></p>
+        <ul class="plain"><li><strong><code>ValueError: Target size ... must be the same as input size</code>:</strong> Make sure you use <code>train_df[&quot;up_day&quot;].values.astype(np.float32)</code> as the target vector. If variables are missing, run the <strong><code>🔄 Yetiştir: Bölüm 5</code></strong> cell.</li></ul>
       </section>
 
-      <nav class="pager" aria-label="Önceki ve sonraki sayfa"><a class="prev" href="/workshops/pytorch-finance-workshop/step-4/">← 4 · Fiyat Tahmini ve Sürpriz</a><a class="next" href="/workshops/pytorch-finance-workshop/step-6/">6 · Meydan Okumalar →</a></nav>
+      <nav class="pager" aria-label="Previous and next page"><a class="prev" href="/workshops/pytorch-finance-workshop/step-4/">← 4 · Price Prediction</a><a class="next" href="/workshops/pytorch-finance-workshop/step-6/">6 · Challenges →</a></nav>
       <footer>
-        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">kaynak kod</a></p>
-        <p>Işık Üniversitesi Şile Kampüsü (DMF-214) · 18 Kasım 2026 · Yatırım tavsiyesi değildir.</p>
+        <p><a href="/">omarcevi.dev</a> · <a href="https://github.com/omarcevi/pytorch-finance-workshop">source code</a></p>
+        <p>Işık University Şile Campus (DMF-214) · 18 November 2026 · Not investment advice.</p>
       </footer>
     </main>
   </div>
