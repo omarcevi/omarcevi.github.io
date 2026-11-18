@@ -26,7 +26,6 @@ BASE = f"/workshops/{SLUG}/"
 OUT = ROOT / "workshops" / SLUG
 REPO = "https://github.com/omarcevi/pytorch-finance-workshop"
 COLAB_STARTER = "https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_starter.ipynb"
-COLAB_SOLUTION = "https://colab.research.google.com/github/omarcevi/pytorch-finance-workshop/blob/main/notebooks/workshop_solution.ipynb"
 GUIDE_SHORT = "Bringing AI to Financial Data"
 CSS_FROM = ROOT / "workshops" / "cloud-agents-workshop" / "guide.css"
 
@@ -395,7 +394,6 @@ def build(source_repo: Path) -> None:
                 total=total,
                 repo=REPO,
                 colab_starter=COLAB_STARTER,
-                colab_solution=COLAB_SOLUTION,
                 first=url("step-1"),
                 intro="\n        ".join(blocks(intro, images)),
                 grid=grid,
@@ -511,7 +509,6 @@ OVERVIEW = """      <header class="hero" id="overview">
         <div class="actions">
           <a class="btn primary" href="{first}">Start with Part 1</a>
           <a class="btn" href="{colab_starter}">Starter notebook (Colab)</a>
-          <a class="btn" href="{colab_solution}">Solution notebook (Colab)</a>
           <a class="btn" href="{repo}">GitHub repo</a>
         </div>
       </header>
