@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#20344b">
+  <title>Live · omarcevi.dev</title>
+  <style>html,body{margin:0;background:#20344b;color:#fff;font:18px/1.5 system-ui,sans-serif}p{padding:24px}a{color:#57caff}</style>
+  <script>
+  // Short link → the current talk's live page. The talk is chosen by /live/current.json; the join code (?k=) is kept.
+  (function () {
+    var go = function (id) {
+      if (!/^[a-z0-9-]+$/.test(id || '')) id = 'ai-engineering-5-steps';
+      location.replace('/talks/' + id + '/live/' + location.search);
+    };
+    fetch('/live/current.json', { cache: 'no-cache' }).then(function (r) { return r.json(); })
+      .then(function (c) { go(c.talkId); }, function () { go(null); });
+  })();
+  </script>
+</head>
+<body><p>Opening the live page… <a href="/talks/ai-engineering-5-steps/live/">continue</a></p></body>
+</html>
