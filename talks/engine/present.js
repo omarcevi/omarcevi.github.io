@@ -19,7 +19,7 @@ export async function startProjector({ talkId }) {
   const cornerQr = el('div', { class: 'corner-qr' });
   const joinedEl = el('span', { class: 'corner-joined' }, '0 joined');
   const dot = el('span', { class: 'live-dot', title: 'live' });
-  const corner = el('div', { class: 'corner', hidden: true }, [cornerQr, el('div', { class: 'corner-text' }, [el('span', { class: 'corner-url' }, SHORT_LIVE), el('span', { class: 'corner-meta' }, [dot, joinedEl])])]);
+  const corner = el('div', { class: 'corner', hidden: true }, [el('div', { class: 'corner-text' }, [el('span', { class: 'corner-url' }, SHORT_LIVE), el('span', { class: 'corner-meta' }, [dot, joinedEl])])]);
   const status = el('div', { class: 'status-label' });
   const qrBig = el('div', { class: 'qr-big' });
   const qrOverlay = el('div', { class: 'overlay qr-overlay', hidden: true }, [qrBig, el('p', { class: 'qr-url' }, SHORT_LIVE), el('p', { class: 'qr-sub' }, 'Vote, react, follow along.')]);
@@ -61,7 +61,7 @@ export async function startProjector({ talkId }) {
     const run = live?.run;
     const s = deck.slides[pos.slide];
     const liveOn = !!(live && run && run.liveEnabled);
-    corner.hidden = !liveOn || s.type === 'qr' || live.control?.cornerQr === false;
+    corner.hidden = !liveOn || s.type === 'qr' || s.type === 'poll' || live.control?.cornerQr === false;
     rx.setEnabled(liveOn && !!run.reactionsEnabled);
     dot.classList.toggle('on', !!live?.online);
     status.textContent = !live ? 'local only · not syncing' : (live.online ? '' : 'live off');

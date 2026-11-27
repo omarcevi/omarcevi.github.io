@@ -11,13 +11,13 @@ const T = TR ? {
   voted: '✓ Oyun alındı — sonuçlar ekranda!', change: 'Oyunu değiştirebilirsin.', closed: 'Oylama kapandı', paused: 'Canlı etkileşim şu an kapalı',
   reconnecting: 'yeniden bağlanıyor…', thanks: 'Teşekkürler!', thanksSub: 'Katıldığın için teşekkürler.', deck: 'Sunumu aç', linkedin: 'LinkedIn’de bağlan',
   react: 'Tepki gönder', poll: 'Anket', waitPoll: 'Anket yükleniyor…', loading: 'Bağlanıyor…', reactionsOff: 'Tepkiler şu an kapalı', pollsOff: 'Oylama şu an kapalı',
-  qrSlide: 'Hoş geldin! Bir 🎉 gönder.', results: 'Sonuçlar ekranda', deckSoon: 'Slaytlar konuşmadan sonra paylaşılacak.',
+  qrSlide: 'Hoş geldin! Bir 👏 gönder.', results: 'Sonuçlar ekranda', deckSoon: 'Slaytlar konuşmadan sonra paylaşılacak.',
 } : {
   soon: 'The talk will start soon', scan: 'Scan the QR code on the screen.', scanSub: 'Point your camera at the code on the big screen to join.',
   voted: '✓ Vote received — results are on the screen!', change: 'You can change your vote.', closed: 'Voting closed', paused: 'Live interaction is paused',
   reconnecting: 'reconnecting…', thanks: 'Thank you!', thanksSub: 'Thanks for playing along.', deck: 'Open the slides', linkedin: 'Connect on LinkedIn',
   react: 'Send a reaction', poll: 'Poll', waitPoll: 'Loading poll…', loading: 'Connecting…', reactionsOff: 'Reactions are paused', pollsOff: 'Voting is paused',
-  qrSlide: 'Welcome! Send a 🎉 to test it.', results: 'Results are on the screen', deckSoon: 'Slides will be shared after the talk.',
+  qrSlide: 'Welcome! Send a 👏 to test it.', results: 'Results are on the screen', deckSoon: 'Slides will be shared after the talk.',
 };
 document.documentElement.lang = TR ? 'tr' : 'en';
 
@@ -26,7 +26,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
   const pill = el('div', { class: 'pill', hidden: true }, T.reconnecting);
   const main = el('main', { class: 'ph-main' });
   app.replaceChildren(pill, main, el('footer', { class: 'ph-foot' }, footer));
-  const show = (...kids) => main.replaceChildren(...kids);
+  const show = (...kids) => main.replaceChildren(...kids.filter(Boolean));
   show(el('p', { class: 'ph-muted' }, T.loading));
 
   // ---------- join code (from the QR: /live/?k=CODE) ----------
@@ -104,17 +104,25 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
 
   // ---------- rendering ----------
   function header() {
-    const accent = ['blue', 'red', 'yellow', 'green', 'multi'].includes(run?.accent) ? run.accent : 'none';
+    // phoneTitle is "Türkçe / English": show the half that matches the phone's language
+    const parts = String(run?.phoneTitle || '').split(' / ');
+    const title = (TR ? parts[0] : parts[1] || parts[0]) || '';
+    const step = Number.isInteger(run?.step) ? run.step : 0;
     return el('div', { class: 'ph-head' }, [
-      el('p', { class: `ph-eyebrow accent-${accent}` }, talkTitle),
-      el('h1', { class: 'ph-title' }, run?.phoneTitle || ''),
+      el('div', { class: 'ph-top' }, [
+        el('p', { class: 'ph-eyebrow' }, 'AI ENGINEERING · 5 STEPS'),
+        el('div', { class: 'ph-steps', 'aria-label': step ? `Step ${step} of 5` : '' }, [1, 2, 3, 4, 5].map((k) => el('b', { class: k === step ? 'now' : k < step ? 'done' : '' }, String(k)))),
+      ]),
+      el('h1', { class: 'ph-title' }, title),
     ]);
   }
 
   function render(force = false) {
-    const key = JSON.stringify([runId, run?.slide, run?.slideType, run?.pollId, run?.liveEnabled, run?.reactionsEnabled, run?.pollsEnabled, joined, joinFailed, !!code, poll?.open, poll?.question, myVote, failures >= 3]);
+    const key = JSON.stringify([runId, run?.slide, run?.accent, run?.step, run?.slideType, run?.pollId, run?.liveEnabled, run?.reactionsEnabled, run?.pollsEnabled, joined, joinFailed, !!code, poll?.open, poll?.question, myVote, failures >= 3]);
     if (key === renderKey && !force) return;
     renderKey = key;
+    const accent = ['blue', 'red', 'yellow', 'green'].includes(run?.accent) && run?.slideType !== 'ended' ? run.accent : 'none';
+    document.body.dataset.accent = accent;
     if (!runId || !run) return show(el('div', { class: 'ph-center' }, [el('p', { class: 'ph-eyebrow' }, talkTitle), el('h1', { class: 'ph-title' }, T.soon)]));
     if (run.slideType === 'ended') return show(ended());
     if (!code && !joined) return show(el('div', { class: 'ph-center' }, [el('div', { class: 'ph-qr-icon', 'aria-hidden': 'true' }), el('h1', { class: 'ph-title' }, T.scan), el('p', { class: 'ph-muted' }, T.scanSub)]));
@@ -143,7 +151,8 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     return el('div', { class: 'ph-poll' }, [
       el('h2', { class: 'ph-q' }, String(poll.question || '')),
       el('div', { class: 'ph-options' }, labels.map((l, i) => {
-        const b = el('button', { class: `ph-opt${myVote === i ? ' chosen' : ''}`, type: 'button', disabled }, String(l));
+        const rest = String(l).replace(new RegExp(`^${i + 1}\\s*·?\\s*`), '');
+        const b = el('button', { class: `ph-opt${myVote === i ? ' chosen' : ''}`, type: 'button', disabled }, [el('b', {}, String(i + 1)), el('span', {}, poll.labels.every((x, k) => String(x).startsWith(String(k + 1))) ? rest : String(l))]);
         b.addEventListener('click', () => vote(i, b));
         return b;
       })),
@@ -171,7 +180,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     const disabled = failures >= 3;
     return el('div', { class: 'ph-react' }, [
       el('p', { class: 'ph-label' }, T.react),
-      el('div', { class: 'ph-grid' }, REACTIONS.map((r) => {
+      el('div', { class: 'ph-grid a1' }, REACTIONS.map((r) => {
         const b = el('button', { class: 'ph-rx', type: 'button', 'data-key': r.key, disabled, 'aria-label': TR ? r.tr : r.en }, [
           el('span', { class: 'ph-emoji', 'aria-hidden': 'true' }, r.emoji), el('span', { class: 'ph-rx-label' }, TR ? r.tr : r.en), el('span', { class: 'ring', 'aria-hidden': 'true' }),
         ]);

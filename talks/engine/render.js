@@ -147,10 +147,19 @@ class PollView {
     this.waiting = el('div', { class: 'poll-waiting' }, [this.count, el('p', { class: 'title' }, 'votes so far')]);
     this.closed = el('p', { class: 'label poll-closed', hidden: true }, 'Voting closed');
     this.offline = el('p', { class: 'live-unavailable', hidden: true }, 'Live results unavailable');
+    // big join QR next to every poll: late arrivals can still scan it from the back row
+    this.qr = el('div', { class: 'qr-slot poll-qr-code' });
+    const drawQr = () => this.qr.replaceChildren(qrSvg(ctx.liveUrl()));
+    drawQr();
+    this.onCode = drawQr;
+    addEventListener('live-code', this.onCode);
     root.append(
-      el('h1', { class: 'headline poll-q' }, poll.question),
-      el('div', { class: 'poll-body' }, [this.waiting, this.bars.node]),
-      el('div', { class: 'poll-status' }, [el('span', { class: 'poll-cta' }, 'Vote on your phone · omarcevi.dev/live'), this.closed, this.offline]),
+      el('div', { class: 'poll-main' }, [
+        el('h1', { class: 'headline poll-q' }, poll.question),
+        el('div', { class: 'poll-body' }, [this.waiting, this.bars.node]),
+        el('div', { class: 'poll-status' }, [this.closed, this.offline]),
+      ]),
+      el('div', { class: 'poll-qr' }, [this.qr, el('p', { class: 'poll-qr-url' }, 'omarcevi.dev/live'), el('p', { class: 'poll-qr-sub' }, 'Scan to vote')]),
     );
     this.attach();
     this.onLive = () => this.attach();
@@ -180,5 +189,5 @@ class PollView {
     this.bars.reveal(on);
     this.waiting.classList.toggle('gone', on);
   }
-  destroy() { if (this.unsub) this.unsub(); if (this.pollUnsub) this.pollUnsub(); removeEventListener('live-status', this.onLive); }
+  destroy() { if (this.unsub) this.unsub(); if (this.pollUnsub) this.pollUnsub(); removeEventListener('live-status', this.onLive); removeEventListener('live-code', this.onCode); }
 }

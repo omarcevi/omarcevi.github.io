@@ -1,6 +1,6 @@
 // Floating reactions on the projector. Renders ONLY characters from the fixed map in config.js.
 // Throttles on top of the rules: per uid 1 / 1.5 s and ~20 per slide, max ~25 on screen,
-// bursts collapse into "🎉 ×12" bubbles. Emoji keys not in `float` still count, but never float.
+// bursts collapse into "👏 ×12" bubbles. Emoji keys not in `float` still count, but never float.
 import { REACTION_BY_KEY, REACTION_COOLDOWN_MS } from './config.js';
 import { el } from './util.js';
 
@@ -10,7 +10,7 @@ const BURST_WINDOW = 1500;
 const BURST_SINGLES = 4; // per emoji per window before collapsing into a bubble
 
 export class ReactionLayer {
-  constructor(host, { float = ['amazed', 'interesting', 'scary', 'party'] } = {}) {
+  constructor(host, { float = ['clap', 'fire', 'mindblown', 'laugh', 'think'] } = {}) {
     this.host = host; this.float = new Set(float);
     this.lastByUid = new Map(); this.perSlide = new Map();
     this.visible = 0; this.recent = []; this.window = new Map(); this.bubbles = new Map();

@@ -36,11 +36,11 @@ export const EMULATOR = { projectId: 'demo-talks', host: '127.0.0.1', firestoreP
 
 // Fixed reaction map. The projector renders ONLY from this map; unknown keys are dropped.
 export const REACTIONS = [
-  { key: 'amazed', emoji: '🤯', en: 'amazed', tr: 'şaşkın' },
-  { key: 'confused', emoji: '😕', en: 'confused', tr: 'kafam karıştı' },
-  { key: 'interesting', emoji: '🤔', en: 'interesting', tr: 'ilginç' },
-  { key: 'scary', emoji: '😱', en: 'scary', tr: 'korkutucu' },
-  { key: 'party', emoji: '🎉', en: 'party', tr: 'parti' },
+  { key: 'clap', emoji: '👏', en: 'applause', tr: 'alkış' },
+  { key: 'fire', emoji: '🔥', en: 'fire', tr: 'harika' },
+  { key: 'mindblown', emoji: '🤯', en: 'mind blown', tr: 'aklım uçtu' },
+  { key: 'laugh', emoji: '😂', en: 'funny', tr: 'komik' },
+  { key: 'think', emoji: '🤔', en: 'interesting', tr: 'ilginç' },
 ];
 export const REACTION_BY_KEY = Object.fromEntries(REACTIONS.map((r) => [r.key, r]));
 export const ACCENTS = ['blue', 'red', 'yellow', 'green', 'multi', 'none'];
