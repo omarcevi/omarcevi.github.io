@@ -45,6 +45,8 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
   const user = existing || (await A.signInAnonymously(auth).catch(() => null))?.user;
   if (!user) { pill.hidden = false; setTimeout(() => location.reload(), 8000); return; }
   const uid = user.uid;
+  // If another tab changes the login (e.g. /remote/ sign-in in the same browser), start over with that user.
+  A.onAuthStateChanged(auth, (u) => { if (u && u.uid !== uid) location.reload(); });
 
   let runId = null, run = null, joined = false, joinFailed = false, unsubRun = null, unsubPoll = null;
   let poll = null, myVote = null, failures = 0, n = null;
@@ -66,7 +68,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     if (unsubPoll) { unsubPoll(); unsubPoll = null; }
     runId = r; run = null; joined = false; joinFailed = false; poll = null; myVote = null; n = null; failures = 0;
     if (!r) { render(); return; }
-    try { joined = localStorage.getItem(`live:joined:${talkId}:${r}`) === '1'; } catch { /* ignore */ }
+    try { joined = localStorage.getItem(`live:joined:${talkId}:${r}:${uid}`) === '1'; } catch { /* ignore */ }
     unsubRun = F.onSnapshot(F.doc(db, paths.run(talkId, r)), { includeMetadataChanges: true }, (s) => {
       setOnline(!s.metadata.fromCache);
       const prevPoll = run?.pollId;
@@ -88,7 +90,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
       if (exists) joined = true;
       else if (e.code === 'permission-denied') { joinFailed = true; try { localStorage.removeItem(codeKey); } catch { /* */ } code = null; }
     }
-    if (joined) try { localStorage.setItem(`live:joined:${talkId}:${runId}`, '1'); } catch { /* ignore */ }
+    if (joined) try { localStorage.setItem(`live:joined:${talkId}:${runId}:${uid}`, '1'); } catch { /* ignore */ }
     render();
   }
 
@@ -96,7 +98,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     if (unsubPoll) { unsubPoll(); unsubPoll = null; }
     poll = null; myVote = null;
     if (!pollId) return;
-    try { const v = localStorage.getItem(`live:vote:${runId}:${pollId}`); myVote = v == null ? null : +v; } catch { /* ignore */ }
+    try { const v = localStorage.getItem(`live:vote:${runId}:${pollId}:${uid}`); myVote = v == null ? null : +v; } catch { /* ignore */ }
     unsubPoll = F.onSnapshot(F.doc(db, paths.poll(talkId, runId, pollId)), (s) => { poll = s.exists() ? { id: pollId, ...s.data() } : null; render(true); }, () => {});
   }
 
@@ -159,7 +161,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     try {
       await F.setDoc(F.doc(db, paths.vote(talkId, runId, poll.id, uid)), { value: i, at: F.serverTimestamp() });
       failures = 0;
-      try { localStorage.setItem(`live:vote:${runId}:${poll.id}`, String(i)); } catch { /* ignore */ }
+      try { localStorage.setItem(`live:vote:${runId}:${poll.id}:${uid}`, String(i)); } catch { /* ignore */ }
     } catch { myVote = prev; failures++; }
     render(true);
   }
