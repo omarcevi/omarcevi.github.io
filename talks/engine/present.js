@@ -19,7 +19,7 @@ export async function startProjector({ talkId }) {
   const cornerQr = el('div', { class: 'corner-qr' });
   const joinedEl = el('span', { class: 'corner-joined' }, '0 joined');
   const dot = el('span', { class: 'live-dot', title: 'live' });
-  const corner = el('div', { class: 'corner', hidden: true }, [el('div', { class: 'corner-text' }, [el('span', { class: 'corner-url' }, SHORT_LIVE), el('span', { class: 'corner-meta' }, [dot, joinedEl])])]);
+  const corner = el('div', { class: 'corner', hidden: true }, [el('div', { class: 'corner-text' }, [dot, el('span', { class: 'corner-url' }, SHORT_LIVE), joinedEl])]);
   const status = el('div', { class: 'status-label' });
   const qrBig = el('div', { class: 'qr-big' });
   const qrOverlay = el('div', { class: 'overlay qr-overlay', hidden: true }, [qrBig, el('p', { class: 'qr-url' }, SHORT_LIVE), el('p', { class: 'qr-sub' }, 'Vote, react, follow along.')]);

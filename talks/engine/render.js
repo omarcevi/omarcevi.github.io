@@ -70,7 +70,10 @@ export class SlideView {
       const fromLevel = prev && this.deck.slides[prev.slide]?.diagramLevel != null && prev.slide < i ? this.deck.slides[prev.slide].diagramLevel : level - 1;
       renderDiagram(slot, this.deck.data.diagram, { level, animateFrom: Math.min(fromLevel, level - 1), tags: slot.hasAttribute('data-tags') });
     });
-    if (s.type === 'poll') this.poll = new PollView(node, s.poll, this.ctx);
+    if (s.type === 'poll') {
+      const polls = this.deck.slides.filter((x) => x.type === 'poll');
+      this.poll = new PollView(node, s.poll, this.ctx, { index: polls.indexOf(s) + 1, count: polls.length });
+    }
     if (s.type === 'results') this.mountResults(node, s);
     if (s.type === 'demo') this.demo = new DemoPlayer(node.querySelector('.demo-root') || node, this.deck.data.demos[s.demo]);
     if (this.poll) this.cleanup.push(() => this.poll.destroy());
@@ -149,56 +152,66 @@ export class Bars {
   reveal(on) { this.node.classList.toggle('concealed', !on); }
 }
 
+// Poll slide (layout P2): a solid color panel with the question and the join QR on the left;
+// the options as numbered rows on the right from the start. Revealing fills each row like a bar.
 class PollView {
-  constructor(node, poll, ctx) {
-    this.ctx = ctx; this.poll = poll; this.unsub = null;
+  constructor(node, poll, ctx, meta = {}) {
+    this.ctx = ctx; this.poll = poll; this.unsub = null; this.counts = poll.labels.map(() => 0); this.revealed = false;
     const root = node.querySelector('.poll-root') || node;
-    this.bars = new Bars(poll.labels, { scale: !!poll.scale });
-    this.count = el('p', { class: 'stat poll-count' }, '0');
-    this.waiting = el('div', { class: 'poll-waiting' }, [this.count, el('p', { class: 'title' }, 'votes so far')]);
-    this.closed = el('p', { class: 'label poll-closed', hidden: true }, 'Voting closed');
-    this.offline = el('p', { class: 'live-unavailable', hidden: true }, 'Live results unavailable');
-    // big join QR next to every poll: late arrivals can still scan it from the back row
-    this.qr = el('div', { class: 'qr-slot poll-qr-code' });
+    node.classList.add('poll-p2');
+    this.qr = el('div', { class: 'qr-slot pv-qr' });
     const drawQr = () => this.qr.replaceChildren(qrSvg(ctx.liveUrl()));
     drawQr();
     this.onCode = drawQr;
     addEventListener('live-code', this.onCode);
+    const scaleLabels = poll.labels.every((x, k) => String(x).startsWith(String(k + 1)));
+    this.rows = poll.labels.map((l, i) => {
+      const text = scaleLabels ? String(l).replace(new RegExp(`^${i + 1}\\s*·?\\s*`), '') : String(l);
+      const fill = el('div', { class: 'pv-fill' });
+      const pct = el('i', { class: 'pv-pct' }, '');
+      const row = el('div', { class: 'pv-row' }, [fill, el('b', {}, String(i + 1)), el('span', {}, text), pct]);
+      return { row, fill, pct };
+    });
+    this.total = el('span', { class: 'pv-total' }, '0 votes so far');
+    this.right = el('span', { class: 'pv-right' }, 'Results after voting');
+    this.offline = el('p', { class: 'pv-offline', hidden: true }, 'Live results unavailable');
     root.append(
-      el('div', { class: 'poll-main' }, [
-        el('h1', { class: 'headline poll-q' }, poll.question),
-        el('div', { class: 'poll-body' }, [this.waiting, this.bars.node]),
-        el('div', { class: 'poll-status' }, [this.closed, this.offline]),
+      el('div', { class: 'pv-left' }, [
+        el('p', { class: 'pv-kicker' }, meta.index ? `Poll · ${meta.index} of ${meta.count}` : 'Poll'),
+        el('h1', { class: 'pv-q' }, poll.question),
+        el('div', { class: 'pv-foot' }, [this.qr, el('p', { class: 'pv-cta' }, ['Vote on your phone', el('small', {}, 'omarcevi.dev/live')])]),
       ]),
-      el('div', { class: 'poll-qr' }, [this.qr, el('p', { class: 'poll-qr-url' }, 'omarcevi.dev/live'), el('p', { class: 'poll-qr-sub' }, 'Scan to vote')]),
+      el('div', { class: 'pv-main' }, [el('div', { class: 'pv-rows' }, this.rows.map((r) => r.row)), el('div', { class: 'pv-meta' }, [this.total, this.right]), this.offline]),
     );
     this.attach();
     this.onLive = () => this.attach();
     addEventListener('live-status', this.onLive);
   }
   attach() {
-    if (this.ctx.staticVotes) { // public read-only deck: final results of the real run, baked in
-      const c = this.ctx.staticVotes[this.poll.id];
-      if (c) { this.bars.set(c); this.count.textContent = c.reduce((a, b) => a + b, 0); }
-      return;
-    }
+    if (this.ctx.staticVotes) { const c = this.ctx.staticVotes[this.poll.id]; if (c) this.set(c); return; }
     const live = this.ctx.live();
-    const ok = !!(live && live.online && live.runId);
-    this.offline.hidden = ok;
+    this.offline.hidden = !!(live && live.online && live.runId);
     if (!live || !live.runId || this.unsub) return;
-    this.unsub = live.watchVotes(this.poll.id, this.poll.labels.length, (c) => {
-      if (!c) return;
-      this.bars.set(c);
-      this.count.textContent = c.reduce((a, b) => a + b, 0);
-    });
-    this.pollUnsub = live.fb.F.onSnapshot(live.ref(`talks/${live.talkId}/runs/${live.runId}/polls/${this.poll.id}`), (s) => {
-      this.closed.hidden = s.data()?.open !== false;
+    this.unsub = live.watchVotes(this.poll.id, this.poll.labels.length, (c) => { if (c) this.set(c); });
+    this.pollUnsub = live.fb.F.onSnapshot(live.ref(`talks/${live.talkId}/runs/${live.runId}/polls/${this.poll.id}`), (snap) => {
+      this.closed = snap.data()?.open === false; this.paint();
     }, () => {});
   }
-  setStep(step) {
-    const on = step >= 1;
-    this.bars.reveal(on);
-    this.waiting.classList.toggle('gone', on);
+  set(counts) { this.counts = counts; this.paint(); }
+  paint() {
+    const total = this.counts.reduce((a, b) => a + b, 0);
+    const max = Math.max(1, ...this.counts);
+    const top = total ? this.counts.indexOf(Math.max(...this.counts)) : -1;
+    this.rows.forEach((r, i) => {
+      r.fill.style.width = this.revealed ? `${(this.counts[i] / max) * 100}%` : '0%';
+      r.pct.textContent = this.revealed ? `${total ? Math.round((this.counts[i] / total) * 100) : 0}%` : '';
+      r.row.classList.toggle('top', this.revealed && i === top);
+    });
+    const avg = total ? (this.counts.reduce((a, c, i) => a + c * (i + 1), 0) / total).toFixed(1) : null;
+    this.total.textContent = `${total} ${total === 1 ? 'vote' : 'votes'}${this.revealed ? '' : ' so far'}`;
+    if (this.revealed) this.right.replaceChildren(...(this.poll.scale && avg ? ['avg ', el('b', {}, avg)] : []));
+    else this.right.textContent = this.closed ? 'Voting closed' : 'Results after voting';
   }
+  setStep(step) { this.revealed = step >= 1; this.paint(); }
   destroy() { if (this.unsub) this.unsub(); if (this.pollUnsub) this.pollUnsub(); removeEventListener('live-status', this.onLive); removeEventListener('live-code', this.onCode); }
 }
