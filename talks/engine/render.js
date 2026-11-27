@@ -54,6 +54,17 @@ export class SlideView {
       draw();
       if (which !== 'public') { const f = () => draw(); addEventListener('live-code', f); this.cleanup.push(() => removeEventListener('live-code', f)); }
     });
+    // live "N joined" counter (slide with the join QR): counts up as phones scan the code
+    node.querySelectorAll('[data-joined]').forEach((slot) => {
+      const set = (n, bump) => {
+        if (!Number.isInteger(n)) return;
+        slot.textContent = String(n);
+        if (bump) { slot.classList.remove('bump'); void slot.offsetWidth; slot.classList.add('bump'); }
+      };
+      set(window.__joined ?? 0, false);
+      const f = (e) => set(e.detail, true);
+      addEventListener('live-joined', f); this.cleanup.push(() => removeEventListener('live-joined', f));
+    });
     node.querySelectorAll('[data-diagram]').forEach((slot) => {
       const level = +slot.dataset.diagram;
       const fromLevel = prev && this.deck.slides[prev.slide]?.diagramLevel != null && prev.slide < i ? this.deck.slides[prev.slide].diagramLevel : level - 1;
