@@ -107,8 +107,9 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     try { const v = localStorage.getItem(`live:vote:${runId}:${pollId}:${uid}`); myVote = v == null ? null : +v; } catch { /* ignore */ }
     // draw the options straight from the run doc; the poll doc only adds open/closed
     if (run?.poll?.question) poll = { id: pollId, question: run.poll.question, labels: run.poll.labels, open: true };
-    unsubPoll = F.onSnapshot(F.doc(db, paths.poll(talkId, runId, pollId)), (s) => {
-      if (!s.exists() && s.metadata.fromCache && poll) return; // cache miss: keep the options from the run doc
+    unsubPoll = F.onSnapshot(F.doc(db, paths.poll(talkId, runId, pollId)), { includeMetadataChanges: true }, (s) => {
+      // a cached copy can be stale (open:false from the last time we left this slide): wait for the server
+      if (s.metadata.fromCache) return;
       poll = s.exists() ? { id: pollId, ...s.data() } : null; render(true);
     }, () => {});
   }
