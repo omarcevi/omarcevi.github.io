@@ -29,7 +29,11 @@ export function loadFirebase() {
         isTokenAutoRefreshEnabled: true,
       });
     }
-    const auth = A.getAuth(app);
+    // keep the login on this device (IndexedDB, falling back to localStorage) so the presenter signs in once
+    const auth = A.initializeAuth(app, {
+      persistence: [A.indexedDBLocalPersistence, A.browserLocalPersistence],
+      popupRedirectResolver: A.browserPopupRedirectResolver,
+    });
     const db = F.initializeFirestore(app, { ignoreUndefinedProperties: true });
     if (emu) {
       A.connectAuthEmulator(auth, `http://${EMULATOR.host}:${EMULATOR.authPort}`, { disableWarnings: true });
