@@ -26,7 +26,7 @@ export class SlideView {
     if (changed) this.mount(pos.slide, prev);
     this.cur = pos;
     applySteps(this.node, pos.step);
-    if (this.demo) this.demo.go(pos.step, changed ? null : prev.step);
+    if (this.demo) this.demo.go(pos.step, changed ? null : prev.step, { enter: changed && !!prev && prev.slide < pos.slide });
     if (this.poll) this.poll.setStep(pos.step);
   }
 

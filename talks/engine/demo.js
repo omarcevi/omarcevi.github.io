@@ -38,16 +38,47 @@ export class DemoPlayer {
     );
   }
 
-  get steps() { return this.demo.beats.length; }
+  get steps() { return this.demo.beats.filter((b) => b.pause).length; }
 
-  go(step, prevStep) {
+  // Autoplay: beats are grouped into segments that end before each beat marked `pause`.
+  // Step k shows segments 0..k; the newest segment plays on its own at a natural pace.
+  // A click mid-segment re-renders it complete and starts the next one (skip-ahead); going back is instant.
+  segEnd(k) {
+    const ps = [];
+    this.demo.beats.forEach((b, i) => { if (b.pause) ps.push(i); });
+    return k < ps.length ? ps[k] : this.demo.beats.length;
+  }
+
+  go(step, prevStep, { enter = false } = {}) {
     this.timers.forEach(clearTimeout); this.timers = [];
-    const animate = prevStep != null && step === prevStep + 1;
     this.chat.replaceChildren(); this.panel.replaceChildren(); this.caption.textContent = ''; this.caption.classList.remove('on');
     this.msgs = {};
-    const beats = this.demo.beats.slice(0, step);
-    beats.forEach((b, i) => this.apply(b, animate && i === beats.length - 1, i));
-    // a caption or late beat can shrink the panel: keep the newest cards visible
+    const end = this.segEnd(step);
+    const play = (prevStep != null && step === prevStep + 1) || (enter && step === 0);
+    const start = play ? (step === 0 ? 0 : this.segEnd(step - 1)) : end;
+    this.demo.beats.slice(0, start).forEach((b, i) => this.apply(b, false, i));
+    this.trim();
+    let t = play ? 500 : 0;
+    for (let i = start; i < end; i++) {
+      const b = this.demo.beats[i];
+      this.timers.push(setTimeout(() => { this.apply(b, true, i); this.trim(); }, t));
+      t += this.beatTime(b);
+    }
+  }
+
+  // how long a beat holds the stage before the next one (ms)
+  beatTime(b) {
+    if (b.user != null) return 1100;
+    if (b.typing) return 1300;
+    if (b.bot != null) return Math.round(((b.bot.match(/\S+\s*/g) || []).length * 1000) / 28) + 900;
+    if (b.card) return 1400;
+    if (b.mark || b.replace) return 1000;
+    if (b.pick) return 1000;
+    if (b.source) return 800;
+    return 600;
+  }
+
+  trim() {
     while (this.panel.children.length > 1 && this.panel.scrollHeight > this.panel.clientHeight + 2) this.panel.firstElementChild.remove();
     this.chat.scrollTop = this.chat.scrollHeight;
   }
