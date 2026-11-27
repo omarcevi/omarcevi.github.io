@@ -30,7 +30,7 @@ export class DemoPlayer {
         this.chat,
       ]),
       el('div', { class: 'insp' }, [
-        el('p', { class: 'eyebrow insp-title' }, d.panelTitle || 'Under the hood'),
+        el('p', { class: 'insp-title' }, d.panelTitle || 'Under the hood'),
         this.panel,
         d.illustrative !== false ? el('p', { class: 'illustrative' }, 'Illustrative') : null,
       ]),
@@ -126,7 +126,7 @@ export class DemoPlayer {
 
   card(c, animate) {
     const kids = [];
-    if (c.eyebrow) kids.push(el('p', { class: 'card-eyebrow' }, c.eyebrow));
+    if (c.eyebrow) kids.push(el('p', { class: 'card-tag' }, c.eyebrow));
     if (c.title) kids.push(el('p', { class: `card-title${c.mono ? ' mono' : ''}` }, [c.title, c.status ? el('span', { class: 'card-status' }, c.status) : null]));
     if (c.flow) kids.push(el('div', { class: 'flow' }, c.flow.flatMap((f, i) => [i ? el('span', { class: 'flow-arrow', 'aria-hidden': 'true' }, '→') : null, el('span', { class: `flow-step${c.active === i ? ' active' : ''}` }, f)])));
     if (c.body) kids.push(el('p', { class: 'card-body' }, c.body));

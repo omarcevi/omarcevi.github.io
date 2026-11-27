@@ -3,6 +3,7 @@
 import { el, qrSvg } from './util.js';
 import { renderDiagram } from './diagram.js';
 import { DemoPlayer } from './demo.js';
+import { renderMap } from './archmap.js';
 
 export const STEP_COLORS = { 0: 'none', 1: 'blue', 2: 'red', 3: 'yellow', 4: 'green', 5: 'blue' };
 
@@ -37,6 +38,13 @@ export class SlideView {
     this.host.replaceChildren(node);
     this.node = node;
 
+    // architecture map: a slot in the slide (large variants) or the strip across the top of the canvas
+    const mapDef = this.deck.data.settings?.archmap;
+    if (mapDef && s.map != null) {
+      const slots = node.querySelectorAll('[data-archmap]');
+      if (slots.length) slots.forEach((slot) => slot.replaceChildren(renderMap(mapDef, s.map, { variant: slot.dataset.archmap || 'big' })));
+      else { node.classList.add('has-map'); node.prepend(el('div', { class: 'map-strip' }, renderMap(mapDef, s.map))); }
+    }
     node.querySelectorAll('[data-qr]').forEach((slot) => {
       const which = slot.dataset.qr;
       const draw = () => slot.replaceChildren(qrSvg(which === 'public' ? this.ctx.publicUrl : this.ctx.liveUrl()));
@@ -102,7 +110,7 @@ export class Bars {
     this.total = el('span', { class: 'bars-total-n' }, '0');
     this.avgEl = el('p', { class: 'stat bars-avg' }, '–');
     this.node = el('div', { class: 'bars concealed' }, [
-      title ? el('p', { class: 'eyebrow' }, title) : null,
+      title ? el('p', { class: 'bars-title' }, title) : null,
       el('div', { class: 'bars-rows' }, this.rows.map((r) => r.row)),
       el('div', { class: 'bars-foot' }, [
         el('p', { class: 'bars-total' }, [this.total, ' votes']),
@@ -136,10 +144,9 @@ class PollView {
     this.closed = el('p', { class: 'label poll-closed', hidden: true }, 'Voting closed');
     this.offline = el('p', { class: 'live-unavailable', hidden: true }, 'Live results unavailable');
     root.append(
-      el('p', { class: 'eyebrow' }, 'Poll · vote on your phone'),
       el('h1', { class: 'headline poll-q' }, poll.question),
       el('div', { class: 'poll-body' }, [this.waiting, this.bars.node]),
-      el('div', { class: 'poll-status' }, [this.closed, this.offline]),
+      el('div', { class: 'poll-status' }, [el('span', { class: 'poll-cta' }, 'Vote on your phone · omarcevi.dev/live'), this.closed, this.offline]),
     );
     this.attach();
     this.onLive = () => this.attach();
