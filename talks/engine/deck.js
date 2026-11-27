@@ -39,6 +39,7 @@ export class Deck {
       phoneTitle: p.ended ? '' : (s.phoneTitle || ''),
       pollId: !p.ended && s.type === 'poll' ? s.poll.id : null,
       accent: s.accent || 'none',
+      step: typeof s.map === 'number' && s.map > 0 ? s.map : 0, // phones show the 5-step tiles
     };
   }
   same(a, b) { return a && b && a.slide === b.slide && a.step === b.step && !!a.ended === !!b.ended; }

@@ -34,16 +34,18 @@ export async function startRemote({ talkId }) {
   $.newRun = el('button', { class: 'rm-small', type: 'button' }, 'New run…');
   $.prev = el('button', { class: 'rm-nav prev', type: 'button', 'aria-label': 'Previous' }, 'Prev');
   $.nextBtn = el('button', { class: 'rm-nav next', type: 'button', 'aria-label': 'Next' }, 'Next');
-  const top = el('div', { class: 'rm-top' }, [
-    el('div', { class: 'rm-row' }, [$.num, $.step, $.timer]),
-    el('p', { class: 'rm-cur' }, $.title),
-    $.next, $.offline, $.conn,
-    el('details', { class: 'rm-notes' }, [el('summary', {}, 'Notes'), $.notes]),
-    el('div', { class: 'rm-switches' }, [sw('liveEnabled', 'Live'), sw('reactionsEnabled', 'Reactions'), sw('pollsEnabled', 'Polls'), sw('cornerQr', 'Corner QR'), sw('blank', 'Blank')]),
-    $.stats,
-    el('div', { class: 'rm-row' }, [$.stop, $.newRun]),
+  $.head = el('div', { class: 'rm-head' }, [
+    el('div', { class: 'rm-row' }, [$.num, $.timer]),
+    el('p', { class: 'rm-cur' }, [$.title]),
+    $.step,
   ]);
-  document.body.append(el('div', { class: 'rm' }, [top, el('div', { class: 'rm-navs' }, [$.prev, $.nextBtn])]));
+  const top = el('div', { class: 'rm-top' }, [
+    $.next, $.offline, $.conn,
+    el('details', { class: 'rm-notes', open: '' }, [el('summary', {}, 'Notes'), $.notes]),
+    el('div', { class: 'rm-switches' }, [sw('liveEnabled', 'Live'), sw('reactionsEnabled', 'Reactions'), sw('pollsEnabled', 'Polls'), sw('cornerQr', 'Corner'), sw('blank', 'Blank')]),
+    $.stats,
+  ]);
+  document.body.append(el('div', { class: 'rm' }, [$.head, top, el('div', { class: 'rm-stopbar' }, [$.stop, $.newRun]), el('div', { class: 'rm-navs' }, [$.prev, $.nextBtn])]));
 
   // ---------- state ----------
   let pos = null; let votes = null; let unsubVotes = null; let unsubBeat = null; let beat = null; let beatSeen = 0;
@@ -80,10 +82,11 @@ export async function startRemote({ talkId }) {
     if (!pos) return;
     const s = deck.slides[pos.slide];
     const n = deck.slides[pos.slide + 1];
-    $.num.textContent = `${pos.slide + 1}/${deck.count}${pos.ended ? ' · ended' : ''}`;
+    $.num.replaceChildren(String(pos.slide + 1), el('span', { class: 'rm-of' }, `/${deck.count}${pos.ended ? ' · ended' : ''}`));
+    document.body.dataset.accent = ['blue', 'red', 'yellow', 'green'].includes(s.accent) ? s.accent : 'none';
     $.title.textContent = s.title || s.phoneTitle || s.id;
-    $.step.textContent = deck.steps(pos.slide) ? `step ${pos.step}/${deck.steps(pos.slide)}` : '';
-    $.next.textContent = n ? `Next: ${n.title || n.phoneTitle || n.id}` : 'Next: (end → phones show thank-you)';
+    $.step.textContent = deck.steps(pos.slide) ? `build ${pos.step}/${deck.steps(pos.slide)}` : '';
+    $.next.replaceChildren('Next · ', el('b', {}, n ? (n.title || n.phoneTitle || n.id) : 'end → phones show thank-you'));
     if ($.notes.dataset.slide !== String(pos.slide)) { $.notes.innerHTML = s.notes || '<p>—</p>'; $.notes.dataset.slide = String(pos.slide); }
     const pid = deck.pollIdAt(pos.slide);
     if (pid !== $.stats.dataset.poll) {
