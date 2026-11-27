@@ -19,13 +19,15 @@ export function renderDiagram(slot, def, { level = 5, animateFrom = level - 1, t
   root.append(gLoops, gEdges, gNodes, gTags);
   const colorOf = (o) => o.tone || LEVEL_COLOR[o.level] || 'neutral';
   const isNew = (o) => o.level > animateFrom && o.level === level;
+  // build-instructions grammar: earlier layers recede, the layer this slide adds is bright
+  const prior = (o) => !tags && level > 0 && o.level < level;
 
   for (const e of def.edges) {
     if (e.level > level) continue;
     const c = colorOf(e);
     const d = e.pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join(' ');
     const path = svg('path', {
-      d, class: `dg-edge${e.dashed ? ' dashed' : ''}${isNew(e) ? ' enter' : ''}`, stroke: COLORS[c],
+      d, class: `dg-edge${e.dashed ? ' dashed' : ''}${isNew(e) ? ' enter' : ''}${prior(e) ? ' prior' : ''}`, stroke: COLORS[c],
       'marker-end': e.noArrow ? null : `url(#dg-arrow-${c})`, 'marker-start': e.both ? `url(#dg-arrow-${c})` : null,
     });
     gEdges.append(path);
@@ -35,7 +37,7 @@ export function renderDiagram(slot, def, { level = 5, animateFrom = level - 1, t
   for (const n of def.nodes) {
     if (n.level > level) continue;
     const c = colorOf(n);
-    const g = svg('g', { class: `dg-node k-${n.kind || 'box'} c-${c}${isNew(n) ? ' enter' : ''}`, 'data-id': n.id });
+    const g = svg('g', { class: `dg-node k-${n.kind || 'box'} c-${c}${isNew(n) ? ' enter' : ''}${prior(n) ? ' prior' : (n.level === level && level > 0 && !tags ? ' current' : '')}`, 'data-id': n.id });
     const target = n.kind === 'loop' ? gLoops : gNodes;
     if (n.kind === 'loop') {
       g.append(svg('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: 28, class: 'dg-loop', stroke: COLORS[c] }));
