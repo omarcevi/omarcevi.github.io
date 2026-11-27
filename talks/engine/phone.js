@@ -56,9 +56,14 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
   addEventListener('offline', () => setOnline(false));
   addEventListener('online', () => setOnline(true));
 
+  // ?debug: a small log of what this phone receives and draws, to diagnose a real device
+  const DEBUG = new URLSearchParams(location.search).has('debug');
+  const dbgBox = DEBUG ? document.body.appendChild(Object.assign(document.createElement('pre'), { style: 'position:fixed;left:0;right:0;bottom:0;margin:0;max-height:38vh;overflow:auto;font:11px/1.35 monospace;background:#000c;color:#9f9;padding:6px;z-index:99;pointer-events:none' })) : null;
+  const dlog = (m) => { if (!dbgBox) return; const t = new Date(); dbgBox.textContent = `${t.toTimeString().slice(0, 8)}.${String(t.getMilliseconds()).padStart(3, '0')} ${m}\n` + dbgBox.textContent.split('\n').slice(0, 14).join('\n'); };
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { hiddenAt = Date.now(); return; }
+    dlog(`visible after ${hiddenAt ? Date.now() - hiddenAt : 0} ms`);
     if (hiddenAt && Date.now() - hiddenAt > 3000) F.disableNetwork(db).then(() => F.enableNetwork(db)).catch(() => {});
     hiddenAt = 0;
   });
@@ -79,6 +84,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
       setOnline(!s.metadata.fromCache);
       const prevPoll = run?.pollId;
       run = s.data() || null;
+      dlog(`run slide=${run ? run.slide + 1 : '-'} poll=${run?.pollId || '-'} runPoll=${run?.poll ? 'y' : 'n'} cache=${s.metadata.fromCache ? 1 : 0}`);
       if (run?.pollId !== prevPoll) watchPoll(run?.pollId || null);
       render();
     }, () => setOnline(false));
@@ -109,6 +115,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
     if (run?.poll?.question) poll = { id: pollId, question: run.poll.question, labels: run.poll.labels, open: true };
     unsubPoll = F.onSnapshot(F.doc(db, paths.poll(talkId, runId, pollId)), { includeMetadataChanges: true }, (s) => {
       // a cached copy can be stale (open:false from the last time we left this slide): wait for the server
+      dlog(`poll doc open=${s.data()?.open} cache=${s.metadata.fromCache ? 1 : 0}`);
       if (s.metadata.fromCache) return;
       poll = s.exists() ? { id: pollId, ...s.data() } : null; render(true);
     }, () => {});
@@ -132,6 +139,7 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
   function render(force = false) {
     const key = JSON.stringify([runId, run?.slide, run?.accent, run?.step, run?.slideType, run?.pollId, run?.liveEnabled, run?.reactionsEnabled, run?.pollsEnabled, joined, joinFailed, !!code, poll?.open, poll?.question, myVote, failures >= 3]);
     if (key === renderKey && !force) return;
+    dlog(`render slide=${run ? run.slide + 1 : '-'} type=${run?.slideType} poll=${poll ? (poll.open ? 'open' : 'closed') : '-'}`);
     renderKey = key;
     const accent = ['blue', 'red', 'yellow', 'green'].includes(run?.accent) && run?.slideType !== 'ended' ? run.accent : 'none';
     document.body.dataset.accent = accent;
