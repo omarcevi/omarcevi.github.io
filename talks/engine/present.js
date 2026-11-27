@@ -131,7 +131,11 @@ export async function startProjector({ talkId }) {
   live.addEventListener('runchange', () => {
     unsubs.forEach((u) => u()); unsubs = [];
     code = null; drawQr();
-    unsubs.push(live.watchJoined((n) => { joinedEl.textContent = `${n} joined`; }));
+    unsubs.push(live.watchJoined((n) => {
+      joinedEl.textContent = `${n} joined`;
+      window.__joined = n;
+      dispatchEvent(new CustomEvent('live-joined', { detail: n }));
+    }));
     unsubs.push(live.watchReactions((r) => rx.push(r, pos.slide)));
     clearInterval(beatTimer);
     const beat = () => live.beat({ joined: live.joined, r30: rx.recentCount(30000), slide: pos.slide, counts: rx.counts });
