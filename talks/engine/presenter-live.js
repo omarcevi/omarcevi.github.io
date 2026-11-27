@@ -1,7 +1,7 @@
 // Presenter-side live session, shared by the projector and the phone remote.
 // Writes: control (slide/step, private), run doc (what phones see, only on slide change), poll docs.
 import { paths } from './fb.js';
-import { debounce, randomCode, newRunId } from './util.js';
+import { randomCode, newRunId } from './util.js';
 
 export class LiveSession extends EventTarget {
   constructor(fb, deck, role) {
@@ -13,7 +13,12 @@ export class LiveSession extends EventTarget {
     this.lastWritten = null;   // last position written (for poll open/close transitions)
     this.pending = null;
     this.unsubs = []; this.runUnsubs = [];
-    this.flushSoon = debounce(() => this.flush(), 90);
+    // leading edge: a lone press is written at once; a fast burst of presses becomes one trailing write
+    this.flushSoon = () => {
+      if (this.flushTimer) { this.flushQueued = true; return; }
+      this.flush();
+      this.flushTimer = setTimeout(() => { this.flushTimer = null; if (this.flushQueued) { this.flushQueued = false; this.flushSoon(); } }, 90);
+    };
   }
   emit(type, detail) { this.dispatchEvent(new CustomEvent(type, { detail })); }
   ref(p) { return this.fb.F.doc(this.fb.db, p); }
@@ -85,7 +90,12 @@ export class LiveSession extends EventTarget {
     }, { merge: true });
     const prev = this.lastWritten;
     if (!prev || prev.slide !== pos.slide || !!prev.ended !== !!pos.ended) {
-      b.set(this.ref(paths.run(t, r)), { ...this.deck.runFields(pos), by: this.role, updatedAt: F.serverTimestamp() }, { merge: true });
+      const pid = !pos.ended ? this.deck.pollIdAt(pos.slide) : null;
+      const pd = pid ? this.deck.pollDef(pid) : null;
+      b.set(this.ref(paths.run(t, r)), {
+        ...this.deck.runFields(pos), by: this.role, updatedAt: F.serverTimestamp(),
+        poll: pd ? { question: pd.question, labels: pd.labels } : null,
+      }, { merge: true });
       const oldPoll = prev && !prev.ended ? this.deck.pollIdAt(prev.slide) : null;
       const newPoll = !pos.ended ? this.deck.pollIdAt(pos.slide) : null;
       if (oldPoll && oldPoll !== newPoll) b.set(this.ref(paths.poll(t, r, oldPoll)), { open: false }, { merge: true });
