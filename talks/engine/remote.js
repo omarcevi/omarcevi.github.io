@@ -73,7 +73,7 @@ export async function startRemote({ talkId }) {
     const ms = timerStart ? Date.now() - timerStart : 0;
     $.timer.textContent = `${fmtTime(ms)} / ${fmtTime(talkMs)}`;
     $.timer.classList.toggle('over', ms > talkMs);
-    $.offline.hidden = !live.runId || (Date.now() - beatSeen < 35000);
+    $.offline.hidden = !live.runId || (Date.now() - beatSeen < 75000) // background tabs fire timers ~1/min;
   }, 500);
 
   function paint() {
