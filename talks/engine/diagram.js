@@ -41,7 +41,7 @@ export function renderDiagram(slot, def, { level = 5, animateFrom = level - 1, t
     const target = n.kind === 'loop' ? gLoops : gNodes;
     if (n.kind === 'loop') {
       g.append(svg('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: 28, class: 'dg-loop', stroke: COLORS[c] }));
-      g.append(svg('text', { x: n.x + 24, y: n.y + 34, class: 'dg-loop-label', fill: COLORS[c] }, n.label));
+      g.append(svg('text', { x: n.x + (n.icon ? 70 : 24), y: n.y + 34, class: 'dg-loop-label', fill: COLORS[c] }, n.label));
     } else {
       g.append(svg('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: n.kind === 'chip' ? 10 : 16, class: 'dg-box', stroke: COLORS[c], style: `--flash:${COLORS[c]}` }));
       const lines = String(n.label).split('\n');
@@ -53,14 +53,30 @@ export function renderDiagram(slot, def, { level = 5, animateFrom = level - 1, t
       y += 2;
       for (const l of subLines) { g.append(svg('text', { x: n.x + n.w / 2, y: y - 6, class: 'dg-sub', 'text-anchor': 'middle' }, l)); y += slh; }
     }
+    // icon badge on the top-left corner (GDE filled icons, drawn through an alpha mask so they take any color)
+    if (n.icon) {
+      const id = `dg-ic-${n.icon}`;
+      if (!defs.querySelector(`#${id}`)) {
+        defs.append(svg('mask', { id, maskUnits: 'objectBoundingBox', maskContentUnits: 'objectBoundingBox', x: 0, y: 0, width: 1, height: 1, style: 'mask-type:alpha' },
+          svg('image', { href: `/talks/assets/icons/gde/${n.icon}.svg`, x: 0, y: 0, width: 1, height: 1 })));
+      }
+      const bx = n.kind === 'loop' ? n.x + 28 : n.x, by = n.y, r = 26;
+      g.append(svg('circle', { cx: bx, cy: by, r, class: 'dg-badge', fill: COLORS[c] }),
+        svg('rect', { x: bx - 16, y: by - 16, width: 32, height: 32, fill: '#20344b', mask: `url(#${id})` }));
+    }
     target.append(g);
     if (tags && n.level > 0 && !n.noTag) {
-      const tx = n.x + (n.kind === 'loop' ? n.w - 4 : 0), ty = n.y;
+      const tx = n.x + n.w - (n.kind === 'loop' ? 4 : 0), ty = n.y + (n.kind === 'loop' ? 0 : n.h);
       gTags.append(svg('g', { class: 'dg-tag' }, [
         svg('circle', { cx: tx, cy: ty, r: 19, fill: COLORS[c] }),
         svg('text', { x: tx, y: ty + 7, 'text-anchor': 'middle', class: 'dg-tag-n' }, String(n.level)),
       ]));
     }
   }
+  // fit the view to what is visible at this level, so early levels fill the slide instead of a corner
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const n of def.nodes) if (n.level <= level) { x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + n.w); y1 = Math.max(y1, n.y + n.h); }
+  for (const e of def.edges) if (e.level <= level) for (const [x, y] of e.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  if (Number.isFinite(x0)) { const p = 30; root.setAttribute('viewBox', `${x0 - p} ${y0 - p} ${x1 - x0 + 2 * p} ${y1 - y0 + 2 * p}`); }
   slot.replaceChildren(root);
 }

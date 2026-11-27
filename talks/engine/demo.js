@@ -47,7 +47,8 @@ export class DemoPlayer {
     this.msgs = {};
     const beats = this.demo.beats.slice(0, step);
     beats.forEach((b, i) => this.apply(b, animate && i === beats.length - 1, i));
-    // drop a typing indicator that was followed by an assistant message
+    // a caption or late beat can shrink the panel: keep the newest cards visible
+    while (this.panel.children.length > 1 && this.panel.scrollHeight > this.panel.clientHeight + 2) this.panel.firstElementChild.remove();
     this.chat.scrollTop = this.chat.scrollHeight;
   }
 
@@ -116,6 +117,7 @@ export class DemoPlayer {
       if (node.parentElement.closest('mark')) continue;
       const at = node.data.indexOf(phrase);
       if (at < 0) continue;
+      // rubber stamp pressed over the phrase itself (label centered on the word, never on neighbouring lines)
       const mark = el('mark', { class: `stamp${rewrite ? ' rewrite' : ''}${animate ? ' enter' : ''}`, 'data-label': label || '' }, rewrite ? replacement : phrase);
       const rest = node.splitText(at);
       rest.data = rest.data.slice(phrase.length);

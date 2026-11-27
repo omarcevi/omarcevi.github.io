@@ -17,3 +17,19 @@ export function renderMap(def, current, { variant = 'strip' } = {}) {
   });
   return row;
 }
+
+// Five-step indicator: the talk's structure, not the system's components.
+// steps: [{ n, name, color }]  current: 0..5 or 'all'   style: 'bar' (five labeled segments) | 'tiles' (numbered squares + current name)
+export function renderSteps(steps, current, { variant = 'strip', style = 'bar' } = {}) {
+  const all = current === 'all';
+  const row = el('div', { class: `steps steps-${style} steps-${variant}`, role: 'img', 'aria-label': all ? 'The five steps' : `Step ${current} of 5` });
+  for (const s of steps) {
+    const state = all || s.n === current ? 'now' : s.n < current ? 'done' : 'next';
+    const showName = style === 'bar' || state === 'now' || all;
+    row.append(el('span', { class: `step ${state} c-${s.color}` }, [
+      el('b', {}, String(s.n)),
+      showName ? el('span', { class: 'step-name' }, s.name) : null,
+    ]));
+  }
+  return row;
+}
