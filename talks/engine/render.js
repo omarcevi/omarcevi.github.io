@@ -3,7 +3,7 @@
 import { el, qrSvg } from './util.js';
 import { renderDiagram } from './diagram.js';
 import { DemoPlayer } from './demo.js';
-import { renderMap } from './archmap.js';
+import { renderMap, renderSteps } from './archmap.js';
 
 export const STEP_COLORS = { 0: 'none', 1: 'blue', 2: 'red', 3: 'yellow', 4: 'green', 5: 'blue' };
 
@@ -39,11 +39,14 @@ export class SlideView {
     this.node = node;
 
     // architecture map: a slot in the slide (large variants) or the strip across the top of the canvas
-    const mapDef = this.deck.data.settings?.archmap;
-    if (mapDef && s.map != null) {
+    const set = this.deck.data.settings || {};
+    const draw = (variant) => (set.steps
+      ? renderSteps(set.steps, s.map, { variant, style: set.stepStyle || 'bar' })
+      : renderMap(set.archmap, s.map, { variant }));
+    if ((set.steps || set.archmap) && s.map != null) {
       const slots = node.querySelectorAll('[data-archmap]');
-      if (slots.length) slots.forEach((slot) => slot.replaceChildren(renderMap(mapDef, s.map, { variant: slot.dataset.archmap || 'big' })));
-      else { node.classList.add('has-map'); node.prepend(el('div', { class: 'map-strip' }, renderMap(mapDef, s.map))); }
+      if (slots.length) slots.forEach((slot) => slot.replaceChildren(draw(slot.dataset.archmap || 'big')));
+      else { node.classList.add('has-map'); node.prepend(el('div', { class: 'map-strip' }, draw('strip'))); }
     }
     node.querySelectorAll('[data-qr]').forEach((slot) => {
       const which = slot.dataset.qr;
@@ -114,7 +117,7 @@ export class Bars {
       el('div', { class: 'bars-rows' }, this.rows.map((r) => r.row)),
       el('div', { class: 'bars-foot' }, [
         el('p', { class: 'bars-total' }, [this.total, ' votes']),
-        scale ? el('div', { class: 'bars-avg-wrap' }, [el('p', { class: 'label' }, 'avg'), this.avgEl]) : null,
+        scale ? el('div', { class: 'bars-avg-wrap empty' }, [el('p', { class: 'label' }, 'avg'), this.avgEl]) : null,
       ]),
     ]);
   }
@@ -130,6 +133,7 @@ export class Bars {
     this.total.textContent = total;
     this.avg = total ? counts.reduce((a, c, i) => a + c * (i + 1), 0) / total : null;
     this.avgEl.textContent = this.avg == null ? '–' : `${this.avg.toFixed(1)}`;
+    this.avgEl.parentElement?.classList.toggle('empty', this.avg == null);
   }
   reveal(on) { this.node.classList.toggle('concealed', !on); }
 }
