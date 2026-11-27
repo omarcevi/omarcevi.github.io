@@ -22,7 +22,8 @@ export async function unlockDeck(talkId, { deckUrl = '../deck.enc', title = 'Pre
 
   try {
     const s = JSON.parse(sessionStorage.getItem(sessKey(talkId)) || 'null');
-    if (s && (!blob || blob.salt === s.salt)) return s.deck;
+    // same build (IV changes on every build) or offline → reuse the decrypted copy from this tab
+    if (s && (!blob || (blob.iv === s.iv && blob.salt === s.salt))) return s.deck;
   } catch { /* ignore */ }
 
   if (!blob) {
@@ -70,7 +71,7 @@ export async function unlockDeck(talkId, { deckUrl = '../deck.enc', title = 'Pre
 }
 
 function keep(talkId, blob, deck) {
-  try { sessionStorage.setItem(sessKey(talkId), JSON.stringify({ salt: blob.salt, deck })); } catch { /* quota */ }
+  try { sessionStorage.setItem(sessKey(talkId), JSON.stringify({ salt: blob.salt, iv: blob.iv, deck })); } catch { /* quota */ }
   return deck;
 }
 
