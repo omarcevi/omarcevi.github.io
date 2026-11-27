@@ -39,7 +39,10 @@ export async function startPhone({ talkId, talkTitle, footer, publicUrl, linkedi
   let fb;
   try { fb = await loadFirebase(); } catch { pill.hidden = false; setTimeout(() => location.reload(), 8000); return; }
   const { A, F, db, auth } = fb;
-  const user = (await A.signInAnonymously(auth).catch(() => null))?.user;
+  // Reuse an existing login (e.g. the presenter's Google login from /remote/ in the same browser):
+  // signing in anonymously would replace it and silently sign the remote out.
+  const existing = await new Promise((res) => { const off = A.onAuthStateChanged(auth, (u) => { off(); res(u); }); });
+  const user = existing || (await A.signInAnonymously(auth).catch(() => null))?.user;
   if (!user) { pill.hidden = false; setTimeout(() => location.reload(), 8000); return; }
   const uid = user.uid;
 
