@@ -1,0 +1,13 @@
+.nt { max-width: 900px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
+.nt-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.nt-num { font: 400 16px/24px var(--mono); color: var(--halftone-yellow); margin: 0; }
+.nt-timer { font: 400 20px/28px var(--mono); background: var(--surface-raised); border: 0; border-radius: 9999px; padding: 8px 16px; }
+.nt-timer.over { background: var(--red-500); }
+.nt-cur { font: 500 40px/48px var(--sans); margin: 0; }
+.nt-notes { font: 400 26px/38px var(--sans); background: var(--surface-raised); border-radius: 24px; padding: 24px 32px; }
+.nt-notes ul { margin: 0; padding-left: 1.2em; }
+.nt-next { font: 400 20px/28px var(--sans); color: var(--ink-muted); margin: 0; }
+.st-pick { font: inherit; padding: 8px; background: var(--surface-raised); color: var(--ink); border-radius: 8px; border: 1px solid var(--line); }
+.st-table { border-collapse: collapse; width: 100%; font-size: 15px; }
+.st-table th, .st-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+.st-poll h2 { font-size: 20px; margin: 16px 0 4px; }
