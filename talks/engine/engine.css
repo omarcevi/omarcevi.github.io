@@ -691,3 +691,7 @@ button { font: inherit; color: inherit; }
 .pv-main { padding: 150px 88px 72px; }
 .meme-slot.has-img { border: 0; padding: 0; display: flex; align-items: center; justify-content: center; }
 .meme-slot.has-img img { width: 100%; height: 100%; object-fit: contain; }
+/* GDG Istanbul: the official dark-background lockup sits straight on navy, its role underneath */
+.about-row.gdg { flex-direction: column; align-items: flex-start; justify-content: center; gap: 20px; }
+.about-row.gdg .gdg-logo { height: 76px; width: auto; display: block; }
+.about-row.gdg .title { font-size: 52px; line-height: 62px; }
