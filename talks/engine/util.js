@@ -66,3 +66,18 @@ export const fmtTime = (ms) => {
 };
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Slide assets (icons, logos) are fetched once after unlock and kept as blob URLs for the whole talk,
+// so a slide never waits on the network (or on a cache revalidation) when it first appears.
+const assetMap = new Map();
+const ASSET_RE = /\/talks\/assets\/[^"')\s\\]+/g;
+export const assetUrl = (u) => assetMap.get(u) || u;
+export const rewriteAssets = (html) => (assetMap.size ? html.replace(ASSET_RE, (u) => assetUrl(u)) : html);
+export function preloadDeckAssets(data) {
+  const json = JSON.stringify(data);
+  const urls = new Set(json.match(ASSET_RE) || []);
+  for (const m of json.matchAll(/"icon":"([\w-]+)"/g)) urls.add(`/talks/assets/icons/gde/${m[1]}.svg`);
+  return Promise.all([...urls].map(async (u) => {
+    try { const r = await fetch(u); if (r.ok) assetMap.set(u, URL.createObjectURL(await r.blob())); } catch { /* keep the network URL */ }
+  })).then(() => assetMap.size);
+}

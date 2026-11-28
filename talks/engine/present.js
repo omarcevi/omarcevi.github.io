@@ -3,13 +3,15 @@ import { unlockDeck, presenterSignIn } from './unlock.js';
 import { Deck } from './deck.js';
 import { SlideView } from './render.js';
 import { ReactionLayer } from './reactions.js';
-import { el, qrSvg } from './util.js';
+import { el, qrSvg, preloadDeckAssets } from './util.js';
 import { SITE, SHORT_LIVE } from './config.js';
 
 const W = 1920, H = 1080;
 
 export async function startProjector({ talkId }) {
   const deck = new Deck(await unlockDeck(talkId, { title: 'Projector' }));
+  const assetsReady = preloadDeckAssets(deck.data); // icons in memory before their slides come up
+  window.__assetsReady = assetsReady;
   const settings = deck.data.settings || {};
   const bc = 'BroadcastChannel' in window ? new BroadcastChannel(`talk:${talkId}`) : null;
 

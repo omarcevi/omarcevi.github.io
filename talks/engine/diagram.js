@@ -1,6 +1,6 @@
 // Growing architecture diagram. Data (nodes/edges with a `level`) lives in the encrypted deck;
 // this renderer shows everything up to `level` and animates what is new since `animateFrom`.
-import { svg } from './util.js';
+import { svg, assetUrl } from './util.js';
 
 const LEVEL_COLOR = { 0: 'neutral', 1: 'blue', 2: 'red', 3: 'yellow', 4: 'green', 5: 'blue' };
 const COLORS = { neutral: '#c7ccd2', blue: '#57caff', red: '#ff7daf', yellow: '#ffd427', green: '#5cdb6d' };
@@ -58,7 +58,7 @@ export function renderDiagram(slot, def, { level = 5, animateFrom = level - 1, t
       const id = `dg-ic-${n.icon}`;
       if (!defs.querySelector(`#${id}`)) {
         defs.append(svg('mask', { id, maskUnits: 'objectBoundingBox', maskContentUnits: 'objectBoundingBox', x: 0, y: 0, width: 1, height: 1, style: 'mask-type:alpha' },
-          svg('image', { href: `/talks/assets/icons/gde/${n.icon}.svg`, x: 0, y: 0, width: 1, height: 1 })));
+          svg('image', { href: assetUrl(`/talks/assets/icons/gde/${n.icon}.svg`), x: 0, y: 0, width: 1, height: 1 })));
       }
       const bx = n.kind === 'loop' ? n.x + 28 : n.x, by = n.y, r = 26;
       g.append(svg('circle', { cx: bx, cy: by, r, class: 'dg-badge', fill: COLORS[c] }),
