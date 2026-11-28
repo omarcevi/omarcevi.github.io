@@ -1,6 +1,6 @@
 // Slide rendering: builds (data-step), poll/results views, QR slots, diagrams, demos.
 // Slide HTML comes from the decrypted deck (presenter-authored). Nothing from phones is ever rendered as text.
-import { el, qrSvg } from './util.js';
+import { el, qrSvg, rewriteAssets } from './util.js';
 import { renderDiagram } from './diagram.js';
 import { DemoPlayer } from './demo.js';
 import { renderMap, renderSteps } from './archmap.js';
@@ -34,7 +34,7 @@ export class SlideView {
     this.cleanup.forEach((f) => f()); this.cleanup = []; this.poll = null; this.demo = null;
     const s = this.deck.slides[i];
     const node = el('section', { class: `slide type-${s.type} accent-${s.accent || 'none'}`, 'data-id': s.id, 'data-index': i });
-    node.innerHTML = s.html || '';
+    node.innerHTML = rewriteAssets(s.html || '');
     this.host.replaceChildren(node);
     this.node = node;
 
